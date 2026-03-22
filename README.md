@@ -9,7 +9,9 @@
 
 ## What is SSGG?
 
-SSGG was built for photographers who want to share their work in a clean, fast, fully controlled way — without uploading to third-party platforms, paying for hosting, or managing a CMS.
+SSGG started as a personal tool — a way to share photo shoots with clients and friends without surrendering images to a cloud platform, without recurring subscription costs, and without the bloat of a full CMS. Over time it grew into something more polished, and here it is.
+
+The philosophy is simple: **your photos, your server, your rules.** You keep full control of the files, the design, and the URL. Nothing is tracked, nothing expires, nothing breaks when a third-party service changes its terms.
 
 You drop your photos into a folder, run a single command, and get a polished, self-contained gallery folder that you can:
 
@@ -38,6 +40,7 @@ The output is plain HTML + CSS + JavaScript + images. No framework, no database,
 - [File naming convention](#file-naming-convention)
 - [Grid layout](#grid-layout)
 - [Keyboard shortcuts](#keyboard-shortcuts-lightbox)
+- [Slideshow](#slideshow)
 - [Legal notice & templates](#legal-notice)
 - [ZIP download](#zip-download)
 - [Front-end stack](#front-end-stack)
@@ -198,26 +201,32 @@ This file sits at the project root and applies to all galleries. Sensible defaul
 
 ```json
 {
-  "gridSizeSmall":  800,
-  "gridSizeBig":    1400,
-  "gridSizeMobile": 600,
-  "fullSize":       3840,
+  "gridSizeSmall":       800,
+  "gridSizeBig":         1400,
+  "gridSizeMobileSmall": 400,
+  "gridSizeMobileBig":   600,
+  "fullSize":            3840,
   "quality": {
     "grid": 78,
     "full": 90
-  }
+  },
+  "slideEffect": "fade",
+  "slideSpeed":  400
 }
 ```
 
-| Field            | Default | Description |
-|------------------|---------|-------------|
-| `gridSizeSmall`  | `800`   | WebP size (px) for 1×1 grid tiles — covers iPad Pro 13" retina at full resolution |
-| `gridSizeBig`    | `1400`  | WebP size (px) for 2×2 grid tiles — covers iPad Pro 13" retina pixel-perfect |
-| `gridSizeMobile` | `600`   | WebP size (px) for the `img/grid-sm/` mobile variants used in `srcset` — served to phones instead of the full 800/1400 px tiles, reducing bandwidth by ~5× on slow connections |
-| `fullSize`       | `3840`  | Max dimension for the full-resolution WebP shown in the lightbox — covers 4K displays |
-| `quality.grid`   | `78`    | WebP compression quality for thumbnails (0–100). 78 is visually identical to 85 at these sizes, ~25% lighter. |
-| `quality.full`   | `90`    | WebP compression quality for lightbox images (0–100) |
-| `preloadCount`   | `6`     | Number of grid thumbnails preloaded in `<head>` via `<link rel="preload">` for fastest LCP |
+| Field                  | Default  | Description |
+|------------------------|----------|-------------|
+| `gridSizeSmall`        | `800`    | WebP width (px) for 1×1 grid tiles — covers iPad Pro 13" retina at full resolution |
+| `gridSizeBig`          | `1400`   | WebP width (px) for 2×2 grid tiles — covers iPad Pro 13" retina pixel-perfect |
+| `gridSizeMobileSmall`  | `400`    | WebP width (px) for the `img/grid-sm/` mobile variant of 1×1 tiles — served via `srcset` to phones, cutting ~70% of bandwidth on slow connections |
+| `gridSizeMobileBig`    | `600`    | WebP width (px) for the `img/grid-sm/` mobile variant of 2×2 tiles |
+| `fullSize`             | `3840`   | Max dimension for the full-resolution WebP shown in the lightbox — covers 4K displays |
+| `quality.grid`         | `78`     | WebP compression quality for thumbnails (0–100). 78 is visually identical to 85 at these sizes, ~25% lighter. |
+| `quality.full`         | `90`     | WebP compression quality for lightbox images (0–100) |
+| `preloadCount`         | `6`      | Number of grid thumbnails preloaded in `<head>` via `<link rel="preload">` for fastest LCP |
+| `slideEffect`          | `"fade"` | Lightbox transition animation: `slide`, `fade`, `zoom`, or `none` |
+| `slideSpeed`           | `400`    | Transition duration in milliseconds (50–2000) |
 
 > **Changing grid sizes requires `--force`** to reconvert existing images: `node build/index.js my-gallery --force`
 
@@ -453,6 +462,22 @@ The pattern repeats every 12 photos. Galleries with fewer than 12 photos show a 
 
 ---
 
+## Slideshow
+
+Press the **▶** button in the lightbox toolbar (or the **⏸** overlay button while playing) to start and pause the slideshow. While running:
+
+- The gallery **automatically advances** at the interval set by `slideshowInterval` (per-gallery) — you can also change it live with the interval selector in the toolbar (2 s / 3 s / 5 s / 8 s / 10 s)
+- The lightbox **enters fullscreen** automatically
+- The slideshow **loops back** to the first photo after the last one
+- **Swipe left/right** on touch devices jumps to the next/previous photo and resets the countdown
+- **Controls auto-hide** after 2.5 seconds of inactivity (cursor, overlay buttons, title) — move the mouse or tap to reveal them again
+
+The transition style (`fade` by default) and speed can be changed globally in `build.config.json` via `slideEffect` and `slideSpeed`.
+
+> **iOS note:** The Fullscreen API is not available in iOS Safari. Add the gallery to your Home Screen ("Add to Home Screen" in the share sheet) for a fullscreen-like PWA experience — `apple-mobile-web-app-capable` is already set.
+
+---
+
 ## Legal notice
 
 Each gallery includes a **Legal notice** link in the footer that opens a popup with a copyright notice. The notice is designed around **Swiss copyright law (CopA / LDA / URG)** but the templates are fully customisable.
@@ -550,6 +575,8 @@ npm run setup:example   # generate sample photos
 npm run build:all       # build the example gallery
 npm run serve           # open http://localhost:3000 to preview
 ```
+
+If you use SSGG for a project — commercial or personal — a mention or a link back is always appreciated, though never required. And if something doesn't work the way you expect, open an issue. Feedback from real-world use is how this tool gets better.
 
 ---
 
