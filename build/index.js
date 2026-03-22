@@ -900,7 +900,21 @@ body.glightbox-open #gl-fs-btn{display:inline-flex}
   border-color:rgba(200,169,110,.35);
   color:var(--accent)
 }
-@media(max-width:480px){#slideshow-btn .sw-label{display:none}}
+/* Slideshow pause/resume button inside the lightbox overlay */
+#gl-sw-btn{
+  position:fixed;z-index:1000000;
+  top:70px;right:60px;
+  width:36px;height:36px;
+  display:none;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.5);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border:1px solid rgba(200,169,110,.35);
+  border-radius:6px;
+  color:var(--accent);
+  cursor:pointer;
+  transition:background .15s,color .15s
+}
+#gl-sw-btn:hover{background:rgba(200,169,110,.15)}
 
 /* Slideshow progress bar (bottom of viewport) */
 #slideshow-progress{
@@ -1099,7 +1113,6 @@ body.glightbox-open:hover #gl-title{opacity:1}
       <svg id="sw-icon" width="13" height="13" viewBox="0 0 16 16" fill="currentColor" stroke="none">
         <polygon points="3,1 15,8 3,15"/>
       </svg>
-      <span class="sw-label">Slideshow</span>
     </button>
     <button id="dl-all-btn" title="Télécharger tous les originaux">
       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
@@ -1140,6 +1153,11 @@ body.glightbox-open:hover #gl-title{opacity:1}
 </div>
 
 <!-- Lightbox overlays (visibility driven by CSS / JS) -->
+<button id="gl-sw-btn" title="Pause slideshow" aria-label="Pause slideshow">
+  <svg id="gl-sw-icon" width="13" height="13" viewBox="0 0 16 16" fill="currentColor" stroke="none">
+    <rect x="2" y="1" width="4" height="14"/><rect x="10" y="1" width="4" height="14"/>
+  </svg>
+</button>
 <button id="gl-fs-btn" title="Fullscreen" aria-label="Fullscreen">
   <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
     <path d="M1 6V2h4M10 2h4v4M15 10v4h-4M6 14H2v-4"/>
@@ -1315,7 +1333,7 @@ const lb = GLightbox({
   keyboardNavigation: true,
   zoomable:        false,
   draggable:       true,
-  loop:            false,
+  loop:            true,
   skin:            'clean',
   descPosition:    'bottom',
   openEffect:      'fade',
@@ -1480,6 +1498,8 @@ function hideExif() {
 const SW_INTERVAL  = (PROJECT.slideshowInterval || 5) * 1000;
 const swBtn        = document.getElementById('slideshow-btn');
 const swIcon       = document.getElementById('sw-icon');
+const glSwBtn      = document.getElementById('gl-sw-btn');
+const glSwIcon     = document.getElementById('gl-sw-icon');
 const swProgress   = document.getElementById('slideshow-progress');
 let   swActive     = false;
 let   swTimer      = null;
@@ -1489,11 +1509,21 @@ const SW_ICON_PLAY  = \`<polygon points="3,1 15,8 3,15"/>\`;
 const SW_ICON_PAUSE = \`<rect x="2" y="1" width="4" height="14"/><rect x="10" y="1" width="4" height="14"/>\`;
 
 function swSetIcon(playing) {
+  // Toolbar button
   swIcon.innerHTML = playing ? SW_ICON_PAUSE : SW_ICON_PLAY;
   swBtn.classList.toggle('active', playing);
   swBtn.title = playing ? 'Pause slideshow' : 'Start slideshow';
   swBtn.setAttribute('aria-label', swBtn.title);
+  // Lightbox overlay button — visible only while slideshow is running
+  glSwIcon.innerHTML = playing ? SW_ICON_PAUSE : SW_ICON_PLAY;
+  glSwBtn.style.display = playing ? 'flex' : 'none';
+  glSwBtn.title = playing ? 'Pause slideshow' : 'Resume slideshow';
+  glSwBtn.setAttribute('aria-label', glSwBtn.title);
 }
+
+glSwBtn.addEventListener('click', () => {
+  if (swActive) swPause(); else swStart(lb.getActiveSlideIndex());
+});
 
 function swProgressStart() {
   swProgress.style.display = 'block';
