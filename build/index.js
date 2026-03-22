@@ -1462,6 +1462,7 @@ if (!CAN_DL_GALLERY) document.getElementById('dl-all-btn')?.remove();
 /* ── Per-photo download (Web Share API on iOS → Photos; fallback to <a> download) */
 if (CAN_DL_IMAGE && dlBtn) {
   dlBtn.addEventListener('click', async () => {
+    dlBtn.blur();
     // Web Share API with files — supported on iOS 15+ / Safari 15+ / Android Chrome.
     // On iOS this opens the native share sheet which offers "Save to Photos".
     if (navigator.share && navigator.canShare) {
@@ -1489,6 +1490,7 @@ if (fsBtn) {
     fsBtn.remove();   // API not available — drop the button from the DOM
   } else {
     fsBtn.addEventListener('click', () => {
+      fsBtn.blur();
       if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen();
         fsBtn.setAttribute('title', 'Exit fullscreen');
@@ -1558,6 +1560,7 @@ function swSetIcon(playing) {
 }
 
 glSwBtn.addEventListener('click', () => {
+  glSwBtn.blur();
   if (swActive) swPause(); else swStart(lb.getActiveSlideIndex());
 });
 
@@ -1625,14 +1628,19 @@ swBtn.addEventListener('click', () => {
 });
 
 /* ── GLightbox event handlers ────────────────────────── */
+// Overlay buttons live outside the GLightbox dialog; GLightbox sets
+// aria-hidden="true" on them when the lightbox opens or navigates.
+// If any of these buttons has focus at that moment the browser logs an
+// accessibility warning.  blurOverlays() is called before every such event
+// AND on each button's own click handler so focus is never retained.
+const OVERLAY_BTNS = [glSwBtn, fsBtn, dlBtn, infoBtn].filter(Boolean);
+function blurOverlays() {
+  OVERLAY_BTNS.forEach(b => { if (document.activeElement === b) b.blur(); });
+}
+
 lb.on('open', () => {
   lbOpen = true;
-  // GLightbox sets aria-hidden="true" on everything outside its modal.
-  // If one of our overlay buttons has focus, the browser blocks that and
-  // logs an accessibility warning. Blur before GLightbox applies aria-hidden.
-  if (document.activeElement && document.activeElement !== document.body) {
-    document.activeElement.blur();
-  }
+  blurOverlays();
   buildThumbs();
   const idx = lb.getActiveSlideIndex();
   document.getElementById('gl-thumbs').style.display = 'block';
@@ -1644,6 +1652,7 @@ lb.on('open', () => {
 });
 
 lb.on('slide_changed', ({ current }) => {
+  blurOverlays();
   const idx = current.index;
   syncOverlays(idx);
   syncThumb(idx);
@@ -1663,6 +1672,7 @@ lb.on('close', () => {
 
 /* (i) button toggles the EXIF overlay for the currently displayed photo */
 infoBtn.addEventListener('click', () => {
+  infoBtn.blur();
   if (exifOpen) hideExif();
   else showExif(lb.getActiveSlideIndex());
 });
