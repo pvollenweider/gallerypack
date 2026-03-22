@@ -692,6 +692,7 @@ function buildHTML(cfg, photos, fontCss = '', standalone = false, customLegal = 
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>${escHtml(project.title)}</title>
@@ -881,6 +882,22 @@ body.glightbox-open #gl-info-btn{display:flex}
 #gl-fs-btn:hover{background:rgba(255,255,255,.15);color:#fff}
 body.glightbox-open #gl-fs-btn{display:inline-flex}
 
+/* Slideshow interval selector */
+#sw-interval{
+  height:32px;padding:0 6px;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:6px;
+  color:rgba(255,255,255,.55);
+  font-size:11px;font-family:'Poppins',sans-serif;
+  cursor:pointer;
+  appearance:none;-webkit-appearance:none;
+  text-align:center;
+  transition:background .15s,color .15s,opacity .4s
+}
+#sw-interval:hover{background:rgba(255,255,255,.1);color:#fff}
+#sw-interval option{background:#2a2520;color:#e8e4dd}
+
 /* Slideshow button (toolbar) */
 #slideshow-btn{
   display:flex;align-items:center;gap:6px;
@@ -891,7 +908,7 @@ body.glightbox-open #gl-fs-btn{display:inline-flex}
   color:rgba(255,255,255,.65);
   font-size:11px;font-family:'Poppins',sans-serif;font-weight:500;
   cursor:pointer;
-  transition:background .15s,color .15s;
+  transition:background .15s,color .15s,opacity .4s;
   white-space:nowrap
 }
 #slideshow-btn:hover{background:rgba(255,255,255,.12);color:#fff}
@@ -1037,6 +1054,8 @@ body.sw-idle #gl-dl-btn,
 body.sw-idle #gl-info-btn,
 body.sw-idle #gl-title,
 body.sw-idle #gl-thumbs,
+body.sw-idle #sw-interval,
+body.sw-idle #slideshow-btn,
 body.sw-idle .gnext,
 body.sw-idle .gprev{opacity:0 !important;pointer-events:none !important}
 body.sw-idle.glightbox-open{cursor:none}
@@ -1116,6 +1135,12 @@ body.sw-idle.glightbox-open{cursor:none}
   </div>
   <div class="bar-right">
     <span class="bar-count" id="bCount"></span>
+    <select id="sw-interval" title="Slideshow interval" aria-label="Slideshow interval">
+${[2,3,5,8,10].map(s => {
+  const def = project.slideshowInterval || 5;
+  return `      <option value="${s}"${s === def ? ' selected' : ''}>${s}s</option>`;
+}).join('\n')}
+    </select>
     <button id="slideshow-btn" title="Start slideshow" aria-label="Start slideshow">
       <svg id="sw-icon" width="13" height="13" viewBox="0 0 16 16" fill="currentColor" stroke="none">
         <polygon points="3,1 15,8 3,15"/>
@@ -1502,9 +1527,11 @@ function hideExif() {
 }
 
 /* ── Slideshow ───────────────────────────────────────── */
-const SW_INTERVAL   = (PROJECT.slideshowInterval || 5) * 1000;
-const SW_IDLE_DELAY = 2500;   // ms of inactivity before hiding controls
-const swBtn         = document.getElementById('slideshow-btn');
+const SW_IDLE_DELAY  = 2500;   // ms of inactivity before hiding controls
+const swBtn          = document.getElementById('slideshow-btn');
+const swIntervalSel  = document.getElementById('sw-interval');
+// Interval is read live from the selector so the user can change it mid-show.
+const swGetInterval  = () => (parseInt(swIntervalSel.value, 10) || 5) * 1000;
 const swIcon       = document.getElementById('sw-icon');
 const glSwBtn      = document.getElementById('gl-sw-btn');
 const glSwIcon     = document.getElementById('gl-sw-icon');
@@ -1562,7 +1589,7 @@ function swScheduleNext() {
     const idx = lb.getActiveSlideIndex();
     if (idx >= PHOTOS.length - 1) { lb.openAt(0); } else { lb.nextSlide(); }
     // slide_changed event will call swScheduleNext() to keep the chain going.
-  }, SW_INTERVAL);
+  }, swGetInterval());
 }
 
 function swStart(startIdx) {
