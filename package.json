@@ -1,0 +1,23 @@
+{
+  "name": "photo-gallery",
+  "version": "1.0.0",
+  "description": "Static photo gallery builder",
+  "scripts": {
+    "new-gallery": "node build/create-gallery.js",
+    "new-gallery:wizard": "node build/create-gallery.js --wizard",
+    "build": "node build/index.js",
+    "build:force": "node build/index.js --force",
+    "build:all": "node build/index.js --all",
+    "build:clean": "rm -rf dist && node build/index.js --all",
+    "clean": "rm -rf dist",
+    "setup:example": "node build/generate-samples.js",
+    "setup:example:force": "node build/generate-samples.js --force",
+    "serve": "node build/serve.js"
+  },
+  "dependencies": {
+    "exifr": "^7.1.3",
+    "piexifjs": "^1.0.6",
+    "sharp": "^0.33.4"
+  },
+  "type": "module"
+}
