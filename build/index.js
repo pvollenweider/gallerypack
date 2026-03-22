@@ -1344,7 +1344,7 @@ async function buildThumbs() {
     img.alt    = '';
     img.loading= 'lazy';
     item.appendChild(img);
-    item.addEventListener('click', () => lb.goTo(i));
+    item.addEventListener('click', () => lb.openAt(i));
     inner.appendChild(item);
   });
 
@@ -1507,7 +1507,7 @@ function swScheduleNext() {
   swTimer = setTimeout(() => {
     if (!swActive) return;
     const idx = lb.getActiveSlideIndex();
-    lb.goTo(idx >= PHOTOS.length - 1 ? 0 : idx + 1);
+    if (idx >= PHOTOS.length - 1) { lb.openAt(0); } else { lb.nextSlide(); }
     // slide_changed event will call swScheduleNext() to keep the chain going.
   }, SW_INTERVAL);
 }
