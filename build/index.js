@@ -916,14 +916,6 @@ body.glightbox-open #gl-fs-btn{display:inline-flex}
 }
 #gl-sw-btn:hover{background:rgba(200,169,110,.15)}
 
-/* Slideshow progress bar (bottom of viewport) */
-#slideshow-progress{
-  position:fixed;bottom:0;left:0;z-index:9999999;
-  height:3px;width:0%;
-  background:var(--accent);
-  display:none;pointer-events:none;
-  transition:none
-}
 
 /* Per-photo download button (lightbox overlay, bottom-right) */
 #gl-dl-btn{
@@ -1122,7 +1114,7 @@ body.glightbox-open:hover #gl-title{opacity:1}
     </button>
   </div>
 </div>
-<div id="slideshow-progress"></div>
+
 
 <main class="wrap">
   <div class="grid" id="grid"></div>
@@ -1500,7 +1492,7 @@ const swBtn        = document.getElementById('slideshow-btn');
 const swIcon       = document.getElementById('sw-icon');
 const glSwBtn      = document.getElementById('gl-sw-btn');
 const glSwIcon     = document.getElementById('gl-sw-icon');
-const swProgress   = document.getElementById('slideshow-progress');
+
 let   swActive     = false;
 let   swTimer      = null;
 let   lbOpen       = false;
@@ -1525,25 +1517,8 @@ glSwBtn.addEventListener('click', () => {
   if (swActive) swPause(); else swStart(lb.getActiveSlideIndex());
 });
 
-function swProgressStart() {
-  swProgress.style.display = 'block';
-  swProgress.style.transition = 'none';
-  swProgress.style.width = '0%';
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    swProgress.style.transition = \`width \${SW_INTERVAL}ms linear\`;
-    swProgress.style.width = '100%';
-  }));
-}
-
-function swProgressStop() {
-  swProgress.style.transition = 'none';
-  swProgress.style.width = '0%';
-  swProgress.style.display = 'none';
-}
-
 function swScheduleNext() {
   clearTimeout(swTimer);
-  swProgressStart();
   swTimer = setTimeout(() => {
     if (!swActive) return;
     const idx = lb.getActiveSlideIndex();
@@ -1567,7 +1542,6 @@ function swPause() {
   swActive = false;
   clearTimeout(swTimer);
   swTimer = null;
-  swProgressStop();
   swSetIcon(false);
 }
 
