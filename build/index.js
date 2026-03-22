@@ -25,6 +25,9 @@ import crypto from 'crypto';
 
 // ── Third-party dependencies ──────────────────────────────────────────────────
 import sharp from 'sharp';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const piexif  = require('piexifjs');
 
 // ── Local modules ─────────────────────────────────────────────────────────────
 import { extractExif } from './exif.js';
@@ -289,7 +292,7 @@ async function downloadFonts() {
       try { await download(urlM[1], dest); ok(fname); }
       catch (e) { warn(`${fname}: ${e.message}`); continue; }
     }
-    localFaces.push(`@font-face{font-family:'Poppins';font-style:${style};font-weight:${weight};font-display:swap;src:url('../fonts/${fname}') format('woff2')}`);
+    localFaces.push(`@font-face{font-family:'Poppins';font-style:${style};font-weight:${weight};font-display:optional;src:url('../fonts/${fname}') format('woff2')}`);
   }
   return localFaces.join('\n');
 }
@@ -438,14 +441,15 @@ async function computeIsDark(gridPath, gridSize) {
 async function convertOne(photo, cfg, idx, cachedIsDark = null, paths) {
   const name     = buildName(cfg, idx);
   const isBig    = BIG_POSITIONS.has(idx % 12);   // big tile → larger thumbnail
-  const gridOut  = path.join(paths.distImg, 'grid', `${name}.webp`);
-  const fullOut  = path.join(paths.distImg, 'full', `${name}.webp`);
-  const origOut  = path.join(paths.distOri, `${name}.jpg`);
-  const { gridSizeSmall, gridSizeBig, fullSize, quality } = cfg.build;
+  const gridOut   = path.join(paths.distImg, 'grid',    `${name}.webp`);
+  const gridSmOut = path.join(paths.distImg, 'grid-sm', `${name}.webp`);
+  const fullOut   = path.join(paths.distImg, 'full',    `${name}.webp`);
+  const origOut   = path.join(paths.distOri, `${name}.jpg`);
+  const { gridSizeSmall, gridSizeBig, gridSizeMobile = 600, fullSize, quality } = cfg.build;
   const gridSize = isBig ? gridSizeBig : gridSizeSmall;
 
   // Skip conversion if all outputs exist and --force was not requested.
-  if (!FORCE && fs.existsSync(gridOut) && fs.existsSync(fullOut) && fs.existsSync(origOut)) {
+  if (!FORCE && fs.existsSync(gridOut) && fs.existsSync(gridSmOut) && fs.existsSync(fullOut) && fs.existsSync(origOut)) {
     ok(`${name} (skip)`);
     // Reuse cached isDark when available; fall back to computing it from disk.
     const [meta, isDark] = await Promise.all([
@@ -465,6 +469,14 @@ async function convertOne(photo, cfg, idx, cachedIsDark = null, paths) {
     .toFile(gridOut);
   ok(`grid  ${gridSize}×${gridSize}`);
 
+  // Mobile grid thumbnail: same crop, smaller dimensions for srcset.
+  await sharp(photo.full)
+    .rotate()
+    .resize(gridSizeMobile, gridSizeMobile, { fit: 'cover', position: 'centre' })
+    .webp({ quality: quality.grid })
+    .toFile(gridSmOut);
+  ok(`grid-sm  ${gridSizeMobile}×${gridSizeMobile}`);
+
   // Full-size WebP: fit inside fullSize×fullSize, never enlarge smaller originals.
   await sharp(photo.full)
     .rotate()
@@ -481,6 +493,17 @@ async function convertOne(photo, cfg, idx, cachedIsDark = null, paths) {
     await sharp(photo.full).rotate().jpeg({ quality: 95 }).toFile(origOut);
   }
   ok(`orig  → originals/${name}.jpg`);
+
+  // Embed the original source filename in the JPEG EXIF (DocumentName field).
+  try {
+    const buf  = fs.readFileSync(origOut);
+    const str  = buf.toString('binary');
+    let   exifData = {};
+    try { exifData = piexif.load(str); } catch (_) {}
+    if (!exifData['0th']) exifData['0th'] = {};
+    exifData['0th'][piexif.ImageIFD.DocumentName] = photo.file;
+    fs.writeFileSync(origOut, Buffer.from(piexif.insert(piexif.dump(exifData), str), 'binary'));
+  } catch (_) {}
 
   // Read final dimensions and brightness in parallel after conversion.
   const [meta, isDark] = await Promise.all([
@@ -533,14 +556,21 @@ async function processPhotos(photos, cfg, paths) {
         convertOne(photo, cfg, i, cachedDark, paths),
         cachedExif ? Promise.resolve(cachedExif) : extractExif(photo.full),
       ]);
+      // Attach source filename and file size (human-readable) to the EXIF record.
+      const srcBytes   = fs.statSync(photo.full).size;
+      const srcSizeMB  = srcBytes / (1024 * 1024);
+      const fileSizeStr = srcSizeMB >= 1
+        ? srcSizeMB.toFixed(1) + ' MB'
+        : Math.round(srcBytes / 1024) + ' KB';
+      const exifFull = { ...(exif || {}), originalFile: photo.file, fileSize: fileSizeStr };
       manifest.photos[photo.file] = {
         name:   dims.name,
         index:  i + 1,
         role:   BIG_POSITIONS.has(i % 12) ? 'big' : 'small',
         isDark: dims.isDark,
-        exif:   exif || {},
+        exif:   exifFull,
       };
-      results.push({ ...dims, exif: exif || {} });
+      results.push({ ...dims, exif: exifFull });
     } catch (e) {
       fail(`Erreur sur ${photo.file} : ${e.message}`);
     }
@@ -627,29 +657,47 @@ function buildHTML(cfg, photos, fontCss = '', standalone = false, customLegal = 
   if (customLegal.html) projectWithLegal.legalHtml = customLegal.html;
   if (customLegal.txt)  projectWithLegal.legalTxt  = customLegal.txt;
 
-  const photosJson  = JSON.stringify(photos.map(p => ({ name: p.name, isDark: p.isDark, exif: p.exif })));
+  const photosJson  = JSON.stringify(photos.map((p, i) => ({ name: p.name, role: BIG_POSITIONS.has(i % 12) ? 'big' : 'small', isDark: p.isDark, exif: p.exif })));
   const projectJson = JSON.stringify(projectWithLegal);
 
+  // Preload links for the first N grid thumbnails — browser fetches them
+  // immediately during HTML parsing, before any JS executes (best LCP).
+  // imagesrcset/imagesizes mirror the srcset/sizes on the <img> so browsers
+  // select the right source during preload (mobile gets grid-sm, desktop gets grid).
+  const PRELOAD_COUNT = (cfg.build && cfg.build.preloadCount) || 6;
+  const preloadLinks = photos.slice(0, PRELOAD_COUNT).map((p, i) => {
+    const isBig    = BIG_POSITIONS.has(i % 12);
+    const deskSz   = isBig ? 1400 : 800;
+    const srcset   = `img/grid-sm/${p.name}.webp 600w, img/grid/${p.name}.webp ${deskSz}w`;
+    const sizes    = isBig ? '(max-width: 767px) 66vw, 1400px' : '(max-width: 767px) 33vw, 800px';
+    const priority = i === 0 ? ' fetchpriority="high"' : '';
+    return `<link rel="preload" as="image" href="img/grid/${p.name}.webp" imagesrcset="${srcset}" imagesizes="${sizes}"${priority}>`;
+  }).join('\n');
+
+  const htmlLang = (project.locale || 'en').slice(0, 2).toLowerCase();
   const html = `<!DOCTYPE html>
-<html lang="en">
+<html lang="${htmlLang}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>${escHtml(project.title)}</title>
+${project.description ? `<meta name="description" content="${escHtml(project.description)}">` : ''}
 <script>const _p=location.pathname;const _s=_p.slice(_p.lastIndexOf('/')+1);if(!_p.endsWith('/')&&_s.indexOf('.')<0)location.replace(_p+'/'+location.search+location.hash)</script>
-<link rel="stylesheet" href="${vp}glightbox.min.css">
-<link rel="stylesheet" href="${vp}tiny-slider.css">
+${preloadLinks}
+<link rel="preload" as="style" href="${vp}glightbox.min.css" onload="this.rel='stylesheet'">
+<link rel="preload" as="style" href="${vp}tiny-slider.css" onload="this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="${vp}glightbox.min.css"><link rel="stylesheet" href="${vp}tiny-slider.css"></noscript>
 <style>
 ${fontCss}
 /* ── Reset ──────────────────────────────────────────── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 
 :root{
-  --bg:#000;
+  --bg:#1c1c1c;
   --ink:#e8e4dd;
   --muted:#706860;
   --accent:#c8a96e;
-  --gap:2px;
+  --gap:4px;
   --bar:56px;
 }
 
@@ -713,16 +761,21 @@ html,body{height:100%;background:var(--bg);color:var(--ink);overscroll-behavior:
 .tile:hover img{transform:scale(1.04)}
 .tile:active img{transform:scale(.97)}
 
-/* Skeleton shimmer */
+/* Skeleton shimmer — GPU-composited via transform (no background-position) */
 .tile::before{
   content:'';position:absolute;inset:0;z-index:1;
-  background:linear-gradient(110deg,#111 30%,#1e1e1e 50%,#111 70%);
-  background-size:200% 100%;
-  animation:shim 1.6s infinite;
+  background:#111;
   transition:opacity .3s
 }
-.tile.ready::before{opacity:0;pointer-events:none}
-@keyframes shim{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.tile::after{
+  content:'';position:absolute;inset:0;z-index:2;
+  background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.06) 50%,transparent 100%);
+  transform:translateX(-100%);
+  animation:shim 1.6s infinite;
+  transition:opacity .3s;pointer-events:none
+}
+.tile.ready::before,.tile.ready::after{opacity:0;pointer-events:none}
+@keyframes shim{to{transform:translateX(200%)}}
 
 /* Index numérique au survol */
 .tile-n{
@@ -1038,19 +1091,17 @@ body.glightbox-open:hover #gl-title{opacity:1}
     <path d="M1 6V2h4M10 2h4v4M15 10v4h-4M6 14H2v-4"/>
   </svg>
 </button>
-<a id="gl-dl-btn" download>
+<button id="gl-dl-btn" title="Download photo" aria-label="Download photo">
   <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
     <path d="M8 2v8M5 7l3 3 3-3M2 12v1a1 1 0 001 1h10a1 1 0 001-1v-1"/>
   </svg>
-</a>
+</button>
 <button id="gl-info-btn" title="EXIF Metadata"><i>i</i></button>
 <div id="gl-exif-overlay" style="display:none">
   <div id="gl-exif-inner"></div>
 </div>
 
 <script src="${vp}glightbox.min.js"></script>
-<script src="${vp}tiny-slider.js"></script>
-<script src="${vp}jszip.min.js"></script>
 <script src="data.js"></script>
 <script src="gallery.js"></script>
 </body>
@@ -1073,14 +1124,14 @@ document.getElementById('bCount').textContent = PHOTOS.length + ' photo' + (PHOT
 
 /* ── EXIF localisation strings ──────────────────────── */
 const EXIF_I18N = {
-  fr:{ label:'Métadonnées', camera:'Appareil',    lens:'Objectif',   date:'Date',     shutter:'Vitesse',   aperture:'Ouverture', iso:'Sensibilité', focal:'Focale',      focal35:'Éq. 35mm',    width:'Largeur px',  height:'Hauteur px',  copyright:'Copyright', noData:'Aucune donnée EXIF' },
-  en:{ label:'Metadata',    camera:'Camera',      lens:'Lens',       date:'Date',     shutter:'Shutter',   aperture:'Aperture',  iso:'ISO',         focal:'Focal',       focal35:'35mm equiv.',  width:'Width px',    height:'Height px',   copyright:'Copyright', noData:'No EXIF data' },
-  de:{ label:'Metadaten',   camera:'Kamera',      lens:'Objektiv',   date:'Datum',    shutter:'Belichtung',aperture:'Blende',    iso:'ISO',         focal:'Brennweite',  focal35:'KB-Äquiv.',    width:'Breite px',   height:'Höhe px',     copyright:'Copyright', noData:'Keine EXIF-Daten' },
-  es:{ label:'Metadatos',   camera:'Cámara',      lens:'Objetivo',   date:'Fecha',    shutter:'Velocidad', aperture:'Apertura',  iso:'ISO',         focal:'Focal',       focal35:'Equiv. 35mm',  width:'Anchura px',  height:'Altura px',   copyright:'Copyright', noData:'Sin datos EXIF' },
-  it:{ label:'Metadati',    camera:'Fotocamera',  lens:'Obiettivo',  date:'Data',     shutter:'Otturatore',aperture:'Apertura',  iso:'ISO',         focal:'Focale',      focal35:'Equiv. 35mm',  width:'Larghezza px',height:'Altezza px',  copyright:'Copyright', noData:'Nessun dato EXIF' },
-  pt:{ label:'Metadados',   camera:'Câmera',      lens:'Lente',      date:'Data',     shutter:'Velocidade',aperture:'Abertura',  iso:'ISO',         focal:'Focal',       focal35:'Equiv. 35mm',  width:'Largura px',  height:'Altura px',   copyright:'Copyright', noData:'Sem dados EXIF' },
+  fr:{ label:'Métadonnées', camera:'Appareil',    lens:'Objectif',   date:'Date',     shutter:'Vitesse',   aperture:'Ouverture', iso:'Sensibilité', focal:'Focale',      focal35:'Éq. 35mm',    width:'Largeur px',  height:'Hauteur px',  fileSize:'Taille fichier', copyright:'Copyright', originalFile:'Fichier source', noData:'Aucune donnée EXIF' },
+  en:{ label:'Metadata',    camera:'Camera',      lens:'Lens',       date:'Date',     shutter:'Shutter',   aperture:'Aperture',  iso:'ISO',         focal:'Focal',       focal35:'35mm equiv.',  width:'Width px',    height:'Height px',   fileSize:'File size',      copyright:'Copyright', originalFile:'Source file',    noData:'No EXIF data' },
+  de:{ label:'Metadaten',   camera:'Kamera',      lens:'Objektiv',   date:'Datum',    shutter:'Belichtung',aperture:'Blende',    iso:'ISO',         focal:'Brennweite',  focal35:'KB-Äquiv.',    width:'Breite px',   height:'Höhe px',     fileSize:'Dateigrösse',    copyright:'Copyright', originalFile:'Quelldatei',     noData:'Keine EXIF-Daten' },
+  es:{ label:'Metadatos',   camera:'Cámara',      lens:'Objetivo',   date:'Fecha',    shutter:'Velocidad', aperture:'Apertura',  iso:'ISO',         focal:'Focal',       focal35:'Equiv. 35mm',  width:'Anchura px',  height:'Altura px',   fileSize:'Tamaño archivo', copyright:'Copyright', originalFile:'Archivo origen', noData:'Sin datos EXIF' },
+  it:{ label:'Metadati',    camera:'Fotocamera',  lens:'Obiettivo',  date:'Data',     shutter:'Otturatore',aperture:'Apertura',  iso:'ISO',         focal:'Focale',      focal35:'Equiv. 35mm',  width:'Larghezza px',height:'Altezza px',  fileSize:'Dimensione',     copyright:'Copyright', originalFile:'File sorgente',  noData:'Nessun dato EXIF' },
+  pt:{ label:'Metadados',   camera:'Câmera',      lens:'Lente',      date:'Data',     shutter:'Velocidade',aperture:'Abertura',  iso:'ISO',         focal:'Focal',       focal35:'Equiv. 35mm',  width:'Largura px',  height:'Altura px',   fileSize:'Tamanho',        copyright:'Copyright', originalFile:'Ficheiro fonte', noData:'Sem dados EXIF' },
 };
-const EXIF_KEYS = ['camera','lens','date','shutter','aperture','iso','focal','focal35','width','height','copyright'];
+const EXIF_KEYS = ['camera','lens','date','shutter','aperture','iso','focal','focal35','width','height','fileSize','copyright','originalFile'];
 // Locale priority: forced in config → browser preference → English fallback.
 const lang = (PROJECT.locale || navigator.language || 'en').slice(0,2).toLowerCase();
 const L = EXIF_I18N[lang] || EXIF_I18N.en;
@@ -1145,11 +1196,17 @@ function makeTile(photo, idx) {
   tile.className    = 'tile';
   tile.dataset.idx  = idx;
 
+  const isBig = photo.role === 'big';
   const img = document.createElement('img');
   img.src     = 'img/grid/' + photo.name + '.webp';
+  img.srcset  = 'img/grid-sm/' + photo.name + '.webp 600w, img/grid/' + photo.name + '.webp ' + (isBig ? '1400' : '800') + 'w';
+  img.sizes   = isBig
+    ? '(max-width: 767px) 66vw, 1400px'
+    : '(max-width: 767px) 33vw, 800px';
   img.alt     = photo.name;
-  img.loading = 'lazy';
-  img.decoding= 'async';
+  img.loading = idx < 20 ? 'eager' : 'lazy';
+  img.decoding= idx < 20 ? 'sync'  : 'async';
+  if (idx === 0) img.fetchPriority = 'high';
   img.addEventListener('load', () => tile.classList.add('ready'));
 
   const num = document.createElement('span');
@@ -1219,9 +1276,19 @@ const lb = GLightbox({
 let thumbSlider = null;
 let thumbsReady = false;
 
-function buildThumbs() {
+async function buildThumbs() {
   if (thumbsReady) return;
   thumbsReady = true;
+
+  // Load tiny-slider on demand — keeps it out of the critical path.
+  if (typeof tns === 'undefined') {
+    await new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = '${vp}tiny-slider.js'; s.onload = res; s.onerror = rej;
+      document.head.appendChild(s);
+    });
+  }
+
   const inner = document.getElementById('gl-thumbs-inner');
   inner.innerHTML = '';
   PHOTOS.forEach((p, i) => {
@@ -1237,7 +1304,7 @@ function buildThumbs() {
     inner.appendChild(item);
   });
 
-  thumbSlider = tns_slider({
+  thumbSlider = tns({
     container:     '#gl-thumbs-inner',
     items:         Math.min(PHOTOS.length, 10),
     gutter:        2,
@@ -1270,6 +1337,10 @@ function syncThumb(idx) {
   }
 }
 
+/* ── Download permissions ────────────────────────────── */
+const CAN_DL_IMAGE   = PROJECT.allowDownloadImage   !== false;
+const CAN_DL_GALLERY = PROJECT.allowDownloadGallery !== false;
+
 /* ── Overlay buttons: EXIF, Download, Fullscreen ─────── */
 const exifOverlay = document.getElementById('gl-exif-overlay');
 const exifInner   = document.getElementById('gl-exif-inner');
@@ -1277,6 +1348,34 @@ const dlBtn       = document.getElementById('gl-dl-btn');
 const fsBtn       = document.getElementById('gl-fs-btn');
 const infoBtn     = document.getElementById('gl-info-btn');
 let exifOpen = false;
+let dlCurrentPath = '';
+let dlCurrentName = '';
+
+// Hide download buttons if disabled in config.
+if (!CAN_DL_IMAGE   && dlBtn)                                 dlBtn.remove();
+if (!CAN_DL_GALLERY) document.getElementById('dl-all-btn')?.remove();
+
+/* ── Per-photo download (Web Share API on iOS → Photos; fallback to <a> download) */
+if (CAN_DL_IMAGE && dlBtn) {
+  dlBtn.addEventListener('click', async () => {
+    // Web Share API with files — supported on iOS 15+ / Safari 15+ / Android Chrome.
+    // On iOS this opens the native share sheet which offers "Save to Photos".
+    if (navigator.share && navigator.canShare) {
+      try {
+        const res  = await fetch(dlCurrentPath);
+        const blob = await res.blob();
+        const file = new File([blob], dlCurrentName, { type: 'image/jpeg' });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: dlCurrentName });
+          return;
+        }
+      } catch (_) { /* fall through to link download on error */ }
+    }
+    // Fallback: create a temporary <a download> and click it.
+    const a = document.createElement('a');
+    a.href = dlCurrentPath; a.download = dlCurrentName; a.click();
+  });
+}
 
 /* Fullscreen toggle — visibility driven by CSS (body.glightbox-open rule).
    The button is removed entirely if the Fullscreen API is unavailable so it
@@ -1305,8 +1404,8 @@ if (fsBtn) {
 
 function syncOverlays(idx) {
   const p = PHOTOS[idx];
-  dlBtn.href      = 'originals/' + p.name + '.jpg';
-  dlBtn.download  = p.name + '.jpg';
+  dlCurrentPath = 'originals/' + p.name + '.jpg';
+  dlCurrentName = p.name + '.jpg';
   if (exifOpen) exifInner.innerHTML = exifHTML(p.exif || {});
 }
 
@@ -1325,10 +1424,16 @@ function hideExif() {
 
 /* ── GLightbox event handlers ────────────────────────── */
 lb.on('open', () => {
+  // GLightbox sets aria-hidden="true" on everything outside its modal.
+  // If one of our overlay buttons has focus, the browser blocks that and
+  // logs an accessibility warning. Blur before GLightbox applies aria-hidden.
+  if (document.activeElement && document.activeElement !== document.body) {
+    document.activeElement.blur();
+  }
   buildThumbs();
   const idx = lb.getActiveSlideIndex();
   document.getElementById('gl-thumbs').style.display = 'block';
-  dlBtn.style.display   = 'flex';
+  if (CAN_DL_IMAGE && dlBtn) dlBtn.style.display = 'flex';
   infoBtn.style.display = 'flex';
   syncOverlays(idx);
   syncThumb(idx);
@@ -1345,7 +1450,7 @@ lb.on('slide_changed', ({ current }) => {
 
 lb.on('close', () => {
   document.getElementById('gl-thumbs').style.display = 'none';
-  dlBtn.style.display   = 'none';
+  if (CAN_DL_IMAGE && dlBtn) dlBtn.style.display = 'none';
   infoBtn.style.display = 'none';
   if (document.fullscreenElement) document.exitFullscreen();
   hideExif();
@@ -1591,10 +1696,18 @@ document.addEventListener('keydown', e => {
 (function () {
   const btn   = document.getElementById('dl-all-btn');
   const label = document.getElementById('dl-all-label');
-  if (!btn || typeof JSZip === 'undefined') return;
+  if (!btn) return;
 
   btn.addEventListener('click', async () => {
     btn.disabled = true;
+    // Load JSZip on-demand (not included at page load to save ~77 KB).
+    if (typeof JSZip === 'undefined') {
+      await new Promise((res, rej) => {
+        const s = document.createElement('script');
+        s.src = '${vp}jszip.min.js'; s.onload = res; s.onerror = rej;
+        document.head.appendChild(s);
+      });
+    }
     const zip = new JSZip();
     let ok = 0;
 
@@ -1641,60 +1754,125 @@ document.addEventListener('keydown', e => {
  * @param {object} cfg - Merged project + build config.
  * @returns {string}   - Markdown string.
  */
+const LEGAL_MD_I18N = {
+  en: {
+    title:   'Copyright Notice',
+    intro:   (a, yr) => `The photographs in this folder are original works by **${a}** (© ${yr}).\nThey are protected under Swiss copyright law (CopA/LDA/URG). All rights reserved.\nAny unauthorised use is strictly prohibited.`,
+    hWork:   'Work',
+    hRights: 'Usage Rights',
+    rights:  `Under the **Federal Act on Copyright and Related Rights (CopA)**, all exclusive rights\nto these photographs belong to their author, including:\n\n- The right to decide how their works are used (art. 10 CopA)\n- Automatic recognition of the author as rights holder (art. 2 CopA)\n- Moral rights, inalienable and non-transferable (art. 9 CopA)\n\nFull text of the law: https://www.fedlex.admin.ch/eli/cc/1993/1798_1798_1798/en`,
+    hPermit: 'Permitted Use',
+    permit:  `Access is granted for **private use only** (cf. art. 19 CopA):\n\n- Viewing the photographs\n- Copying or printing them **for personal use only**\n\nAny other use — publication, reproduction, distribution, adaptation, removal of metadata\nor watermarks, AI training datasets, etc. — is **strictly forbidden** without prior\nwritten authorisation from the author.`,
+    hContact:'Permission Requests',
+    contact: `To use one or more photographs for any other purpose (press, editorial, exhibition,\nwebsite, artistic project, etc.), please contact the author:`,
+    closing: 'Thank you for respecting these terms and supporting the protection of artistic works.',
+    anon:    'Unknown',
+  },
+  fr: {
+    title:   'Notice de droits d\'auteur',
+    intro:   (a, yr) => `Les photographies contenues dans ce dossier sont des œuvres originales de **${a}** (© ${yr}).\nElles sont protégées par la loi suisse sur le droit d'auteur (LDA/CopA/URG). Tous droits réservés.\nToute utilisation non autorisée est strictement interdite.`,
+    hWork:   'Œuvre',
+    hRights: 'Droits d\'utilisation',
+    rights:  `En vertu de la **Loi fédérale sur le droit d'auteur et les droits voisins (LDA)**, tous les droits exclusifs\nsur ces photographies appartiennent à leur auteur, notamment :\n\n- Le droit de décider de l'utilisation de ses œuvres (art. 10 LDA)\n- La reconnaissance automatique de l'auteur comme titulaire des droits (art. 2 LDA)\n- Les droits moraux, inaliénables et incessibles (art. 9 LDA)\n\nTexte intégral de la loi : https://www.fedlex.admin.ch/eli/cc/1993/1798_1798_1798/fr`,
+    hPermit: 'Utilisation autorisée',
+    permit:  `L'accès est accordé pour un **usage privé uniquement** (cf. art. 19 LDA) :\n\n- Visualisation des photographies\n- Copie ou impression **à usage personnel uniquement**\n\nToute autre utilisation — publication, reproduction, distribution, adaptation, suppression de métadonnées\nou de filigranes, jeux de données pour l'IA, etc. — est **strictement interdite** sans autorisation\nécrite préalable de l'auteur.`,
+    hContact:'Demandes d\'autorisation',
+    contact: `Pour utiliser une ou plusieurs photographies à d'autres fins (presse, édition, exposition,\nsite web, projet artistique, etc.), veuillez contacter l'auteur :`,
+    closing: 'Merci de respecter ces conditions et de soutenir la protection des œuvres artistiques.',
+    anon:    'Inconnu',
+  },
+  de: {
+    title:   'Urheberrechtshinweis',
+    intro:   (a, yr) => `Die Fotografien in diesem Ordner sind Originalwerke von **${a}** (© ${yr}).\nSie sind durch das schweizerische Urheberrechtsgesetz (URG/CopA/LDA) geschützt. Alle Rechte vorbehalten.\nJede unbefugte Nutzung ist strengstens untersagt.`,
+    hWork:   'Werk',
+    hRights: 'Nutzungsrechte',
+    rights:  `Gemäss dem **Bundesgesetz über das Urheberrecht und verwandte Schutzrechte (URG)** liegen alle ausschliesslichen Rechte\nan diesen Fotografien beim Urheber, einschliesslich:\n\n- Das Recht, über die Verwendung seiner Werke zu entscheiden (Art. 10 URG)\n- Die automatische Anerkennung des Urhebers als Rechteinhaber (Art. 2 URG)\n- Urheberpersönlichkeitsrechte, unveräusserlich und unübertragbar (Art. 9 URG)\n\nVolltext des Gesetzes: https://www.fedlex.admin.ch/eli/cc/1993/1798_1798_1798/de`,
+    hPermit: 'Erlaubte Nutzung',
+    permit:  `Der Zugang wird nur für den **privaten Gebrauch** gewährt (vgl. Art. 19 URG):\n\n- Betrachten der Fotografien\n- Kopieren oder Ausdrucken **ausschliesslich für den persönlichen Gebrauch**\n\nJede andere Verwendung — Veröffentlichung, Vervielfältigung, Verbreitung, Bearbeitung, Entfernung von Metadaten\noder Wasserzeichen, KI-Trainingsdatensätze usw. — ist **strengstens verboten** ohne vorherige\nschriftliche Genehmigung des Urhebers.`,
+    hContact:'Genehmigungsanfragen',
+    contact: `Um eine oder mehrere Fotografien für andere Zwecke zu verwenden (Presse, Verlag, Ausstellung,\nWebsite, künstlerisches Projekt usw.), wenden Sie sich bitte an den Urheber:`,
+    closing: 'Vielen Dank für die Einhaltung dieser Bedingungen und die Unterstützung des Schutzes künstlerischer Werke.',
+    anon:    'Unbekannt',
+  },
+  it: {
+    title:   'Nota sul diritto d\'autore',
+    intro:   (a, yr) => `Le fotografie contenute in questa cartella sono opere originali di **${a}** (© ${yr}).\nSono protette dalla legislazione svizzera sul diritto d'autore (LDA/CopA/URG). Tutti i diritti riservati.\nQualsiasi utilizzo non autorizzato è vietato.`,
+    hWork:   'Opera',
+    hRights: 'Diritti d\'uso',
+    rights:  `Ai sensi della **Legge federale sul diritto d'autore e sui diritti affini (LDA)**, tutti i diritti esclusivi\nsulle presenti fotografie appartengono al loro autore, inclusi:\n\n- Il diritto di decidere come vengono utilizzate le sue opere (art. 10 LDA)\n- Il riconoscimento automatico dell'autore come titolare dei diritti (art. 2 LDA)\n- I diritti morali, inalienabili e intrasferibili (art. 9 LDA)\n\nTesto integrale della legge: https://www.fedlex.admin.ch/eli/cc/1993/1798_1798_1798/it`,
+    hPermit: 'Uso consentito',
+    permit:  `L'accesso è concesso esclusivamente per **uso privato** (cfr. art. 19 LDA):\n\n- Visualizzazione delle fotografie\n- Copia o stampa **esclusivamente per uso personale**\n\nQualsiasi altro utilizzo — pubblicazione, riproduzione, distribuzione, adattamento, rimozione di metadati\no filigrane, dataset per l'IA, ecc. — è **severamente vietato** senza previa\nautorizzazione scritta dell'autore.`,
+    hContact:'Richieste di autorizzazione',
+    contact: `Per utilizzare una o più fotografie per qualsiasi altro scopo (stampa, redazione, esposizione,\nsito web, progetto artistico, ecc.), si prega di contattare l'autore:`,
+    closing: 'Grazie per aver rispettato questi termini e per sostenere la protezione delle opere artistiche.',
+    anon:    'Sconosciuto',
+  },
+  es: {
+    title:   'Aviso de derechos de autor',
+    intro:   (a, yr) => `Las fotografías contenidas en esta carpeta son obras originales de **${a}** (© ${yr}).\nEstán protegidas por la legislación suiza sobre derechos de autor (CopA/LDA/URG). Todos los derechos reservados.\nCualquier uso no autorizado está estrictamente prohibido.`,
+    hWork:   'Obra',
+    hRights: 'Derechos de uso',
+    rights:  `De conformidad con la **Ley federal sobre derechos de autor y derechos afines (CopA)**, todos los derechos exclusivos\nsobre estas fotografías pertenecen a su autor, incluyendo:\n\n- El derecho a decidir cómo se utilizan sus obras (art. 10 CopA)\n- El reconocimiento automático del autor como titular de los derechos (art. 2 CopA)\n- Los derechos morales, inalienables e intransferibles (art. 9 CopA)\n\nTexto completo de la ley: https://www.fedlex.admin.ch/eli/cc/1993/1798_1798_1798/en`,
+    hPermit: 'Uso permitido',
+    permit:  `El acceso se concede únicamente para **uso privado** (cf. art. 19 CopA):\n\n- Visualización de las fotografías\n- Copia o impresión **exclusivamente para uso personal**\n\nCualquier otro uso — publicación, reproducción, distribución, adaptación, eliminación de metadatos\no marcas de agua, conjuntos de datos para IA, etc. — está **estrictamente prohibido** sin autorización\nescrita previa del autor.`,
+    hContact:'Solicitudes de autorización',
+    contact: `Para utilizar una o más fotografías con cualquier otro fin (prensa, editorial, exposición,\nsitio web, proyecto artístico, etc.), póngase en contacto con el autor:`,
+    closing: 'Gracias por respetar estas condiciones y apoyar la protección de las obras artísticas.',
+    anon:    'Desconocido',
+  },
+  pt: {
+    title:   'Aviso de direitos de autor',
+    intro:   (a, yr) => `As fotografias contidas nesta pasta são obras originais de **${a}** (© ${yr}).\nEstão protegidas pela legislação suíça sobre direitos de autor (CopA/LDA/URG). Todos os direitos reservados.\nQualquer utilização não autorizada é estritamente proibida.`,
+    hWork:   'Obra',
+    hRights: 'Direitos de utilização',
+    rights:  `Nos termos da **Lei federal sobre direitos de autor e direitos conexos (CopA)**, todos os direitos exclusivos\nsobre estas fotografias pertencem ao seu autor, incluindo:\n\n- O direito de decidir como as suas obras são utilizadas (art. 10 CopA)\n- O reconhecimento automático do autor como titular dos direitos (art. 2 CopA)\n- Os direitos morais, inalienáveis e intransmissíveis (art. 9 CopA)\n\nTexto integral da lei: https://www.fedlex.admin.ch/eli/cc/1993/1798_1798_1798/en`,
+    hPermit: 'Utilização permitida',
+    permit:  `O acesso é concedido apenas para **uso privado** (cf. art. 19 CopA):\n\n- Visualização das fotografias\n- Cópia ou impressão **exclusivamente para uso pessoal**\n\nQualquer outra utilização — publicação, reprodução, distribuição, adaptação, remoção de metadados\nou marcas de água, conjuntos de dados para IA, etc. — é **estritamente proibida** sem autorização\nprévia por escrito do autor.`,
+    hContact:'Pedidos de autorização',
+    contact: `Para utilizar uma ou mais fotografias para qualquer outro fim (imprensa, editorial, exposição,\nsítio web, projeto artístico, etc.), contacte o autor:`,
+    closing: 'Obrigado por respeitar estes termos e por apoiar a proteção das obras artísticas.',
+    anon:    'Desconhecido',
+  },
+};
+
 function buildLegalNotice(cfg) {
   const p           = cfg.project;
-  const displayName = p.author || 'Unknown';
+  const locale      = (p.locale || 'en').slice(0, 2).toLowerCase();
+  const T           = LEGAL_MD_I18N[locale] || LEGAL_MD_I18N.en;
+  const displayName = p.author || T.anon;
   const year        = p.date ? p.date.slice(0, 4) : new Date().getFullYear();
 
-  // Build the optional work / project section (only fields that are set).
   const workLines = [
     p.title    ? `**${p.title}**` : null,
     p.subtitle ? p.subtitle       : null,
     p.location ? p.location       : null,
   ].filter(Boolean);
   const workSection = workLines.length
-    ? `## Work\n\n${workLines.join(' · ')}${p.description ? '\n\n' + p.description : ''}\n\n`
+    ? `## ${T.hWork}\n\n${workLines.join(' · ')}${p.description ? '\n\n' + p.description : ''}\n\n`
     : '';
 
-  return `# Copyright Notice
+  return `# ${T.title}
 
-The photographs in this folder are original works by **${displayName}** (© ${year}).
-They are protected under Swiss copyright law (CopA/LDA/URG). All rights reserved.
-Any unauthorised use is strictly prohibited.
+${T.intro(displayName, year)}
 
-${workSection}## Usage Rights
+${workSection}## ${T.hRights}
 
-Under the **Federal Act on Copyright and Related Rights (CopA)**, all exclusive rights
-to these photographs belong to their author, including:
+${T.rights}
 
-- The right to decide how their works are used (art. 10 CopA)
-- Automatic recognition of the author as rights holder (art. 2 CopA)
-- Moral rights, inalienable and non-transferable (art. 9 CopA)
+## ${T.hPermit}
 
-Full text of the law: https://www.fedlex.admin.ch/eli/cc/1993/1798_1798_1798/en
+${T.permit}
 
-## Permitted Use
+## ${T.hContact}
 
-Access is granted for **private use only** (cf. art. 19 CopA):
-
-- Viewing the photographs
-- Copying or printing them **for personal use only**
-
-Any other use — publication, reproduction, distribution, adaptation, removal of metadata
-or watermarks, AI training datasets, etc. — is **strictly forbidden** without prior
-written authorisation from the author.
-
-## Permission Requests
-
-To use one or more photographs for any other purpose (press, editorial, exhibition,
-website, artistic project, etc.), please contact the author:
+${T.contact}
 
 **${displayName}**
 ${p.authorEmail ? p.authorEmail : ''}
 
 ---
 
-Thank you for respecting these terms and supporting the protection of artistic works.
+${T.closing}
 `;
 }
 
@@ -1799,7 +1977,7 @@ function buildIndexHTML(fontCss) {
 <style>
 ${fontCss}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#000;--ink:#e8e4dd;--muted:#706860;--accent:#c8a96e;--gap:2px;--bar:56px}
+:root{--bg:#1c1c1c;--ink:#e8e4dd;--muted:#706860;--accent:#c8a96e;--gap:2px;--bar:56px}
 html,body{min-height:100%;background:var(--bg);color:var(--ink);font-family:'Poppins',sans-serif}
 .bar{
   position:fixed;top:0;left:0;right:0;height:var(--bar);
@@ -1915,8 +2093,9 @@ async function buildGallery(srcName, { build }, fontCss) {
   log(`   Dist   : ${paths.dist}\n`);
 
   // Ensure all output directories exist before writing any files.
-  fs.mkdirSync(path.join(paths.distImg, 'grid'), { recursive: true });
-  fs.mkdirSync(path.join(paths.distImg, 'full'), { recursive: true });
+  fs.mkdirSync(path.join(paths.distImg, 'grid'),    { recursive: true });
+  fs.mkdirSync(path.join(paths.distImg, 'grid-sm'), { recursive: true });
+  fs.mkdirSync(path.join(paths.distImg, 'full'),    { recursive: true });
   fs.mkdirSync(paths.distOri, { recursive: true });
 
   // Convert photos.
