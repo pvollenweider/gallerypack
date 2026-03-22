@@ -6,5 +6,7 @@
   "quality": {
     "grid": 78,
     "full": 90
-  }
+  },
+  "slideEffect": "fade",
+  "slideSpeed": 400
 }

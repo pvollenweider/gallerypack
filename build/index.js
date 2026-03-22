@@ -658,6 +658,11 @@ function buildHTML(cfg, photos, fontCss = '', standalone = false, customLegal = 
   // shared galleries reference the common dist/vendor/ and dist/fonts/ dirs.
   const vp = standalone ? 'vendor/' : '../vendor/';
 
+  // Lightbox transition settings from build.config.json.
+  const VALID_EFFECTS = new Set(['slide', 'fade', 'zoom', 'none']);
+  const slideEffect = VALID_EFFECTS.has(cfg.build.slideEffect) ? cfg.build.slideEffect : 'fade';
+  const slideSpeed  = Math.max(50, Math.min(2000, Number(cfg.build.slideSpeed) || 400));
+
   // Embed optional custom legal templates as PROJECT properties so the browser
   // can use them directly without any multilingual fallback logic.
   const projectWithLegal = { ...project };
@@ -795,6 +800,11 @@ html,body{height:100%;background:var(--bg);color:var(--ink);overscroll-behavior:
   opacity:0;transition:opacity .2s
 }
 .tile:hover .tile-n{opacity:1}
+
+/* ── GLightbox transition speed ─────────────────────── */
+/* GLightbox applies the .animated class during slide transitions;
+   overriding animation-duration here controls all effect speeds. */
+.glightbox-container .gslide.animated{animation-duration:${slideSpeed}ms}
 
 /* ── GLightbox overrides ────────────────────────────── */
 /* Description panel = panneau EXIF + download */
@@ -1310,7 +1320,7 @@ const lb = GLightbox({
   descPosition:    'bottom',
   openEffect:      'fade',
   closeEffect:     'fade',
-  slideEffect:     'slide',
+  slideEffect:     '${slideEffect}',
   plyr: {},
 });
 
