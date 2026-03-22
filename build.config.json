@@ -1,0 +1,9 @@
+{
+  "gridSizeSmall": 1280,
+  "gridSizeBig": 2560,
+  "fullSize": 3840,
+  "quality": {
+    "grid": 85,
+    "full": 90
+  }
+}
