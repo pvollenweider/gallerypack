@@ -855,7 +855,7 @@ html,body{height:100%;background:var(--bg);color:var(--ink);overscroll-behavior:
   font-size:13px;font-style:italic;font-weight:500;
   cursor:pointer;
   display:none;align-items:center;justify-content:center;
-  transition:background .15s,color .15s,border-color .15s
+  transition:background .15s,color .15s,border-color .15s,opacity .4s
 }
 /* GLightbox adds .glightbox-open on <body> → drives button visibility */
 body.glightbox-open #gl-info-btn{display:flex}
@@ -876,7 +876,7 @@ body.glightbox-open #gl-info-btn{display:flex}
   border-radius:6px;
   color:rgba(255,255,255,.7);
   cursor:pointer;
-  transition:background .15s,color .15s
+  transition:background .15s,color .15s,opacity .4s
 }
 #gl-fs-btn:hover{background:rgba(255,255,255,.15);color:#fff}
 body.glightbox-open #gl-fs-btn{display:inline-flex}
@@ -912,7 +912,7 @@ body.glightbox-open #gl-fs-btn{display:inline-flex}
   border-radius:6px;
   color:var(--accent);
   cursor:pointer;
-  transition:background .15s,color .15s
+  transition:background .15s,color .15s,opacity .4s
 }
 #gl-sw-btn:hover{background:rgba(200,169,110,.15)}
 
@@ -928,7 +928,7 @@ body.glightbox-open #gl-fs-btn{display:inline-flex}
   backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
   border:1px solid rgba(255,255,255,.25);
   border-radius:50%;
-  transition:background .15s,color .15s,opacity .15s
+  transition:background .15s,color .15s,opacity .4s
 }
 body.glightbox-open #gl-dl-btn{display:flex}
 #gl-dl-btn:hover{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.5)}
@@ -1025,6 +1025,21 @@ body.glightbox-open #gl-dl-btn{display:flex}
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis
 }
 body.glightbox-open:hover #gl-title{opacity:1}
+/* During active slideshow: title visible (not just on hover) */
+body.glightbox-open.sw-playing #gl-title{opacity:1}
+
+/* ── Slideshow idle: auto-hide all controls ──────────── */
+#gl-thumbs{transition:opacity .4s}
+/* Fade out overlays + arrows + thumbnail strip + cursor after inactivity */
+body.sw-idle #gl-sw-btn,
+body.sw-idle #gl-fs-btn,
+body.sw-idle #gl-dl-btn,
+body.sw-idle #gl-info-btn,
+body.sw-idle #gl-title,
+body.sw-idle #gl-thumbs,
+body.sw-idle .gnext,
+body.sw-idle .gprev{opacity:0 !important;pointer-events:none !important}
+body.sw-idle.glightbox-open{cursor:none}
 
 /* ── Footer mentions légales ─────────────────────── */
 .gallery-footer{
@@ -1487,14 +1502,16 @@ function hideExif() {
 }
 
 /* ── Slideshow ───────────────────────────────────────── */
-const SW_INTERVAL  = (PROJECT.slideshowInterval || 5) * 1000;
-const swBtn        = document.getElementById('slideshow-btn');
+const SW_INTERVAL   = (PROJECT.slideshowInterval || 5) * 1000;
+const SW_IDLE_DELAY = 2500;   // ms of inactivity before hiding controls
+const swBtn         = document.getElementById('slideshow-btn');
 const swIcon       = document.getElementById('sw-icon');
 const glSwBtn      = document.getElementById('gl-sw-btn');
 const glSwIcon     = document.getElementById('gl-sw-icon');
 
 let   swActive     = false;
 let   swTimer      = null;
+let   idleTimer    = null;
 let   lbOpen       = false;
 
 const SW_ICON_PLAY  = \`<polygon points="3,1 15,8 3,15"/>\`;
@@ -1517,6 +1534,27 @@ glSwBtn.addEventListener('click', () => {
   if (swActive) swPause(); else swStart(lb.getActiveSlideIndex());
 });
 
+/* ── Idle auto-hide ──────────────────────────────────── */
+function swIdleReset() {
+  document.body.classList.remove('sw-idle');
+  clearTimeout(idleTimer);
+  if (!swActive) return;
+  idleTimer = setTimeout(() => {
+    if (swActive) document.body.classList.add('sw-idle');
+  }, SW_IDLE_DELAY);
+}
+
+function swIdleStop() {
+  clearTimeout(idleTimer);
+  idleTimer = null;
+  document.body.classList.remove('sw-idle');
+}
+
+// Any activity resets the hide timer while slideshow is running.
+['mousemove', 'mousedown', 'touchstart', 'touchmove', 'keydown'].forEach(evt => {
+  document.addEventListener(evt, () => { if (swActive) swIdleReset(); }, { passive: true });
+});
+
 function swScheduleNext() {
   clearTimeout(swTimer);
   swTimer = setTimeout(() => {
@@ -1529,6 +1567,7 @@ function swScheduleNext() {
 
 function swStart(startIdx) {
   swActive = true;
+  document.body.classList.add('sw-playing');
   swSetIcon(true);
   if (!lbOpen) lb.openAt(startIdx ?? 0);
   // Try native fullscreen (silently ignored on iOS Safari).
@@ -1536,13 +1575,16 @@ function swStart(startIdx) {
     document.documentElement.requestFullscreen().catch(() => {});
   }
   swScheduleNext();
+  swIdleReset();
 }
 
 function swPause() {
   swActive = false;
+  document.body.classList.remove('sw-playing');
   clearTimeout(swTimer);
   swTimer = null;
   swSetIcon(false);
+  swIdleStop();
 }
 
 function swStop() {
