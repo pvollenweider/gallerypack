@@ -447,9 +447,13 @@ async function convertOne(photo, cfg, idx, cachedIsDark = null, paths) {
   const origOut   = path.join(paths.distOri, `${name}.jpg`);
   const { gridSizeSmall, gridSizeBig, gridSizeMobile = 600, fullSize, quality } = cfg.build;
   const gridSize = isBig ? gridSizeBig : gridSizeSmall;
+  // Originals are skipped when neither image nor gallery download is allowed.
+  const skipOriginals = cfg.project.allowDownloadImage === false
+                     && cfg.project.allowDownloadGallery === false;
 
   // Skip conversion if all outputs exist and --force was not requested.
-  if (!FORCE && fs.existsSync(gridOut) && fs.existsSync(gridSmOut) && fs.existsSync(fullOut) && fs.existsSync(origOut)) {
+  const origReady = skipOriginals || fs.existsSync(origOut);
+  if (!FORCE && fs.existsSync(gridOut) && fs.existsSync(gridSmOut) && fs.existsSync(fullOut) && origReady) {
     ok(`${name} (skip)`);
     // Reuse cached isDark when available; fall back to computing it from disk.
     const [meta, isDark] = await Promise.all([
@@ -486,24 +490,27 @@ async function convertOne(photo, cfg, idx, cachedIsDark = null, paths) {
   ok(`full  ≤${fullSize}px`);
 
   // Original: copy native JPEGs as-is; re-encode everything else to JPEG 95.
-  const ext = path.extname(photo.file).toLowerCase();
-  if (['.jpg','.jpeg'].includes(ext)) {
-    fs.copyFileSync(photo.full, origOut);
-  } else {
-    await sharp(photo.full).rotate().jpeg({ quality: 95 }).toFile(origOut);
-  }
-  ok(`orig  → originals/${name}.jpg`);
+  // Skipped entirely when both image and gallery downloads are disabled.
+  if (!skipOriginals) {
+    const ext = path.extname(photo.file).toLowerCase();
+    if (['.jpg','.jpeg'].includes(ext)) {
+      fs.copyFileSync(photo.full, origOut);
+    } else {
+      await sharp(photo.full).rotate().jpeg({ quality: 95 }).toFile(origOut);
+    }
+    ok(`orig  → originals/${name}.jpg`);
 
-  // Embed the original source filename in the JPEG EXIF (DocumentName field).
-  try {
-    const buf  = fs.readFileSync(origOut);
-    const str  = buf.toString('binary');
-    let   exifData = {};
-    try { exifData = piexif.load(str); } catch (_) {}
-    if (!exifData['0th']) exifData['0th'] = {};
-    exifData['0th'][piexif.ImageIFD.DocumentName] = photo.file;
-    fs.writeFileSync(origOut, Buffer.from(piexif.insert(piexif.dump(exifData), str), 'binary'));
-  } catch (_) {}
+    // Embed the original source filename in the JPEG EXIF (DocumentName field).
+    try {
+      const buf  = fs.readFileSync(origOut);
+      const str  = buf.toString('binary');
+      let   exifData = {};
+      try { exifData = piexif.load(str); } catch (_) {}
+      if (!exifData['0th']) exifData['0th'] = {};
+      exifData['0th'][piexif.ImageIFD.DocumentName] = photo.file;
+      fs.writeFileSync(origOut, Buffer.from(piexif.insert(piexif.dump(exifData), str), 'binary'));
+    } catch (_) {}
+  }
 
   // Read final dimensions and brightness in parallel after conversion.
   const [meta, isDark] = await Promise.all([
@@ -680,6 +687,8 @@ function buildHTML(cfg, photos, fontCss = '', standalone = false, customLegal = 
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>${escHtml(project.title)}</title>
 ${project.description ? `<meta name="description" content="${escHtml(project.description)}">` : ''}
 <script>const _p=location.pathname;const _s=_p.slice(_p.lastIndexOf('/')+1);if(!_p.endsWith('/')&&_s.indexOf('.')<0)location.replace(_p+'/'+location.search+location.hash)</script>
@@ -845,7 +854,7 @@ body.glightbox-open #gl-info-btn{display:flex}
   color:#fff;border-color:rgba(255,255,255,.5)
 }
 
-/* Fullscreen button (desktop only, top-right) */
+/* Fullscreen button (all screen sizes — JS removes it if API unavailable) */
 #gl-fs-btn{
   position:fixed;z-index:1000000;
   top:70px;right:16px;
@@ -860,9 +869,37 @@ body.glightbox-open #gl-info-btn{display:flex}
   transition:background .15s,color .15s
 }
 #gl-fs-btn:hover{background:rgba(255,255,255,.15);color:#fff}
-/* Show when lightbox is open; CSS mirrors the pattern used for info/dl buttons */
 body.glightbox-open #gl-fs-btn{display:inline-flex}
-@media(hover:none),(max-width:768px){#gl-fs-btn{display:none !important}}
+
+/* Slideshow button (toolbar) */
+#slideshow-btn{
+  display:flex;align-items:center;gap:6px;
+  padding:0 10px;height:32px;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:6px;
+  color:rgba(255,255,255,.65);
+  font-size:11px;font-family:'Poppins',sans-serif;font-weight:500;
+  cursor:pointer;
+  transition:background .15s,color .15s;
+  white-space:nowrap
+}
+#slideshow-btn:hover{background:rgba(255,255,255,.12);color:#fff}
+#slideshow-btn.active{
+  background:rgba(200,169,110,.15);
+  border-color:rgba(200,169,110,.35);
+  color:var(--accent)
+}
+@media(max-width:480px){#slideshow-btn .sw-label{display:none}}
+
+/* Slideshow progress bar (bottom of viewport) */
+#slideshow-progress{
+  position:fixed;bottom:0;left:0;z-index:9999999;
+  height:3px;width:0%;
+  background:var(--accent);
+  display:none;pointer-events:none;
+  transition:none
+}
 
 /* Per-photo download button (lightbox overlay, bottom-right) */
 #gl-dl-btn{
@@ -1048,6 +1085,12 @@ body.glightbox-open:hover #gl-title{opacity:1}
   </div>
   <div class="bar-right">
     <span class="bar-count" id="bCount"></span>
+    <button id="slideshow-btn" title="Start slideshow" aria-label="Start slideshow">
+      <svg id="sw-icon" width="13" height="13" viewBox="0 0 16 16" fill="currentColor" stroke="none">
+        <polygon points="3,1 15,8 3,15"/>
+      </svg>
+      <span class="sw-label">Slideshow</span>
+    </button>
     <button id="dl-all-btn" title="Télécharger tous les originaux">
       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
         <path d="M8 2v8M5 7l3 3 3-3M2 12v1a1 1 0 001 1h10a1 1 0 001-1v-1"/>
@@ -1056,6 +1099,7 @@ body.glightbox-open:hover #gl-title{opacity:1}
     </button>
   </div>
 </div>
+<div id="slideshow-progress"></div>
 
 <main class="wrap">
   <div class="grid" id="grid"></div>
@@ -1422,8 +1466,84 @@ function hideExif() {
   infoBtn.classList.remove('active');
 }
 
+/* ── Slideshow ───────────────────────────────────────── */
+const SW_INTERVAL  = (PROJECT.slideshowInterval || 5) * 1000;
+const swBtn        = document.getElementById('slideshow-btn');
+const swIcon       = document.getElementById('sw-icon');
+const swProgress   = document.getElementById('slideshow-progress');
+let   swActive     = false;
+let   swTimer      = null;
+let   lbOpen       = false;
+
+const SW_ICON_PLAY  = \`<polygon points="3,1 15,8 3,15"/>\`;
+const SW_ICON_PAUSE = \`<rect x="2" y="1" width="4" height="14"/><rect x="10" y="1" width="4" height="14"/>\`;
+
+function swSetIcon(playing) {
+  swIcon.innerHTML = playing ? SW_ICON_PAUSE : SW_ICON_PLAY;
+  swBtn.classList.toggle('active', playing);
+  swBtn.title = playing ? 'Pause slideshow' : 'Start slideshow';
+  swBtn.setAttribute('aria-label', swBtn.title);
+}
+
+function swProgressStart() {
+  swProgress.style.display = 'block';
+  swProgress.style.transition = 'none';
+  swProgress.style.width = '0%';
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    swProgress.style.transition = \`width \${SW_INTERVAL}ms linear\`;
+    swProgress.style.width = '100%';
+  }));
+}
+
+function swProgressStop() {
+  swProgress.style.transition = 'none';
+  swProgress.style.width = '0%';
+  swProgress.style.display = 'none';
+}
+
+function swScheduleNext() {
+  clearTimeout(swTimer);
+  swProgressStart();
+  swTimer = setTimeout(() => {
+    if (!swActive) return;
+    const idx = lb.getActiveSlideIndex();
+    lb.goTo(idx >= PHOTOS.length - 1 ? 0 : idx + 1);
+    // slide_changed event will call swScheduleNext() to keep the chain going.
+  }, SW_INTERVAL);
+}
+
+function swStart(startIdx) {
+  swActive = true;
+  swSetIcon(true);
+  if (!lbOpen) lb.openAt(startIdx ?? 0);
+  // Try native fullscreen (silently ignored on iOS Safari).
+  if (document.fullscreenEnabled && !document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(() => {});
+  }
+  swScheduleNext();
+}
+
+function swPause() {
+  swActive = false;
+  clearTimeout(swTimer);
+  swTimer = null;
+  swProgressStop();
+  swSetIcon(false);
+}
+
+function swStop() {
+  swPause();
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+}
+
+swBtn.addEventListener('click', () => {
+  if (swActive) swPause();
+  else swStart(lbOpen ? lb.getActiveSlideIndex() : 0);
+});
+
 /* ── GLightbox event handlers ────────────────────────── */
 lb.on('open', () => {
+  lbOpen = true;
   // GLightbox sets aria-hidden="true" on everything outside its modal.
   // If one of our overlay buttons has focus, the browser blocks that and
   // logs an accessibility warning. Blur before GLightbox applies aria-hidden.
@@ -1446,14 +1566,16 @@ lb.on('slide_changed', ({ current }) => {
   syncThumb(idx);
   updateTitleColor(idx);
   if (exifOpen) showExif(idx);
+  if (swActive) swScheduleNext();  // reset countdown on every slide (swipe or auto)
 });
 
 lb.on('close', () => {
+  lbOpen = false;
   document.getElementById('gl-thumbs').style.display = 'none';
   if (CAN_DL_IMAGE && dlBtn) dlBtn.style.display = 'none';
   infoBtn.style.display = 'none';
-  if (document.fullscreenElement) document.exitFullscreen();
   hideExif();
+  swStop();
 });
 
 /* (i) button toggles the EXIF overlay for the currently displayed photo */
@@ -2093,10 +2215,12 @@ async function buildGallery(srcName, { build }, fontCss) {
   log(`   Dist   : ${paths.dist}\n`);
 
   // Ensure all output directories exist before writing any files.
+  const noDownloads = galCfg.project.allowDownloadImage   === false
+                   && galCfg.project.allowDownloadGallery === false;
   fs.mkdirSync(path.join(paths.distImg, 'grid'),    { recursive: true });
   fs.mkdirSync(path.join(paths.distImg, 'grid-sm'), { recursive: true });
   fs.mkdirSync(path.join(paths.distImg, 'full'),    { recursive: true });
-  fs.mkdirSync(paths.distOri, { recursive: true });
+  if (!noDownloads) fs.mkdirSync(paths.distOri, { recursive: true });
 
   // Convert photos.
   const photos = listPhotos(paths.srcDir);
