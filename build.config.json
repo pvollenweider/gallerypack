@@ -1,9 +1,10 @@
 {
-  "gridSizeSmall": 1280,
-  "gridSizeBig": 2560,
+  "gridSizeSmall": 800,
+  "gridSizeBig": 1400,
+  "gridSizeMobile": 600,
   "fullSize": 3840,
   "quality": {
-    "grid": 85,
+    "grid": 78,
     "full": 90
   }
 }
