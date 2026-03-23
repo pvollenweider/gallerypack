@@ -101,10 +101,12 @@ app.post('/api/galleries', upload.array('photos'), async (req, res) => {
   // Create gallery scaffold
   fs.mkdirSync(photosDir, { recursive: true });
 
-  // Move uploaded files into photos/
+  // Copy uploaded files into photos/ then remove the temp file.
+  // (fs.renameSync fails across Docker volume mount boundaries — EXDEV error)
   for (const file of req.files) {
     const dest = path.join(photosDir, file.originalname);
-    fs.renameSync(file.path, dest);
+    fs.copyFileSync(file.path, dest);
+    fs.unlinkSync(file.path);
   }
 
   // Write gallery.config.json
