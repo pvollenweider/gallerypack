@@ -47,7 +47,7 @@ No accounts. No platform. Just your files, your hosting, your rules.
 
 ```bash
 # 1. Clone and install
-git clone https://github.com/pvollenweider/ssgg.git
+git clone https://github.com/pvollenweider/gallerypack.git
 cd ssgg
 npm install
 
