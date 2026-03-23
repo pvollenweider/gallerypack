@@ -100,6 +100,8 @@ function buildConfig(fields) {
   // Download permissions — only written when explicitly disabled (default is true)
   if (fields.allowDownloadImage   === false) project.allowDownloadImage   = false;
   if (fields.allowDownloadGallery === false) project.allowDownloadGallery = false;
+  // Autoplay group — always written with default interval so the file is self-documenting.
+  project.autoplay = { slideshowInterval: fields.slideshowInterval || 3 };
 
   return { project };
 }

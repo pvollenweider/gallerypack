@@ -744,8 +744,9 @@ function buildHTML(cfg, photos, fontCss = '', standalone = false, customLegal = 
 
   // Lightbox transition settings from build.config.json.
   const VALID_EFFECTS = new Set(['slide', 'fade', 'zoom', 'none']);
-  const slideEffect = VALID_EFFECTS.has(cfg.build.slideEffect) ? cfg.build.slideEffect : 'fade';
-  const slideSpeed  = Math.max(50, Math.min(2000, Number(cfg.build.slideSpeed) || 400));
+  const autoplayCfg = cfg.build.autoplay || {};
+  const slideEffect = VALID_EFFECTS.has(autoplayCfg.slideEffect) ? autoplayCfg.slideEffect : 'fade';
+  const slideSpeed  = Math.max(50, Math.min(2000, Number(autoplayCfg.slideSpeed) || 400));
 
   // Mobile srcset sizes — injected into the JS template so the browser gets
   // the correct width descriptor for each tile role.
@@ -1240,7 +1241,7 @@ body.sw-idle.glightbox-open{cursor:none}
     <span class="bar-count" id="bCount"></span>
     <select id="sw-interval" title="Slideshow interval" aria-label="Slideshow interval">
 ${[2,3,5,8,10].map(s => {
-  const def = project.slideshowInterval || 3;
+  const def = (project.autoplay && project.autoplay.slideshowInterval) || 3;
   return `      <option value="${s}"${s === def ? ' selected' : ''}>${s}s</option>`;
 }).join('\n')}
     </select>

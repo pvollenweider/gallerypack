@@ -164,7 +164,9 @@ Create one config file per gallery. All fields are optional — sensible default
     "standalone":         false,
     "allowDownloadImage":   true,
     "allowDownloadGallery": true,
-    "slideshowInterval":    5
+    "autoplay": {
+      "slideshowInterval": 3
+    }
   }
 }
 ```
@@ -184,7 +186,7 @@ Create one config file per gallery. All fields are optional — sensible default
 | `standalone`           | `false` | `true` → vendor JS/CSS and fonts are embedded in the gallery folder (fully self-contained, no shared assets needed) |
 | `allowDownloadImage`   | `true` | `false` → hides the per-photo download button. When both download flags are `false`, the `originals/` folder is not generated at build time. |
 | `allowDownloadGallery` | `true` | `false` → hides the "Download all" ZIP button |
-| `slideshowInterval`    | `5` | Slideshow auto-advance interval in seconds |
+| `autoplay.slideshowInterval` | `3` | Slideshow auto-advance interval in seconds |
 
 #### How the output folder name is chosen
 
@@ -211,8 +213,10 @@ This file sits at the project root and applies to all galleries. Sensible defaul
     "grid": 78,
     "full": 90
   },
-  "slideEffect": "fade",
-  "slideSpeed":  400
+  "autoplay": {
+    "slideEffect": "fade",
+    "slideSpeed":  400
+  }
 }
 ```
 
@@ -226,8 +230,8 @@ This file sits at the project root and applies to all galleries. Sensible defaul
 | `quality.grid`         | `78`     | WebP compression quality for thumbnails (0–100). 78 is visually identical to 85 at these sizes, ~25% lighter. |
 | `quality.full`         | `90`     | WebP compression quality for lightbox images (0–100) |
 | `preloadCount`         | `6`      | Number of grid thumbnails preloaded in `<head>` via `<link rel="preload">` for fastest LCP |
-| `slideEffect`          | `"fade"` | Lightbox transition animation: `slide`, `fade`, `zoom`, or `none` |
-| `slideSpeed`           | `400`    | Transition duration in milliseconds (50–2000) |
+| `autoplay.slideEffect` | `"fade"` | Lightbox transition animation: `slide`, `fade`, `zoom`, or `none` |
+| `autoplay.slideSpeed`  | `400`    | Transition duration in milliseconds (50–2000) |
 
 > **Changing grid sizes requires `--force`** to reconvert existing images: `node build/index.js my-gallery --force`
 
@@ -467,13 +471,13 @@ The pattern repeats every 12 photos. Galleries with fewer than 12 photos show a 
 
 Press the **▶** button in the lightbox toolbar (or the **⏸** overlay button while playing) to start and pause the slideshow. While running:
 
-- The gallery **automatically advances** at the interval set by `slideshowInterval` (per-gallery) — you can also change it live with the interval selector in the toolbar (2 s / 3 s / 5 s / 8 s / 10 s)
+- The gallery **automatically advances** at the interval set by `autoplay.slideshowInterval` (per-gallery, default 3 s) — you can also change it live with the interval selector in the toolbar (2 s / 3 s / 5 s / 8 s / 10 s)
 - The lightbox **enters fullscreen** automatically
 - The slideshow **loops back** to the first photo after the last one
 - **Swipe left/right** on touch devices jumps to the next/previous photo and resets the countdown
 - **Controls auto-hide** after 2.5 seconds of inactivity (cursor, overlay buttons, title) — move the mouse or tap to reveal them again
 
-The transition style (`fade` by default) and speed can be changed globally in `build.config.json` via `slideEffect` and `slideSpeed`.
+The transition style (`fade` by default) and speed can be changed globally in `build.config.json` via `autoplay.slideEffect` and `autoplay.slideSpeed`.
 
 > **iOS note:** The Fullscreen API is not available in iOS Safari. Add the gallery to your Home Screen ("Add to Home Screen" in the share sheet) for a fullscreen-like PWA experience — `apple-mobile-web-app-capable` is already set.
 
