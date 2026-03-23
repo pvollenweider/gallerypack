@@ -18,3 +18,4 @@ src/*/photos/
 
 # Publish config (contains server credentials)
 publish.config.json
+photos.json
