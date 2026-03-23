@@ -1,6 +1,6 @@
 {
   "name": "photo-gallery",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Static photo gallery builder",
   "scripts": {
     "new-gallery": "node build/create-gallery.js",
