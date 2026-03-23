@@ -1132,13 +1132,17 @@ body.glightbox-open #gl-dl-btn{display:flex}
 :-webkit-full-screen .gslide-media{
   max-height:100vh !important;
   max-height:100dvh !important;
-  box-shadow:none !important
+  box-shadow:none !important;
+  margin:0 !important
 }
 :fullscreen .gslide-image img,
 :-webkit-full-screen .gslide-image img{
   max-height:100vh !important;
   max-height:100dvh !important;
-  max-width:100vw !important
+  max-width:100vw !important;
+  width:auto !important;
+  height:auto !important;
+  object-fit:contain !important
 }
 :fullscreen .ginner-container,
 :-webkit-full-screen .ginner-container{
@@ -1146,7 +1150,32 @@ body.glightbox-open #gl-dl-btn{display:flex}
   height:100vh !important;
   height:100dvh !important;
   max-width:100vw !important;
-  padding:0 !important
+  padding:0 !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important
+}
+/* Landscape: explicitly swap constraints so height is the binding dimension */
+@media (orientation:landscape){
+  :fullscreen .gslide-image img,
+  :-webkit-full-screen .gslide-image img{
+    max-height:100vh !important;
+    max-height:100dvh !important;
+    max-width:100vw !important;
+    width:auto !important;
+    height:100vh !important;
+    height:100dvh !important
+  }
+  :fullscreen .gslide-media,
+  :-webkit-full-screen .gslide-media{
+    width:100vw !important;
+    height:100vh !important;
+    height:100dvh !important;
+    max-height:100dvh !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important
+  }
 }
 /* Panel description GLightbox masqué — on gère tout via overlays fixes */
 .glightbox-clean .gslide-description{display:none !important}
@@ -1397,10 +1426,16 @@ function exifHTML(exif) {
    behind it (photo or black letterbox bars). */
 const glTitle = document.getElementById('gl-title');
 function updateTitleColor(idx) {
+  const exif = PHOTOS[idx]?.exif || {};
+  const photoDate = exif.date
+    ? new Date(exif.date).toLocaleDateString(PROJECT.locale || 'fr-FR', {year:'numeric', month:'long', day:'numeric'})
+    : dateFmt;
+  const photoLoc = exif.location || PROJECT.location || '';
   const titleParts = [
     PROJECT.title  || '',
     PROJECT.author ? '\u00a9\u00a0' + PROJECT.author : '',
-    dateFmt,
+    photoDate,
+    photoLoc,
   ].filter(Boolean);
   glTitle.textContent = titleParts.join('\u2002\u00b7\u2002');
 }
