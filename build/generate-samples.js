@@ -163,6 +163,100 @@ const lighten = (rgb, amount) => rgb.map(c => clamp(c + amount)).join(',');
 // Darken a channel by scaling (result clamped to [0, 255]).
 const darken  = (rgb, factor) => rgb.map(c => clamp(c * factor)).join(',');
 
+// ── Ridge interpolation ────────────────────────────────────────────────────────
+/**
+ * Return the approximate ridge Y at a given X by linearly interpolating
+ * between the nearest two ridge control vertices.
+ */
+function getRidgeY(pts, x) {
+  if (x <= pts[0].x) return pts[0].y;
+  if (x >= pts[pts.length - 1].x) return pts[pts.length - 1].y;
+  for (let i = 0; i < pts.length - 1; i++) {
+    if (x >= pts[i].x && x <= pts[i + 1].x) {
+      const t = (x - pts[i].x) / (pts[i + 1].x - pts[i].x);
+      return pts[i].y + t * (pts[i + 1].y - pts[i].y);
+    }
+  }
+  return pts[pts.length - 1].y;
+}
+
+// ── Forest generator ────────────────────────────────────────────────────────────
+/**
+ * Generate SVG triangular conifer silhouettes along the mountain slope.
+ * Trees are placed in a band from the ridge down to ~38 % of the mountain
+ * height.  Two tone layers simulate depth: lighter trees in the background,
+ * darker in the foreground.  All positions are deterministic via seed.
+ *
+ * @param {number}                w    - Image width in px.
+ * @param {number}                h    - Image height in px.
+ * @param {number}                seed - PRNG seed.
+ * @param {number[]}              bot  - Mountain base colour [R, G, B].
+ * @param {{x:number,y:number}[]} pts  - Ridge control vertices.
+ * @returns {string}                   - SVG polygon elements.
+ */
+function buildForest(w, h, seed, bot, pts) {
+  const fcDark  = darken(bot, 0.42);  // foreground trees — dark silhouette
+  const fcLight = darken(bot, 0.58);  // background trees — slightly lighter
+
+  let out = '';
+  const numTrees = 20 + Math.floor(rand(seed, 200) * 14);
+
+  for (let i = 0; i < numTrees; i++) {
+    const tx    = Math.round((0.03 + rand(seed, i * 17 + 201) * 0.94) * w);
+    const ry    = getRidgeY(pts, tx);
+    const depth = rand(seed, i * 17 + 202);   // 0 = at ridge, 1 = deep into slope
+
+    const treeBase = Math.round(ry + depth * (h - ry) * 0.38);
+    // Larger/taller trees deeper in the scene — basic perspective scaling.
+    const treeH    = Math.round(h * (0.025 + rand(seed, i * 17 + 203) * 0.030) * (0.55 + depth * 0.45));
+    const treeW    = Math.round(treeH * (0.35 + rand(seed, i * 17 + 204) * 0.20));
+
+    const color    = depth < 0.45 ? fcLight : fcDark;
+    const opacity  = (0.65 + depth * 0.30).toFixed(2);
+    out += `\n  <polygon points="${tx},${treeBase - treeH} ${tx - treeW},${treeBase} ${tx + treeW},${treeBase}" fill="rgb(${color})" opacity="${opacity}"/>`;
+  }
+  return out;
+}
+
+// ── Road generator ──────────────────────────────────────────────────────────────
+/**
+ * Generate a single winding mountain road as a two-stroke Bézier path
+ * (a slightly wider, darker border line + a lighter surface line).
+ * The road runs from the left edge to the right edge of the mountain,
+ * at ~28–53 % of the way from ridge to base.
+ *
+ * @param {number}                w    - Image width in px.
+ * @param {number}                h    - Image height in px.
+ * @param {number}                seed - PRNG seed.
+ * @param {number[]}              bot  - Mountain base colour [R, G, B].
+ * @param {{x:number,y:number}[]} pts  - Ridge control vertices.
+ * @returns {string}                   - SVG path elements.
+ */
+function buildRoad(w, h, seed, bot, pts) {
+  const rc  = lighten(bot, 48);    // road surface: lighter than mountain
+  const rcs = darken(bot, 0.72);   // road border/shadow
+
+  const ridgeL = getRidgeY(pts, 0);
+  const ridgeR = getRidgeY(pts, w);
+  const depth  = 0.28 + rand(seed, 501) * 0.25;
+  const y1     = Math.round(ridgeL + (h - ridgeL) * depth);
+  const y4     = Math.round(ridgeR + (h - ridgeR) * (depth + (rand(seed, 502) - 0.5) * 0.15));
+
+  // Two control points make the road wind naturally across the slope.
+  const cp1x = Math.round(w * (0.20 + rand(seed, 503) * 0.15));
+  const cp1y = Math.round(y1 + (rand(seed, 504) - 0.5) * h * 0.12);
+  const cp2x = Math.round(w * (0.62 + rand(seed, 505) * 0.15));
+  const cp2y = Math.round(y4 + (rand(seed, 506) - 0.5) * h * 0.12);
+
+  const sw   = Math.max(3, Math.round(w / 450));
+  const swB  = sw + Math.ceil(w / 800);
+  const d    = `M0,${y1} C${cp1x},${cp1y} ${cp2x},${cp2y} ${w},${y4}`;
+
+  return `
+  <path d="${d}" fill="none" stroke="rgb(${rcs})" stroke-width="${swB}" stroke-linecap="round" opacity="0.55"/>
+  <path d="${d}" fill="none" stroke="rgb(${rc})"  stroke-width="${sw}"  stroke-linecap="round" opacity="0.75"/>`;
+}
+
 // ── Cloud generator ────────────────────────────────────────────────────────────
 /**
  * Generate SVG markup for soft, wispy cloud clusters in the sky area.
@@ -237,7 +331,7 @@ function buildSVG(w, h, seed, top, bot) {
 
   // Mountain gradient: slightly lighter at the ridge → noticeably darker at the base.
   const mtnA = lighten(bot, 10);
-  const mtnB = darken(bot, 0.68);   // more pronounced — was 0.88
+  const mtnB = darken(bot, 0.68);
 
   // Ridge stroke = earth colour at ~85 % brightness.
   const stroke = darken(bot, 0.85);
@@ -249,6 +343,9 @@ function buildSVG(w, h, seed, top, bot) {
   const ridgeY = Math.round(h * 0.28);
 
   const clouds = buildClouds(w, h, seed);
+  const forest = buildForest(w, h, seed, bot, pts);
+  // ~65 % of images have a road (deterministic via seed).
+  const road   = rand(seed, 500) > 0.35 ? buildRoad(w, h, seed, bot, pts) : '';
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
   <defs>
@@ -260,9 +357,14 @@ function buildSVG(w, h, seed, top, bot) {
       <stop offset="0%"   stop-color="rgb(${mtnA})"/>
       <stop offset="100%" stop-color="rgb(${mtnB})"/>
     </linearGradient>
+    <clipPath id="clip-mtn">
+      <path d="${mountainD}"/>
+    </clipPath>
   </defs>
   <rect width="${w}" height="${h}" fill="url(#gsky)"/>${clouds}
   <path d="${mountainD}" fill="url(#gmtn)"/>
+  <g clip-path="url(#clip-mtn)">${forest}${road}
+  </g>
   <path d="${ridge}" fill="none"
         stroke="rgb(${stroke})" stroke-width="${sw}"
         stroke-linejoin="round" stroke-linecap="round"/>
