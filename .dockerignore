@@ -1,0 +1,19 @@
+# Directories mounted as volumes — no need to bake into the image
+src/
+dist/
+
+# Server uploads are ephemeral
+server/uploads/
+server/jobs.json
+
+# Dev / test artefacts
+node_modules/
+.git/
+test/
+
+# macOS
+.DS_Store
+
+# Docs
+docs/
+*.md
