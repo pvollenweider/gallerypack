@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * SSGG — Development static file server
+ * GalleryPack — Development static file server
  * Serves the dist/ directory over HTTP so that fetch() and other browser APIs
  * work correctly (they are blocked when opening HTML via the file:// protocol).
  *

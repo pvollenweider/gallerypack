@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * SSGG — Gallery scaffold generator
+ * GalleryPack — Gallery scaffold generator
  *
  * Creates the directory structure and a pre-filled gallery.config.json for a
  * new gallery under src/.

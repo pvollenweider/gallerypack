@@ -1,5 +1,5 @@
 # ──────────────────────────────────────────────────────────────────────────────
-# SSGG — Apache .htaccess for dist/
+# GalleryPack — Apache .htaccess for dist/
 # Copy this file to your dist/ root on the server and rename it to .htaccess
 # Requires: mod_deflate or mod_brotli, mod_expires, mod_headers, mod_mime
 # ──────────────────────────────────────────────────────────────────────────────

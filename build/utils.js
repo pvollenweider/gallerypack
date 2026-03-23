@@ -1,5 +1,5 @@
 /**
- * SSGG — build/utils.js
+ * GalleryPack — build/utils.js
  *
  * Pure utility functions shared between the build pipeline and tests.
  * No side effects, no I/O, no Node built-ins beyond `crypto`.

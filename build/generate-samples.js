@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * SSGG — Sample photo generator
+ * GalleryPack — Sample photo generator
  * Creates 15 placeholder JPEGs in src/example-gallery/photos/ and writes
  * (or overwrites) src/example-gallery/gallery.config.json.
  *
