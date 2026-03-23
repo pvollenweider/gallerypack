@@ -7,8 +7,8 @@ services:
       # Persist source galleries and built output outside the container
       - ./src:/app/src
       - ./dist:/app/dist
-      # Persist job queue state
-      - ./server/jobs.json:/app/server/jobs.json
+      # Mount server code live — changes take effect on container restart (no rebuild needed)
+      - ./server:/app/server
     environment:
       PORT:     "3000"
       BASE_URL: "http://localhost:3000"
