@@ -15,7 +15,7 @@ export async function extractExif(filePath) {
         'ExposureTime', 'FNumber', 'ISO',
         'FocalLength', 'FocalLengthIn35mmFormat',
         'Flash', 'WhiteBalance',
-        'GPSLatitude', 'GPSLongitude', 'GPSAltitude',
+        'GPSLatitude', 'GPSLatitudeRef', 'GPSLongitude', 'GPSLongitudeRef', 'GPSAltitude',
         'ImageWidth', 'ImageHeight',
         'Orientation',
         'Copyright', 'Artist',
@@ -25,6 +25,17 @@ export async function extractExif(filePath) {
     if (!raw) return {};
 
     const fmt = (v) => (v !== undefined && v !== null ? v : undefined);
+
+    // GPS: exifr may return [deg, min, sec] arrays or a decimal number depending on context.
+    const toDec = (val) => {
+      if (typeof val === 'number') return val;
+      if (Array.isArray(val)) return val[0] + val[1] / 60 + val[2] / 3600;
+      return undefined;
+    };
+    const rawLat = toDec(raw.GPSLatitude);
+    const rawLng = toDec(raw.GPSLongitude);
+    const lat = rawLat !== undefined && raw.GPSLatitudeRef  === 'S' ? -rawLat : rawLat;
+    const lng = rawLng !== undefined && raw.GPSLongitudeRef === 'W' ? -rawLng : rawLng;
 
     // Formater la vitesse d'obturation lisiblement
     let shutter;
@@ -49,10 +60,8 @@ export async function extractExif(filePath) {
       focal35:   raw.FocalLengthIn35mmFormat ? `${raw.FocalLengthIn35mmFormat}mm (éq. 35mm)` : undefined,
       width:     fmt(raw.ImageWidth),
       height:    fmt(raw.ImageHeight),
-      // GPS coordinates stored as {lat, lng} — displayed as a Google Maps link in the EXIF overlay.
-      location:  raw.GPSLatitude && raw.GPSLongitude
-                   ? { lat: raw.GPSLatitude, lng: raw.GPSLongitude }
-                   : undefined,
+      // GPS coordinates stored as {lat, lng} — resolved to a place name + Maps link at build time.
+      location:  lat !== undefined && lng !== undefined ? { lat, lng } : undefined,
       copyright: fmt(raw.Copyright),
     };
   } catch (_) {
