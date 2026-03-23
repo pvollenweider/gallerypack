@@ -10,15 +10,15 @@ No accounts. No platform. Just your files, your hosting, your rules.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org/)
-[![Live demo](https://img.shields.io/badge/Live%20demo-%E2%86%92%20View%20gallery-blue)](https://photos.vollenweider.org/ssgg/)
+[![Live demo](https://img.shields.io/badge/Live%20demo-%E2%86%92%20View%20gallery-blue)](https://photos.vollenweider.org/gallerypack/)
 
-**Live demo** — [photos.vollenweider.org/ssgg/](https://photos.vollenweider.org/ssgg/)
+**Live demo** — [photos.vollenweider.org/gallerypack/](https://photos.vollenweider.org/gallerypack/)
 
 | Gallery | Access |
 |---------|--------|
-| [Summer in Zürich](https://photos.vollenweider.org/ssgg/summer-zurich-2025/) | public |
-| [Quelques spectacles et live](https://photos.vollenweider.org/ssgg/quelques-spectacles-et-live/) | public |
-| [Insectes](https://photos.vollenweider.org/ssgg/insectes/) | 🔒 password — user: `gallery` / pwd: `example-password` |
+| [Summer in Zürich](https://photos.vollenweider.org/gallerypack/summer-zurich-2025/) | public |
+| [Quelques spectacles et live](https://photos.vollenweider.org/gallerypack/quelques-spectacles-et-live/) | public |
+| [Insectes](https://photos.vollenweider.org/gallerypack/insectes/) | 🔒 password — user: `gallery` / pwd: `example-password` |
 
 ---
 
