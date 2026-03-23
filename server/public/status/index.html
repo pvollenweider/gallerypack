@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Building gallery… — GalleryPack</title>
+  <script src="/js/i18n.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -189,8 +190,8 @@
       <div class="spinner"></div>
     </div>
     <div class="status-text">
-      <h1 id="status-title">Building your gallery…</h1>
-      <p id="status-sub">This usually takes a few seconds to a few minutes depending on photo count.</p>
+      <h1 id="status-title" data-i18n="status.heading.building">Building your gallery…</h1>
+      <p id="status-sub" data-i18n="status.subtext.building">This usually takes a few seconds to a few minutes depending on photo count.</p>
     </div>
   </div>
 
@@ -199,26 +200,29 @@
   </div>
 
   <div class="log-container">
-    <div class="log-header">Build log</div>
+    <div class="log-header" data-i18n="status.log.header">Build log</div>
     <div id="log"></div>
   </div>
 
   <div id="result">
-    <h2>✓ Gallery ready</h2>
-    <p>Your gallery has been built and is ready to view.</p>
-    <a class="btn" id="gallery-link" href="#">Open gallery →</a>
+    <h2 data-i18n="status.result.title">✓ Gallery ready</h2>
+    <p data-i18n="status.result.subtitle">Your gallery has been built and is ready to view.</p>
+    <a class="btn" id="gallery-link" href="#" data-i18n="status.result.open">Open gallery →</a>
   </div>
 
   <div id="result-error">
-    <h2>Build failed</h2>
-    <p id="error-msg">An error occurred during the build. Check the log above for details.</p>
+    <h2 data-i18n="status.error.title">Build failed</h2>
+    <p id="error-msg" data-i18n="status.error.subtitle">An error occurred during the build. Check the log above for details.</p>
   </div>
 
-  <a class="new-link" href="/new">← Create another gallery</a>
+  <a class="new-link" href="/new" data-i18n="status.new.link">← Create another gallery</a>
 
 </div>
 
 <script>
+  window.GP_LOCALE = gpDetectLocale();
+  applyI18n();
+
   // Extract job ID from URL: /status/<id>  or  /status?id=<id>
   const pathParts = window.location.pathname.split('/').filter(Boolean);
   const jobId = pathParts[pathParts.length - 1] !== 'status'
@@ -226,7 +230,7 @@
     : new URLSearchParams(window.location.search).get('id');
 
   if (!jobId) {
-    document.getElementById('status-title').textContent = 'No job ID found.';
+    document.getElementById('status-title').textContent = t('status.nojob');
     document.getElementById('status-sub').textContent   = '';
   } else {
     startStream(jobId);
@@ -301,9 +305,9 @@
   }
 
   function setDone(galleryUrl) {
-    document.getElementById('status-title').textContent = 'Gallery ready!';
-    document.getElementById('status-sub').textContent   = 'Build complete.';
-    document.title = 'Gallery ready — GalleryPack';
+    document.getElementById('status-title').textContent = t('status.heading.done');
+    document.getElementById('status-sub').textContent   = t('status.subtext.done');
+    document.title = t('status.page.title.done');
 
     const icon = document.getElementById('status-icon');
     icon.className = 'status-icon done';
@@ -324,9 +328,9 @@
   }
 
   function setError(message) {
-    document.getElementById('status-title').textContent = 'Build failed';
+    document.getElementById('status-title').textContent = t('status.heading.error');
     document.getElementById('status-sub').textContent   = '';
-    document.title = 'Build failed — GalleryPack';
+    document.title = t('status.page.title.error');
 
     const icon = document.getElementById('status-icon');
     icon.className = 'status-icon error';

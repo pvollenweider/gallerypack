@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Upload your photos</title>
+  <script src="/js/i18n.js"></script>
   <style>
     :root {
       --bg:      #f7f6f2;
@@ -466,8 +467,8 @@
     <div class="upload-area">
       <div class="drop-zone" id="drop-zone">
         <div class="icon">📷</div>
-        <div class="primary-text">Drop your photos here</div>
-        <div class="sub-text">or click to select</div>
+        <div class="primary-text" data-i18n="upload.dropzone.primary">Drop your photos here</div>
+        <div class="sub-text" data-i18n="upload.dropzone.secondary">or click to select</div>
       </div>
       <input type="file" id="file-input" accept="image/*,image/heic,image/heif" multiple />
       <div class="photo-grid" id="photo-grid"></div>
@@ -478,34 +479,34 @@
   <div id="step2" class="step hidden">
     <div class="form-area">
 
-      <button class="back-link" id="back-btn">← Back to photos</button>
+      <button class="back-link" id="back-btn" data-i18n="upload.step2.back">← Back to photos</button>
 
       <div class="error-banner" id="error-banner"></div>
 
-      <div class="section-label">About you</div>
+      <div class="section-label" data-i18n="upload.section.you">About you</div>
 
       <div class="field">
-        <label for="f-name">Name <span class="req">*</span></label>
+        <label for="f-name"><span data-i18n="upload.field.name">Name</span> <span class="req">*</span></label>
         <input type="text" id="f-name" name="photographerName" required placeholder="Your name" />
       </div>
       <div class="field">
-        <label for="f-email">Email</label>
+        <label for="f-email" data-i18n="upload.field.email">Email</label>
         <input type="email" id="f-email" name="photographerEmail" placeholder="your@email.com" />
       </div>
 
-      <div class="section-label">Your gallery</div>
+      <div class="section-label" data-i18n="upload.section.gallery">Your gallery</div>
 
       <div class="field">
-        <label for="f-title">Title <span class="req">*</span></label>
+        <label for="f-title"><span data-i18n="upload.field.title">Title</span> <span class="req">*</span></label>
         <input type="text" id="f-title" name="title" required placeholder="Project title" />
       </div>
 
       <details class="advanced">
-        <summary>Advanced options</summary>
+        <summary data-i18n="upload.advanced.toggle">Advanced options</summary>
         <div class="advanced-body">
 
           <div class="field" style="margin-top:14px;">
-            <label for="f-lang">Language</label>
+            <label for="f-lang" data-i18n="upload.field.language">Language</label>
             <div class="select-wrap">
               <select id="f-lang" name="locale">
                 <option value="fr">French</option>
@@ -518,18 +519,18 @@
           </div>
 
           <div class="field">
-            <label for="f-location">Location <span style="font-size:11px;color:var(--muted)">(optional, overridden by EXIF)</span></label>
+            <label for="f-location"><span data-i18n="upload.field.location">Location</span> <span style="font-size:11px;color:var(--muted)" data-i18n="upload.field.location.hint">(optional, overridden by EXIF)</span></label>
             <input type="text" id="f-location" name="location" placeholder="Paris, France" />
           </div>
 
           <div class="field">
-            <label>Protection</label>
+            <label data-i18n="upload.field.protection">Protection</label>
             <div class="radio-group">
               <label class="radio-label">
-                <input type="radio" name="access" value="public" checked /> Public
+                <input type="radio" name="access" value="public" checked /> <span data-i18n="upload.access.public">Public</span>
               </label>
               <label class="radio-label">
-                <input type="radio" name="access" value="password" /> Password-protected
+                <input type="radio" name="access" value="password" /> <span data-i18n="upload.access.password">Password-protected</span>
               </label>
             </div>
             <div id="password-field" style="display:none; margin-top:10px;">
@@ -538,14 +539,14 @@
           </div>
 
           <div class="field">
-            <label>Downloads</label>
+            <label data-i18n="upload.field.downloads">Downloads</label>
             <label class="checkbox-label">
               <input type="checkbox" id="f-dl-image" name="allowDownloadImage" checked />
-              Allow photo downloads
+              <span data-i18n="upload.downloads.photo">Allow photo downloads</span>
             </label>
             <label class="checkbox-label">
               <input type="checkbox" id="f-dl-gallery" name="allowDownloadGallery" checked />
-              Allow full gallery download
+              <span data-i18n="upload.downloads.gallery">Allow full gallery download</span>
             </label>
           </div>
 
@@ -553,7 +554,7 @@
       </details>
 
       <div style="margin-top: 28px;">
-        <button class="btn btn-accent btn-full" id="submit-btn">Create my gallery →</button>
+        <button class="btn btn-accent btn-full" id="submit-btn" data-i18n="upload.submit">Create my gallery →</button>
       </div>
 
     </div>
@@ -563,17 +564,23 @@
 
 <!-- Sticky bottom bar (step 1 only) -->
 <div class="bottom-bar" id="bottom-bar">
-  <div class="count-label"><span id="count-num">0</span> photos selected</div>
-  <button class="btn btn-accent" id="continue-btn" disabled>Continue →</button>
+  <div class="count-label"><span id="count-num">0</span> <span id="count-label-text">photos selected</span></div>
+  <button class="btn btn-accent" id="continue-btn" disabled data-i18n="upload.bar.continue">Continue →</button>
 </div>
 
 <!-- Upload overlay -->
 <div id="overlay">
   <div class="spinner"></div>
-  <p>Uploading your photos…</p>
+  <p data-i18n="upload.uploading">Uploading your photos…</p>
 </div>
 
 <script>
+  // ── i18n ─────────────────────────────────────────────
+  window.GP_LOCALE = gpDetectLocale(
+    (typeof window.INVITE_DATA !== 'undefined') ? window.INVITE_DATA?.galleryLocale : null
+  );
+  applyI18n();
+
   // ── Globals ──────────────────────────────────────────
   let selectedFiles = [];
 
@@ -636,6 +643,7 @@
 
   function updateBar() {
     countNum.textContent = selectedFiles.length;
+    document.getElementById('count-label-text').textContent = t('upload.bar.count', { n: selectedFiles.length }).replace(/^\d+\s*/, '');
     continueBtn.disabled = selectedFiles.length === 0;
   }
 
@@ -698,14 +706,14 @@
     const name  = document.getElementById('f-name').value.trim();
     const title = document.getElementById('f-title').value.trim();
 
-    if (!name)  return showError('Please enter your name.');
-    if (!title) return showError('Please enter a gallery title.');
-    if (selectedFiles.length === 0) return showError('Please select at least one photo.');
+    if (!name)  return showError(t('upload.error.name'));
+    if (!title) return showError(t('upload.error.title'));
+    if (selectedFiles.length === 0) return showError(t('upload.error.noPhotos'));
 
     const access   = document.querySelector('input[name="access"]:checked').value;
     const password = document.getElementById('f-password').value;
     if (access === 'password' && !password.trim()) {
-      return showError('Please enter a password for your gallery.');
+      return showError(t('upload.error.password'));
     }
 
     const fd = new FormData();
@@ -748,7 +756,7 @@
       showError(msg);
     } catch (err) {
       overlay.classList.remove('visible');
-      showError('Network error — please check your connection and try again.');
+      showError(t('upload.error.network'));
     }
 
     submitBtn.disabled = false;

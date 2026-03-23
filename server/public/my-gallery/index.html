@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>My Gallery — GalleryPack</title>
+  <script src="/js/i18n.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -71,50 +72,50 @@
 
     <!-- Status -->
     <div class="card">
-      <div class="card-title">Status</div>
+      <div class="card-title" data-i18n="mygallery.section.status">Status</div>
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
         <span id="status-badge" class="status-badge">&mdash;</span>
-        <a id="gallery-link" href="#" target="_blank" rel="noopener" class="gallery-link" style="display:none">Open gallery &rarr;</a>
+        <a id="gallery-link" href="#" target="_blank" rel="noopener" class="gallery-link" style="display:none" data-i18n="mygallery.gallery.open">Open gallery →</a>
       </div>
       <div id="rebuild-notice" style="margin-top:12px">
         <div class="spinner"></div>
-        Gallery is rebuilding&hellip;
+        <span data-i18n="mygallery.rebuilding">Gallery is rebuilding…</span>
       </div>
     </div>
 
     <!-- Photos -->
     <div class="card">
-      <div class="card-title">Photos</div>
+      <div class="card-title" data-i18n="mygallery.section.photos">Photos</div>
       <div class="error-banner" id="photos-error"></div>
       <div class="photo-list" id="photo-list"></div>
       <div style="margin-top:14px">
         <div class="dropzone" id="dropzone">
           <input type="file" id="photos-input" multiple accept="image/*,image/heic,image/heif">
-          <div class="dropzone-label"><strong>Add photos</strong> &mdash; click or drag &amp; drop</div>
+          <div class="dropzone-label" data-i18n-html="mygallery.dropzone.label"><strong>Add photos</strong> — click or drag &amp; drop</div>
         </div>
       </div>
     </div>
 
     <!-- Edit details -->
     <div class="card">
-      <div class="card-title">Gallery details</div>
+      <div class="card-title" data-i18n="mygallery.section.details">Gallery details</div>
       <div class="error-banner" id="edit-error"></div>
       <div class="field">
-        <label for="edit-title">Title</label>
+        <label for="edit-title" data-i18n="mygallery.field.title">Title</label>
         <input type="text" id="edit-title" placeholder="Gallery title">
       </div>
       <div class="field">
-        <label for="edit-location">Location <span style="font-size:11px;color:var(--muted)">(overridden by EXIF if present)</span></label>
+        <label for="edit-location"><span data-i18n="mygallery.field.location">Location</span> <span style="font-size:11px;color:var(--muted)" data-i18n="mygallery.field.location.hint">(overridden by EXIF if present)</span></label>
         <input type="text" id="edit-location" placeholder="Paris, France">
       </div>
-      <button class="btn btn-accent" id="save-details-btn" style="margin-top:4px">Save &amp; rebuild</button>
+      <button class="btn btn-accent" id="save-details-btn" style="margin-top:4px" data-i18n="mygallery.save">Save &amp; rebuild</button>
     </div>
 
   </div>
 
   <div id="loading-screen" style="text-align:center;padding:60px 0;color:var(--muted)">
     <div class="spinner" style="width:24px;height:24px;margin:0 auto 12px"></div>
-    <p style="font-size:13px">Loading&hellip;</p>
+    <p style="font-size:13px" data-i18n="mygallery.loading">Loading…</p>
   </div>
 </div>
 
@@ -123,8 +124,11 @@
   const jobId = pathParts[pathParts.length - 1];
   const token = new URLSearchParams(location.search).get('token');
 
+  window.GP_LOCALE = gpDetectLocale();
+  applyI18n();
+
   if (!jobId || !token) {
-    showError('Invalid link.');
+    showError(t('mygallery.error.invalid'));
   } else {
     loadGallery();
   }
@@ -136,11 +140,19 @@
     try {
       const res  = await fetch(`/api/my-gallery/${jobId}?token=${encodeURIComponent(token)}`);
       const data = await res.json();
-      if (!res.ok) { showError(data.error || 'Failed to load gallery'); return; }
+      if (!res.ok) {
+        if (res.status === 404) showError(t('mygallery.error.notfound'));
+        else showError(t('mygallery.error.invalid'));
+        return;
+      }
+      if (data.config?.locale) {
+        window.GP_LOCALE = gpDetectLocale(data.config.locale);
+        applyI18n();
+      }
       galleryData = data;
       render(data);
     } catch (err) {
-      showError('Network error');
+      showError(t('mygallery.error.network'));
     }
   }
 
@@ -153,7 +165,7 @@
 
     // Status
     const badge = document.getElementById('status-badge');
-    const labels = { done: '✓ Ready', error: '✗ Error', building: 'Building…', queued: 'Queued' };
+    const labels = { done: t('mygallery.status.ready'), error: t('mygallery.status.error'), building: t('status.building'), queued: t('status.queued') };
     badge.textContent = labels[job.status] || job.status;
     badge.className = `status-badge ${job.status}`;
 
@@ -183,7 +195,7 @@
       list.appendChild(item);
     }
     if (!photos.length) {
-      list.innerHTML = '<p style="font-size:13px;color:var(--muted);padding:4px 0">No photos yet.</p>';
+      list.innerHTML = `<p style="font-size:13px;color:var(--muted);padding:4px 0">${t('mygallery.photos.empty')}</p>`;
     }
     list.querySelectorAll('[data-name]').forEach(btn =>
       btn.addEventListener('click', () => removePhoto(btn.dataset.name)));

@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Admin — GalleryPack</title>
+  <script src="/js/i18n.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -164,6 +165,7 @@
       border-radius: var(--radius); padding: 14px 16px;
       display: flex; align-items: center; gap: 12px;
     }
+    .gallery-card-top { display: flex; align-items: center; gap: 12px; width: 100%; }
     .gallery-card-main { flex: 1; min-width: 0; }
     .gallery-card-title {
       font-size: 14px; font-weight: 600;
@@ -304,14 +306,14 @@
   <div class="login-box">
     <div class="login-logo">
       <div class="wordmark">GalleryPack</div>
-      <div class="sub">Admin panel</div>
+      <div class="sub" data-i18n="admin.login.sub">Admin panel</div>
     </div>
     <div class="error-banner" id="login-error"></div>
     <div class="field">
-      <label for="pw-input">Password</label>
-      <input type="password" id="pw-input" placeholder="Enter admin password" autocomplete="current-password">
+      <label for="pw-input" data-i18n="admin.login.password">Password</label>
+      <input type="password" id="pw-input" data-i18n-placeholder="admin.login.placeholder" placeholder="Enter admin password" autocomplete="current-password">
     </div>
-    <button class="btn btn-accent btn-full" id="login-btn">Sign in</button>
+    <button class="btn btn-accent btn-full" id="login-btn" data-i18n="admin.login.submit">Sign in</button>
   </div>
 </div>
 
@@ -320,58 +322,58 @@
   <div class="topbar">
     <div class="topbar-logo">GalleryPack</div>
     <div class="topbar-spacer"></div>
-    <button class="topbar-logout" id="logout-btn">Sign out</button>
+    <button class="topbar-logout" id="logout-btn" data-i18n="admin.logout">Sign out</button>
   </div>
 
   <div class="tabs">
-    <button class="tab-btn active" data-tab="galleries">Galleries</button>
-    <button class="tab-btn" data-tab="invites">Invite links</button>
-    <button class="tab-btn" data-tab="settings">Settings</button>
+    <button class="tab-btn active" data-tab="galleries" data-i18n="admin.tab.galleries">Galleries</button>
+    <button class="tab-btn" data-tab="invites" data-i18n="admin.tab.invites">Invite links</button>
+    <button class="tab-btn" data-tab="settings" data-i18n="admin.tab.settings">Settings</button>
   </div>
 
   <div class="content">
 
     <div id="tab-galleries" class="tab-panel active">
       <div class="section-header">
-        <h2>Galleries</h2>
-        <button class="btn btn-ghost btn-sm" id="refresh-galleries-btn">Refresh</button>
+        <h2 data-i18n="admin.tab.galleries">Galleries</h2>
+        <button class="btn btn-ghost btn-sm" id="refresh-galleries-btn" data-i18n="admin.galleries.refresh">Refresh</button>
       </div>
       <div id="galleries-container"></div>
     </div>
 
     <div id="tab-invites" class="tab-panel">
       <div class="section-header">
-        <h2>Invite links</h2>
-        <button class="btn btn-accent btn-sm" id="create-invite-btn">+ New link</button>
+        <h2 data-i18n="admin.tab.invites">Invite links</h2>
+        <button class="btn btn-accent btn-sm" id="create-invite-btn" data-i18n="admin.invites.new">+ New link</button>
       </div>
       <div id="invites-container"></div>
     </div>
 
     <div id="tab-settings" class="tab-panel">
       <div class="section-header">
-        <h2>Settings</h2>
+        <h2 data-i18n="admin.tab.settings">Settings</h2>
         <div style="display:flex;gap:8px">
-          <button class="btn btn-ghost btn-sm" id="settings-test-btn">Send test email</button>
-          <button class="btn btn-accent btn-sm" id="settings-save-btn">Save</button>
+          <button class="btn btn-ghost btn-sm" id="settings-test-btn" data-i18n="admin.settings.testEmail">Send test email</button>
+          <button class="btn btn-accent btn-sm" id="settings-save-btn" data-i18n="admin.settings.save">Save</button>
         </div>
       </div>
 
       <div class="error-banner" id="settings-error"></div>
 
-      <p class="section-divider">Application</p>
+      <p class="section-divider" data-i18n="admin.settings.section.app">Application</p>
       <div class="row">
         <div class="field">
-          <label for="s-appname">App name</label>
+          <label for="s-appname" data-i18n="admin.settings.appname">App name</label>
           <input type="text" id="s-appname" placeholder="GalleryPack">
         </div>
         <div class="field">
-          <label for="s-admin-email">Admin email</label>
+          <label for="s-admin-email" data-i18n="admin.settings.adminEmail">Admin email</label>
           <input type="email" id="s-admin-email" placeholder="admin@example.com">
         </div>
       </div>
 
       <div class="toggle-row" style="margin-top:16px;margin-bottom:8px">
-        <span style="font-size:13px;font-weight:600">Enable email notifications (SMTP)</span>
+        <span style="font-size:13px;font-weight:600" data-i18n="admin.settings.smtpEnabled">Enable email notifications (SMTP)</span>
         <label class="toggle">
           <input type="checkbox" id="s-smtp-enabled">
           <span class="slider"></span>
@@ -380,35 +382,49 @@
       <div id="smtp-fields" style="display:none">
         <div class="row">
           <div class="field">
-            <label for="s-smtp-host">SMTP host</label>
+            <label for="s-smtp-host" data-i18n="admin.settings.smtp.host">SMTP host</label>
             <input type="text" id="s-smtp-host" placeholder="smtp.example.com">
           </div>
           <div class="field">
-            <label for="s-smtp-port">Port</label>
+            <label for="s-smtp-port" data-i18n="admin.settings.smtp.port">Port</label>
             <input type="text" id="s-smtp-port" placeholder="587">
           </div>
         </div>
         <div class="row">
           <div class="field">
-            <label for="s-smtp-user">Username</label>
+            <label for="s-smtp-user" data-i18n="admin.settings.smtp.user">Username</label>
             <input type="text" id="s-smtp-user" placeholder="user@example.com" autocomplete="off">
           </div>
           <div class="field">
-            <label for="s-smtp-pass">Password</label>
+            <label for="s-smtp-pass" data-i18n="admin.settings.smtp.pass">Password</label>
             <input type="password" id="s-smtp-pass" placeholder="••••••••" autocomplete="off">
           </div>
         </div>
         <div class="field">
-          <label for="s-smtp-from">From address</label>
+          <label for="s-smtp-from" data-i18n="admin.settings.smtp.from">From address</label>
           <input type="text" id="s-smtp-from" placeholder="noreply@example.com">
         </div>
         <div class="toggle-row" style="margin-top:4px">
-          <span>Direct SSL/TLS — only for port 465 (not 587)</span>
+          <span data-i18n="admin.settings.smtp.ssl">Direct SSL/TLS — only for port 465 (not 587)</span>
           <label class="toggle">
             <input type="checkbox" id="s-smtp-secure">
             <span class="slider"></span>
           </label>
         </div>
+      </div>
+
+      <p class="section-divider" style="margin-top:20px" data-i18n="admin.settings.section.ui">Interface</p>
+      <div class="field" style="max-width:240px">
+        <label for="s-ui-locale" data-i18n="admin.settings.uiLocale">Interface language</label>
+        <select id="s-ui-locale">
+          <option value="">Auto (browser)</option>
+          <option value="en">English</option>
+          <option value="fr">Français</option>
+          <option value="de">Deutsch</option>
+          <option value="it">Italiano</option>
+          <option value="es">Español</option>
+          <option value="pt">Português</option>
+        </select>
       </div>
     </div>
 
@@ -419,19 +435,19 @@
 <div class="modal-backdrop" id="edit-modal">
   <div class="modal">
     <div class="modal-header">
-      <h3>Edit gallery</h3>
+      <h3 data-i18n="admin.edit.title">Edit gallery</h3>
       <button class="modal-close" id="edit-modal-close">×</button>
     </div>
 
-    <p class="section-divider">Gallery</p>
+    <p class="section-divider" data-i18n="admin.edit.section.gallery">Gallery</p>
 
     <div class="field">
-      <label for="edit-title">Title</label>
+      <label for="edit-title" data-i18n="admin.edit.field.title">Title</label>
       <input type="text" id="edit-title" placeholder="Gallery title">
     </div>
     <div class="row">
       <div class="field">
-        <label for="edit-locale">Language</label>
+        <label for="edit-locale" data-i18n="admin.edit.field.language">Language</label>
         <select id="edit-locale">
           <option value="fr">Français</option>
           <option value="en">English</option>
@@ -442,42 +458,42 @@
         </select>
       </div>
       <div class="field">
-        <label for="edit-access">Access</label>
+        <label for="edit-access" data-i18n="admin.edit.field.access">Access</label>
         <select id="edit-access">
-          <option value="public">Public</option>
-          <option value="password">Password protected</option>
+          <option value="public" data-i18n="admin.access.public">Public</option>
+          <option value="password" data-i18n="admin.access.password">Password protected</option>
         </select>
       </div>
     </div>
     <div class="field" id="edit-password-field" style="display:none">
-      <label for="edit-password">Password <span style="font-size:11px;color:var(--muted)">(leave empty to keep current)</span></label>
+      <label for="edit-password"><span data-i18n="admin.edit.field.password">Password</span> <span style="font-size:11px;color:var(--muted)" data-i18n="admin.edit.field.password.hint">(leave empty to keep current)</span></label>
       <input type="text" id="edit-password" placeholder="new-password">
     </div>
 
-    <p class="section-divider" style="margin-top:16px">Photographer</p>
+    <p class="section-divider" style="margin-top:16px" data-i18n="admin.edit.section.photographer">Photographer</p>
 
     <div class="row">
       <div class="field">
-        <label for="edit-name">Name</label>
+        <label for="edit-name" data-i18n="admin.edit.field.name">Name</label>
         <input type="text" id="edit-name" placeholder="Photographer name">
       </div>
       <div class="field">
-        <label for="edit-email">Email</label>
+        <label for="edit-email" data-i18n="admin.edit.field.email">Email</label>
         <input type="email" id="edit-email" placeholder="photographer@email.com">
       </div>
     </div>
 
-    <p class="section-divider" style="margin-top:16px">Downloads</p>
+    <p class="section-divider" style="margin-top:16px" data-i18n="admin.edit.section.downloads">Downloads</p>
 
     <div class="toggle-row">
-      <span>Individual photo download</span>
+      <span data-i18n="admin.edit.dl.photo">Individual photo download</span>
       <label class="toggle">
         <input type="checkbox" id="edit-dl-image" checked>
         <span class="slider"></span>
       </label>
     </div>
     <div class="toggle-row">
-      <span>Full gallery ZIP download</span>
+      <span data-i18n="admin.edit.dl.gallery">Full gallery ZIP download</span>
       <label class="toggle">
         <input type="checkbox" id="edit-dl-gallery" checked>
         <span class="slider"></span>
@@ -487,8 +503,8 @@
     <div class="error-banner" id="edit-error"></div>
 
     <div class="modal-footer">
-      <button class="btn btn-ghost" id="edit-cancel-btn">Cancel</button>
-      <button class="btn btn-accent" id="edit-save-btn">Save &amp; rebuild</button>
+      <button class="btn btn-ghost" id="edit-cancel-btn" data-i18n="admin.edit.cancel">Cancel</button>
+      <button class="btn btn-accent" id="edit-save-btn" data-i18n="admin.edit.save">Save &amp; rebuild</button>
     </div>
   </div>
 </div>
@@ -497,54 +513,54 @@
 <div class="modal-backdrop" id="invite-modal">
   <div class="modal">
     <div class="modal-header">
-      <h3>New invite link</h3>
+      <h3 data-i18n="admin.invite.create.title">New invite link</h3>
       <button class="modal-close" id="invite-modal-close">×</button>
     </div>
     <div class="field">
-      <label for="invite-label">Label <span style="font-size:11px;color:var(--muted)">(optional)</span></label>
+      <label for="invite-label"><span data-i18n="admin.invite.create.label">Label</span> <span style="font-size:11px;color:var(--muted)" data-i18n="admin.invite.create.label.hint">(optional)</span></label>
       <input type="text" id="invite-label" placeholder="e.g. Wedding — John &amp; Jane">
     </div>
     <details style="margin-bottom:16px">
       <summary style="cursor:pointer;font-size:13px;color:var(--muted);padding:8px 0;list-style:none;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)">
-        Pre-fill photographer info <span style="font-size:11px">▾</span>
+        <span data-i18n="admin.invite.create.prefill">Pre-fill photographer info</span> <span style="font-size:11px">▾</span>
       </summary>
       <div style="padding-top:12px;display:flex;flex-direction:column;gap:12px">
         <div class="row">
           <div class="field">
-            <label for="inv-name">Photographer name</label>
+            <label for="inv-name" data-i18n="admin.invite.create.name">Photographer name</label>
             <input type="text" id="inv-name" placeholder="Jane Doe">
           </div>
           <div class="field">
-            <label for="inv-email">Photographer email</label>
+            <label for="inv-email" data-i18n="admin.invite.create.email">Photographer email</label>
             <input type="email" id="inv-email" placeholder="jane@example.com">
           </div>
         </div>
         <div class="field">
-          <label for="inv-title">Gallery title</label>
+          <label for="inv-title" data-i18n="admin.invite.create.galtitle">Gallery title</label>
           <input type="text" id="inv-title" placeholder="Pre-fill gallery title">
         </div>
         <div class="row">
           <div class="field">
-            <label for="inv-location">Location</label>
+            <label for="inv-location" data-i18n="admin.invite.create.location">Location</label>
             <input type="text" id="inv-location" placeholder="Paris, France">
           </div>
           <div class="field">
-            <label for="inv-date">Date</label>
+            <label for="inv-date" data-i18n="admin.invite.create.date">Date</label>
             <input type="date" id="inv-date">
           </div>
         </div>
         <div class="field">
           <label>
             <input type="checkbox" id="inv-single" style="accent-color:var(--accent)">
-            &nbsp;Single delivery (lock to one upload, pre-fill locked)
+            &nbsp;<span data-i18n="admin.invite.create.single">Single delivery (lock to one upload, pre-fill locked)</span>
           </label>
         </div>
       </div>
     </details>
     <div class="error-banner" id="invite-error"></div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" id="invite-cancel-btn">Cancel</button>
-      <button class="btn btn-accent" id="invite-create-btn">Create link</button>
+      <button class="btn btn-ghost" id="invite-cancel-btn" data-i18n="admin.invite.create.cancel">Cancel</button>
+      <button class="btn btn-accent" id="invite-create-btn" data-i18n="admin.invite.create.submit">Create link</button>
     </div>
   </div>
 </div>
@@ -553,6 +569,10 @@
 <div id="toast"></div>
 
 <script>
+// ── i18n ──────────────────────────────────────────────────
+window.GP_LOCALE = gpDetectLocale();
+applyI18n();
+
 // ── Token ─────────────────────────────────────────────────
 const TOKEN_KEY = 'gpAdmin_token';
 const getToken   = () => localStorage.getItem(TOKEN_KEY);
@@ -651,7 +671,7 @@ function esc(s) {
 }
 
 function statusBadge(status) {
-  const labels = { done: 'Done', error: 'Error', building: 'Building…', queued: 'Queued' };
+  const labels = { done: t('status.done'), error: t('status.error'), building: t('status.building'), queued: t('status.queued') };
   return `<span class="status-badge ${esc(status)}">${labels[status] || esc(status)}</span>`;
 }
 
@@ -660,7 +680,7 @@ let galleries = [];
 
 async function loadGalleries() {
   const c = document.getElementById('galleries-container');
-  c.innerHTML = '<div class="loading-row"><div class="spinner"></div> Loading…</div>';
+  c.innerHTML = `<div class="loading-row"><div class="spinner"></div> ${t('mygallery.loading')}</div>`;
   try {
     const data = await api('GET', '/api/admin/galleries');
     galleries = data.galleries || [];
@@ -676,7 +696,7 @@ function renderGalleries() {
   clearTimeout(galleriesPollTimer);
   const c = document.getElementById('galleries-container');
   if (!galleries.length) {
-    c.innerHTML = `<div class="empty-state"><div class="icon">🖼</div><p>No galleries yet.<br>Create one via <a href="/new" style="color:var(--accent)">New Gallery</a>.</p></div>`;
+    c.innerHTML = `<div class="empty-state"><div class="icon">🖼</div><p>${t('admin.galleries.empty')}<br>${t('admin.galleries.empty.hint')} <a href="/new" style="color:var(--accent)">New Gallery</a>.</p></div>`;
     return;
   }
   const list = document.createElement('div');
@@ -697,9 +717,10 @@ function renderGalleries() {
         </div>
         ${statusBadge(g.status)}
         <div class="card-actions">
-          <button class="btn btn-ghost btn-sm" data-edit="${esc(g.id)}">Edit</button>
-          <button class="btn btn-danger btn-sm" data-revoke-access="${esc(g.id)}" data-title="${esc(g.title || g.slug)}" title="Invalidate photographer manage link">Revoke access</button>
-          <button class="btn btn-danger btn-sm" data-delete="${esc(g.id)}" data-title="${esc(g.title || g.slug)}">Delete</button>
+          <button class="btn btn-ghost btn-sm" data-edit="${esc(g.id)}">${t('admin.galleries.edit')}</button>
+          <button class="btn btn-ghost btn-sm" data-send-access="${esc(g.id)}" data-title="${esc(g.title || g.slug)}">${t('admin.galleries.sendAccess')}</button>
+          <button class="btn btn-danger btn-sm" data-revoke-access="${esc(g.id)}" data-title="${esc(g.title || g.slug)}">${t('admin.galleries.revokeAccess')}</button>
+          <button class="btn btn-danger btn-sm" data-delete="${esc(g.id)}" data-title="${esc(g.title || g.slug)}">${t('admin.galleries.delete')}</button>
         </div>
       </div>`;
     list.appendChild(card);
@@ -707,6 +728,8 @@ function renderGalleries() {
   c.replaceChildren(list);
   c.querySelectorAll('[data-edit]').forEach(btn =>
     btn.addEventListener('click', () => openEditModal(btn.dataset.edit)));
+  c.querySelectorAll('[data-send-access]').forEach(btn =>
+    btn.addEventListener('click', () => sendGalleryAccess(btn.dataset.sendAccess, btn.dataset.title)));
   c.querySelectorAll('[data-revoke-access]').forEach(btn =>
     btn.addEventListener('click', () => revokeGalleryAccess(btn.dataset.revokeAccess, btn.dataset.title)));
   c.querySelectorAll('[data-delete]').forEach(btn =>
@@ -719,11 +742,23 @@ function renderGalleries() {
 
 document.getElementById('refresh-galleries-btn').addEventListener('click', loadGalleries);
 
+async function sendGalleryAccess(id, title) {
+  try {
+    const data = await api('POST', `/api/admin/galleries/${id}/send-access`, {});
+    if (data.emailSent) {
+      toast(t('admin.galleries.accessSent'));
+    } else if (data.manageUrl) {
+      await navigator.clipboard.writeText(data.manageUrl).catch(() => {});
+      toast(t('admin.galleries.accessCopied'));
+    }
+  } catch (err) { toast(`Error: ${err.message}`); }
+}
+
 async function revokeGalleryAccess(id, title) {
   if (!confirm(`Revoke photographer access to "${title}"?\nTheir current manage link will stop working. A new link can be sent if needed.`)) return;
   try {
     await api('POST', `/api/admin/galleries/${id}/revoke-access`, {});
-    toast('Photographer access revoked');
+    toast(t('admin.galleries.accessRevoked'));
   } catch (err) { toast(`Error: ${err.message}`); }
 }
 
@@ -731,7 +766,7 @@ async function confirmDeleteGallery(id, title) {
   if (!confirm(`Delete gallery "${title}"?\nThis removes all source files and the built output.`)) return;
   try {
     await api('DELETE', `/api/admin/galleries/${id}`);
-    toast('Gallery deleted');
+    toast(t('admin.galleries.deleted'));
     loadGalleries();
   } catch (err) { toast(`Error: ${err.message}`); }
 }
@@ -789,7 +824,7 @@ document.getElementById('edit-save-btn').addEventListener('click', async () => {
     if (body.access === 'password' && pw) body.password = pw;
     const data = await api('PATCH', `/api/admin/galleries/${editingId}`, body);
     closeEditModal();
-    toast(data.rebuilding ? 'Saved — rebuilding gallery…' : 'Saved');
+    toast(data.rebuilding ? `${t('admin.settings.saved')} — ${t('status.building')}` : t('admin.settings.saved'));
     loadGalleries();
   } catch (err) {
     errEl.textContent = err.message;
@@ -804,7 +839,7 @@ let invites = [];
 
 async function loadInvites() {
   const c = document.getElementById('invites-container');
-  c.innerHTML = '<div class="loading-row"><div class="spinner"></div> Loading…</div>';
+  c.innerHTML = `<div class="loading-row"><div class="spinner"></div> ${t('mygallery.loading')}</div>`;
   try {
     const data = await api('GET', '/api/admin/invites');
     invites = data.invites || [];
@@ -817,7 +852,7 @@ async function loadInvites() {
 function renderInvites() {
   const c = document.getElementById('invites-container');
   if (!invites.length) {
-    c.innerHTML = `<div class="empty-state"><div class="icon">🔗</div><p>No invite links yet.<br>Create one to share with a photographer.</p></div>`;
+    c.innerHTML = `<div class="empty-state"><div class="icon">🔗</div><p>${t('admin.invites.empty')}<br>${t('admin.invites.empty.hint')}</p></div>`;
     return;
   }
   const list = document.createElement('div');
@@ -828,28 +863,28 @@ function renderInvites() {
     const url   = `${location.origin}/upload/${inv.token}`;
     const date  = new Date(inv.createdAt).toLocaleDateString('en', { year:'numeric', month:'short', day:'numeric' });
     const usageBadge = inv.usageCount > 0
-      ? `<span style="font-size:11px;background:rgba(42,158,82,.1);color:#2a9e52;padding:2px 7px;border-radius:99px;font-weight:600">Used ${inv.usageCount}×</span>`
-      : `<span style="font-size:11px;background:rgba(196,147,63,.1);color:#c4933f;padding:2px 7px;border-radius:99px;font-weight:600">Unused</span>`;
+      ? `<span style="font-size:11px;background:rgba(42,158,82,.1);color:#2a9e52;padding:2px 7px;border-radius:99px;font-weight:600">${t('admin.invites.used', { n: inv.usageCount })}</span>`
+      : `<span style="font-size:11px;background:rgba(196,147,63,.1);color:#c4933f;padding:2px 7px;border-radius:99px;font-weight:600">${t('admin.invites.unused')}</span>`;
     const singleBadge = inv.singleDelivery
-      ? `<span style="font-size:11px;background:rgba(136,132,128,.1);color:var(--muted);padding:2px 7px;border-radius:99px">Single delivery</span>`
+      ? `<span style="font-size:11px;background:rgba(136,132,128,.1);color:var(--muted);padding:2px 7px;border-radius:99px">${t('admin.invites.single')}</span>`
       : '';
     const forWho = inv.photographerName ? ` — for ${esc(inv.photographerName)}` : '';
     card.innerHTML = `
       <div class="invite-card-main">
         <div class="invite-label" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">${esc(inv.label || '(no label)')}${forWho} ${usageBadge}${singleBadge}</div>
         <div class="invite-url">${esc(url)}</div>
-        <div class="invite-stats">Created ${date}</div>
+        <div class="invite-stats">${t('admin.invites.created')} ${date}</div>
       </div>
       <div class="card-actions">
-        <button class="btn btn-ghost btn-sm" data-copy="${esc(url)}">Copy</button>
-        <button class="btn btn-danger btn-sm" data-revoke="${esc(inv.token)}" data-label="${esc(inv.label || inv.token.slice(0,8))}">Revoke</button>
+        <button class="btn btn-ghost btn-sm" data-copy="${esc(url)}">${t('admin.invites.copy')}</button>
+        <button class="btn btn-danger btn-sm" data-revoke="${esc(inv.token)}" data-label="${esc(inv.label || inv.token.slice(0,8))}">${t('admin.invites.revoke')}</button>
       </div>`;
     list.appendChild(card);
   }
   c.replaceChildren(list);
   c.querySelectorAll('[data-copy]').forEach(btn =>
     btn.addEventListener('click', () =>
-      navigator.clipboard.writeText(btn.dataset.copy).then(() => toast('Link copied!'))));
+      navigator.clipboard.writeText(btn.dataset.copy).then(() => toast(t('admin.invites.copied')))));
   c.querySelectorAll('[data-revoke]').forEach(btn =>
     btn.addEventListener('click', () => revokeInvite(btn.dataset.revoke, btn.dataset.label)));
 }
@@ -858,7 +893,7 @@ async function revokeInvite(token, label) {
   if (!confirm(`Revoke invite link "${label}"?\nAnyone with this link will no longer be able to upload.`)) return;
   try {
     await api('DELETE', `/api/admin/invites/${token}`);
-    toast('Invite link revoked');
+    toast(t('admin.invites.revoked'));
     loadInvites();
   } catch (err) { toast(`Error: ${err.message}`); }
 }
@@ -906,7 +941,7 @@ document.getElementById('invite-create-btn').addEventListener('click', async () 
     Object.keys(body).forEach(k => body[k] === undefined && delete body[k]);
     const data = await api('POST', '/api/admin/invites', body);
     closeInviteModal();
-    toast('Invite link created — copied to clipboard');
+    toast(t('admin.invite.created'));
     if (data.uploadUrl) navigator.clipboard.writeText(data.uploadUrl).catch(() => {});
     loadInvites();
   } catch (err) {
@@ -937,6 +972,11 @@ async function loadSettings() {
     document.getElementById('s-smtp-pass').value   = s.smtpPass   || '';
     document.getElementById('s-smtp-from').value   = s.smtpFrom   || '';
     document.getElementById('s-smtp-secure').checked = !!s.smtpSecure;
+    document.getElementById('s-ui-locale').value   = s.uiLocale   || '';
+    if (s.uiLocale) {
+      window.GP_LOCALE = gpDetectLocale(s.uiLocale);
+      applyI18n();
+    }
     syncSmtpFields();
   } catch (_) {}
 }
@@ -958,8 +998,14 @@ document.getElementById('settings-save-btn').addEventListener('click', async () 
       smtpPass:     smtpEnabled ? (document.getElementById('s-smtp-pass').value          || undefined) : undefined,
       smtpFrom:     smtpEnabled ? (document.getElementById('s-smtp-from').value.trim()   || undefined) : undefined,
       smtpSecure:   smtpEnabled ? document.getElementById('s-smtp-secure').checked        : false,
+      uiLocale:     document.getElementById('s-ui-locale').value || undefined,
     });
-    toast('Settings saved');
+    const newLocale = document.getElementById('s-ui-locale').value;
+    window.GP_LOCALE = gpDetectLocale(newLocale || null);
+    applyI18n();
+    renderGalleries();
+    renderInvites();
+    toast(t('admin.settings.saved'));
   } catch (err) {
     errEl.textContent = err.message;
     errEl.classList.add('show');
@@ -971,15 +1017,15 @@ document.getElementById('settings-save-btn').addEventListener('click', async () 
 document.getElementById('settings-test-btn').addEventListener('click', async () => {
   const btn = document.getElementById('settings-test-btn');
   btn.disabled = true;
-  btn.textContent = 'Sending…';
+  btn.textContent = '…';
   try {
     await api('POST', '/api/admin/settings/test-email', {});
-    toast('Test email sent to admin address');
+    toast(t('admin.settings.testSent'));
   } catch (err) {
     toast(`Error: ${err.message}`);
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Send test email';
+    btn.textContent = t('admin.settings.testEmail');
   }
 });
 
