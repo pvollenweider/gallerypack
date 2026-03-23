@@ -591,6 +591,8 @@ async function resolveGpsLocations(results, manifestPath) {
       ok(`GPS (${key}) → ${cache.get(key)}`);
     }
 
+    // Keep raw coords in exif.gps so the frontend can generate a Maps link.
+    photo.exif.gps = { lat, lng };
     photo.exif.location = cache.get(key);
   }
 
@@ -598,6 +600,7 @@ async function resolveGpsLocations(results, manifestPath) {
   const manifest = loadManifest(manifestPath);
   for (const photo of toResolve) {
     if (manifest.photos[photo.exif.originalFile]) {
+      manifest.photos[photo.exif.originalFile].exif.gps      = photo.exif.gps;
       manifest.photos[photo.exif.originalFile].exif.location = photo.exif.location;
     }
   }
@@ -1080,7 +1083,9 @@ body.glightbox-open #gl-dl-btn{display:flex}
 }
 .gl-exif-row:last-child{border:none}
 .gl-exif-k{color:rgba(255,255,255,.4);white-space:nowrap;flex-shrink:0}
-.gl-exif-v{color:rgba(255,255,255,.8);text-align:right}
+.gl-exif-v{color:rgba(255,255,255,.8);text-align:right;display:flex;align-items:center;justify-content:flex-end;gap:4px}
+.gl-exif-maps{color:rgba(255,255,255,.45);line-height:0;flex-shrink:0;transition:color .2s}
+.gl-exif-maps:hover{color:rgba(255,255,255,.9)}
 .gl-none{color:rgba(255,255,255,.3);font-size:11px}
 
 /* ── tiny-slider thumbnail strip ────────────────────── */
@@ -1408,12 +1413,17 @@ function exifHTML(exif) {
       let v = merged[k];
       // Format date taken as a human-readable local string.
       if (k === 'date') { try { v = new Date(v).toLocaleString(); } catch(_){} }
-      // location is resolved to a plain string at build time (reverse geocoding).
-      // GPS object fallback: should not occur for freshly-built galleries, but
-      // handles stale manifests gracefully by showing decimal coords.
+      // location: resolved to a plain string at build time.
+      // GPS object fallback: stale manifest — format as decimal coords.
       if (k === 'location' && v && typeof v === 'object') {
         const { lat, lng } = v;
         v = \`\${Math.abs(lat).toFixed(4)}°\${lat >= 0 ? 'N' : 'S'}, \${Math.abs(lng).toFixed(4)}°\${lng >= 0 ? 'E' : 'W'}\`;
+      }
+      // If GPS coords are available, append a Google Maps link next to the label.
+      if (k === 'location' && merged.gps && typeof merged.gps === 'object') {
+        const { lat, lng } = merged.gps;
+        const mapsUrl = \`https://www.google.com/maps?q=\${lat.toFixed(6)},\${lng.toFixed(6)}\`;
+        v = \`\${v}\u2002<a class="gl-exif-maps" href="\${mapsUrl}" target="_blank" rel="noopener" title="Voir sur Google Maps"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 2C4.24 2 2 4.24 2 7c0 3.75 5 9 5 9s5-5.25 5-9c0-2.76-2.24-5-5-5z"/><circle cx="7" cy="7" r="1.5"/></svg></a>\`;
       }
       return \`<div class="gl-exif-row"><span class="gl-exif-k">\${L[k]}</span><span class="gl-exif-v">\${v}</span></div>\`;
     });
