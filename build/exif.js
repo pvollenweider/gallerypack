@@ -49,7 +49,8 @@ export async function extractExif(filePath) {
       focal35:   raw.FocalLengthIn35mmFormat ? `${raw.FocalLengthIn35mmFormat}mm (éq. 35mm)` : undefined,
       width:     fmt(raw.ImageWidth),
       height:    fmt(raw.ImageHeight),
-      gps:       raw.GPSLatitude && raw.GPSLongitude
+      // GPS coordinates stored as {lat, lng} — displayed as a Google Maps link in the EXIF overlay.
+      location:  raw.GPSLatitude && raw.GPSLongitude
                    ? { lat: raw.GPSLatitude, lng: raw.GPSLongitude }
                    : undefined,
       copyright: fmt(raw.Copyright),

@@ -1253,14 +1253,14 @@ document.getElementById('bCount').textContent = PHOTOS.length + ' photo' + (PHOT
 
 /* ── EXIF localisation strings ──────────────────────── */
 const EXIF_I18N = {
-  fr:{ label:'Métadonnées', camera:'Appareil',    lens:'Objectif',   date:'Date',     shutter:'Vitesse',   aperture:'Ouverture', iso:'Sensibilité', focal:'Focale',      focal35:'Éq. 35mm',    width:'Largeur px',  height:'Hauteur px',  fileSize:'Taille fichier', copyright:'Copyright', originalFile:'Fichier source', noData:'Aucune donnée EXIF' },
-  en:{ label:'Metadata',    camera:'Camera',      lens:'Lens',       date:'Date',     shutter:'Shutter',   aperture:'Aperture',  iso:'ISO',         focal:'Focal',       focal35:'35mm equiv.',  width:'Width px',    height:'Height px',   fileSize:'File size',      copyright:'Copyright', originalFile:'Source file',    noData:'No EXIF data' },
-  de:{ label:'Metadaten',   camera:'Kamera',      lens:'Objektiv',   date:'Datum',    shutter:'Belichtung',aperture:'Blende',    iso:'ISO',         focal:'Brennweite',  focal35:'KB-Äquiv.',    width:'Breite px',   height:'Höhe px',     fileSize:'Dateigrösse',    copyright:'Copyright', originalFile:'Quelldatei',     noData:'Keine EXIF-Daten' },
-  es:{ label:'Metadatos',   camera:'Cámara',      lens:'Objetivo',   date:'Fecha',    shutter:'Velocidad', aperture:'Apertura',  iso:'ISO',         focal:'Focal',       focal35:'Equiv. 35mm',  width:'Anchura px',  height:'Altura px',   fileSize:'Tamaño archivo', copyright:'Copyright', originalFile:'Archivo origen', noData:'Sin datos EXIF' },
-  it:{ label:'Metadati',    camera:'Fotocamera',  lens:'Obiettivo',  date:'Data',     shutter:'Otturatore',aperture:'Apertura',  iso:'ISO',         focal:'Focale',      focal35:'Equiv. 35mm',  width:'Larghezza px',height:'Altezza px',  fileSize:'Dimensione',     copyright:'Copyright', originalFile:'File sorgente',  noData:'Nessun dato EXIF' },
-  pt:{ label:'Metadados',   camera:'Câmera',      lens:'Lente',      date:'Data',     shutter:'Velocidade',aperture:'Abertura',  iso:'ISO',         focal:'Focal',       focal35:'Equiv. 35mm',  width:'Largura px',  height:'Altura px',   fileSize:'Tamanho',        copyright:'Copyright', originalFile:'Ficheiro fonte', noData:'Sem dados EXIF' },
+  fr:{ label:'Métadonnées', camera:'Appareil',    lens:'Objectif',   date:'Date prise de vue', location:'Lieu',    shutter:'Vitesse',   aperture:'Ouverture', iso:'Sensibilité', focal:'Focale',      focal35:'Éq. 35mm',    width:'Largeur px',  height:'Hauteur px',  fileSize:'Taille fichier', copyright:'Copyright', originalFile:'Fichier source', noData:'Aucune donnée EXIF' },
+  en:{ label:'Metadata',    camera:'Camera',      lens:'Lens',       date:'Date taken',        location:'Location', shutter:'Shutter',   aperture:'Aperture',  iso:'ISO',         focal:'Focal',       focal35:'35mm equiv.',  width:'Width px',    height:'Height px',   fileSize:'File size',      copyright:'Copyright', originalFile:'Source file',    noData:'No EXIF data' },
+  de:{ label:'Metadaten',   camera:'Kamera',      lens:'Objektiv',   date:'Aufnahmedatum',     location:'Ort',      shutter:'Belichtung',aperture:'Blende',    iso:'ISO',         focal:'Brennweite',  focal35:'KB-Äquiv.',    width:'Breite px',   height:'Höhe px',     fileSize:'Dateigrösse',    copyright:'Copyright', originalFile:'Quelldatei',     noData:'Keine EXIF-Daten' },
+  es:{ label:'Metadatos',   camera:'Cámara',      lens:'Objetivo',   date:'Fecha de toma',     location:'Lugar',    shutter:'Velocidad', aperture:'Apertura',  iso:'ISO',         focal:'Focal',       focal35:'Equiv. 35mm',  width:'Anchura px',  height:'Altura px',   fileSize:'Tamaño archivo', copyright:'Copyright', originalFile:'Archivo origen', noData:'Sin datos EXIF' },
+  it:{ label:'Metadati',    camera:'Fotocamera',  lens:'Obiettivo',  date:'Data scatto',       location:'Luogo',    shutter:'Otturatore',aperture:'Apertura',  iso:'ISO',         focal:'Focale',      focal35:'Equiv. 35mm',  width:'Larghezza px',height:'Altezza px',  fileSize:'Dimensione',     copyright:'Copyright', originalFile:'File sorgente',  noData:'Nessun dato EXIF' },
+  pt:{ label:'Metadados',   camera:'Câmera',      lens:'Lente',      date:'Data da foto',      location:'Local',    shutter:'Velocidade',aperture:'Abertura',  iso:'ISO',         focal:'Focal',       focal35:'Equiv. 35mm',  width:'Largura px',  height:'Altura px',   fileSize:'Tamanho',        copyright:'Copyright', originalFile:'Ficheiro fonte', noData:'Sem dados EXIF' },
 };
-const EXIF_KEYS = ['camera','lens','date','shutter','aperture','iso','focal','focal35','width','height','fileSize','copyright','originalFile'];
+const EXIF_KEYS = ['camera','lens','date','location','shutter','aperture','iso','focal','focal35','width','height','fileSize','copyright','originalFile'];
 // Locale priority: forced in config → browser preference → English fallback.
 const lang = (PROJECT.locale || navigator.language || 'en').slice(0,2).toLowerCase();
 const L = EXIF_I18N[lang] || EXIF_I18N.en;
@@ -1270,7 +1270,16 @@ function exifHTML(exif) {
     .filter(k => exif[k] !== undefined)
     .map(k => {
       let v = exif[k];
+      // Format date taken as a human-readable local string.
       if (k === 'date') { try { v = new Date(v).toLocaleString(); } catch(_){} }
+      // Format GPS coords as a Google Maps link: "48.8584°N, 2.2945°E ↗"
+      if (k === 'location' && v && typeof v === 'object') {
+        const lat = v.lat, lng = v.lng;
+        const latStr = Math.abs(lat).toFixed(4) + '°' + (lat >= 0 ? 'N' : 'S');
+        const lngStr = Math.abs(lng).toFixed(4) + '°' + (lng >= 0 ? 'E' : 'W');
+        const url = \`https://www.google.com/maps?q=\${lat.toFixed(6)},\${lng.toFixed(6)}\`;
+        v = \`<a href="\${url}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline dotted">\${latStr}, \${lngStr} ↗</a>\`;
+      }
       return \`<div class="gl-exif-row"><span class="gl-exif-k">\${L[k]}</span><span class="gl-exif-v">\${v}</span></div>\`;
     });
   if (!rows.length) return \`<span class="gl-none">\${L.noData}</span>\`;
@@ -1970,7 +1979,11 @@ document.addEventListener('keydown', e => {
     const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 3 } });
     const a = document.createElement('a');
     a.href     = URL.createObjectURL(blob);
-    a.download = (PROJECT.title || 'galerie').replace(/[^a-z0-9]/gi, '_') + '.zip';
+    // Slugify the title: strip accents, lowercase, hyphens — gives clean filenames.
+    a.download = (PROJECT.title || 'galerie')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+      + '.zip';
     a.click();
     URL.revokeObjectURL(a.href);
 
@@ -2286,7 +2299,7 @@ ${cards}
   </div>
 </main>
 <footer class="footer">
-  <a href="https://github.com/pvollenweider/ssgg" target="_blank" rel="noopener">SSGG</a>
+  <a href="https://github.com/pvollenweider/ssgg" target="_blank" rel="noopener">SSGG ${VERSION}</a>
 </footer>
 </body>
 </html>`;
