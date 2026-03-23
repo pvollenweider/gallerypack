@@ -10,7 +10,7 @@
  *
  * @author  Philippe Vollenweider <author@example.com>
  * @license MIT
- * @see     https://github.com/pvollenweider/ssgg
+ * @see     https://github.com/pvollenweider/gallerypack
  */
 
 // ── Node built-ins ────────────────────────────────────────────────────────────
@@ -573,7 +573,7 @@ async function reverseGeocode(lat, lng, locale = 'en') {
     const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=12&addressdetails=1`;
     const res = await fetch(url, {
       headers: {
-        'User-Agent': `GalleryPack/${VERSION} (https://github.com/pvollenweider/ssgg)`,
+        'User-Agent': `GalleryPack/${VERSION} (https://github.com/pvollenweider/gallerypack)`,
         'Accept-Language': `${lang},en;q=0.8`,
       },
     });
@@ -1367,7 +1367,7 @@ ${[2,3,5,8,10].map(s => {
   <footer class="gallery-footer">
     <button id="legal-btn">Legal notice</button>
     <span class="footer-sep">·</span>
-    <a class="footer-credit" href="https://github.com/pvollenweider/ssgg" target="_blank" rel="noopener">${generatedBy} GalleryPack v${VERSION}</a>
+    <a class="footer-credit" href="https://github.com/pvollenweider/gallerypack" target="_blank" rel="noopener">${generatedBy} GalleryPack v${VERSION}</a>
   </footer>
 </main>
 
@@ -2541,7 +2541,7 @@ ${cards}
   </div>
 </main>
 <footer class="footer">
-  <a href="https://github.com/pvollenweider/ssgg" target="_blank" rel="noopener">GalleryPack v${VERSION}</a>
+  <a href="https://github.com/pvollenweider/gallerypack" target="_blank" rel="noopener">GalleryPack v${VERSION}</a>
 </footer>
 </body>
 </html>`;
@@ -2625,7 +2625,7 @@ function buildDeliveryMessage(project, summary, authInfo) {
 
   lines.push('');
   lines.push('---');
-  lines.push(`*${isFr ? 'Généré' : 'Generated'} by [GalleryPack](https://github.com/pvollenweider/ssgg) v${VERSION}*`);
+  lines.push(`*${isFr ? 'Généré' : 'Generated'} by [GalleryPack](https://github.com/pvollenweider/gallerypack) v${VERSION}*`);
   return lines.join('\n') + '\n';
 }
 
