@@ -1,0 +1,15 @@
+services:
+  gallerypack:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      # Persist source galleries and built output outside the container
+      - ./src:/app/src
+      - ./dist:/app/dist
+      # Persist job queue state
+      - ./server/jobs.json:/app/server/jobs.json
+    environment:
+      PORT:     "3000"
+      BASE_URL: "http://localhost:3000"
+    restart: unless-stopped
