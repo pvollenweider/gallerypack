@@ -65,7 +65,7 @@ Written at the end of every build. Used by `npm run publish` to track the live U
   "gallery": "Summer in Zürich — Portraits & Landscapes",
   "srcName": "example-gallery",
   "distName": "summer-zurich-2025",
-  "dist": "/Users/pol/Desktop/ssgg/dist/summer-zurich-2025",
+  "dist": "/home/user/gallerypack/dist/summer-zurich-2025",
   "photos": 15,
   "sourceSizeMB": 1.7,
   "locale": "en",

@@ -48,7 +48,7 @@ No accounts. No platform. Just your files, your hosting, your rules.
 ```bash
 # 1. Clone and install
 git clone https://github.com/pvollenweider/gallerypack.git
-cd ssgg
+cd gallerypack
 npm install
 
 # 2. Create a gallery
