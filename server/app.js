@@ -51,7 +51,7 @@ import {
 import {
   createInvite, getInvite, allInvites, deleteInvite, incrementUsage,
 } from './invites.js';
-import { notifyGalleryReady, notifyInviteCreated } from './mailer.js';
+import { notifyGalleryReady, notifyInviteCreated, notifyAccessGranted } from './mailer.js';
 import { getSetting, getSettings, saveSettings } from './settings.js';
 
 const __DIR   = path.dirname(fileURLToPath(import.meta.url));
@@ -205,6 +205,22 @@ app.post('/api/admin/galleries/:jobId/revoke-access', requireAdmin, (req, res) =
   res.json({ ok: true, manageUrl });
 });
 
+app.post('/api/admin/galleries/:jobId/send-access', requireAdmin, async (req, res) => {
+  const job = getJob(req.params.jobId);
+  if (!job) return res.status(404).json({ error: 'Job not found' });
+  const manageUrl = `${BASE_URL}/my-gallery/${job.id}?token=${job.photographerToken}`;
+  let emailSent = false;
+  if (job.photographerEmail) {
+    emailSent = await notifyAccessGranted({
+      manageUrl,
+      galleryTitle:      job.title || job.slug,
+      photographerName:  job.photographerName,
+      photographerEmail: job.photographerEmail,
+    }).catch(() => false);
+  }
+  res.json({ ok: true, manageUrl, emailSent });
+});
+
 // ── Admin: settings ───────────────────────────────────────────────────────────
 app.get('/api/admin/settings', requireAdmin, (req, res) => {
   const s = getSettings();
@@ -215,7 +231,7 @@ app.get('/api/admin/settings', requireAdmin, (req, res) => {
 });
 
 app.patch('/api/admin/settings', requireAdmin, (req, res) => {
-  const allowed = ['smtpHost','smtpPort','smtpSecure','smtpUser','smtpPass','smtpFrom','adminEmail','appName'];
+  const allowed = ['smtpHost','smtpPort','smtpSecure','smtpEnabled','smtpUser','smtpPass','smtpFrom','adminEmail','appName','uiLocale'];
   const updates = {};
   for (const key of allowed) {
     if (req.body[key] !== undefined) updates[key] = req.body[key];
@@ -326,8 +342,9 @@ app.delete('/api/admin/galleries/:jobId', requireAdmin, (req, res) => {
 // GET gallery info
 app.get('/api/my-gallery/:jobId', (req, res) => {
   const token = req.query.token;
-  const job   = getJobByToken(req.params.jobId, token);
-  if (!job) return res.status(401).json({ error: 'Invalid link' });
+  const job   = getJob(req.params.jobId);
+  if (!job) return res.status(404).json({ error: 'Gallery not found', code: 'not_found' });
+  if (!token || job.photographerToken !== token) return res.status(401).json({ error: 'Invalid or revoked link', code: 'revoked' });
 
   // List photos in src/<slug>/photos/
   let photos = [];
