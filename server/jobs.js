@@ -110,6 +110,20 @@ export function resetJobForRebuild(id) {
   return job;
 }
 
+/** Rotate the photographerToken for a job, invalidating any existing manage links. */
+export function rotatePhotographerToken(id) {
+  const job = jobs.get(id);
+  if (!job) return null;
+  job.photographerToken = crypto.randomBytes(24).toString('hex');
+  save();
+  return job;
+}
+
+/** Return all jobs created via a given invite token. */
+export function getJobsByInviteToken(inviteToken) {
+  return [...jobs.values()].filter(j => j.inviteToken === inviteToken);
+}
+
 export function allJobs() {
   return [...jobs.values()].sort((a, b) =>
     new Date(b.createdAt) - new Date(a.createdAt));

@@ -690,20 +690,25 @@ function renderGalleries() {
       ? `<a href="${esc(g.galleryUrl)}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none">/${esc(g.slug)}/</a>`
       : `/${esc(g.slug)}/`;
     card.innerHTML = `
-      <div class="gallery-card-main">
-        <div class="gallery-card-title">${esc(g.title || g.slug)}</div>
-        <div class="gallery-card-meta">${date}${by} · ${link}</div>
-      </div>
-      ${statusBadge(g.status)}
-      <div class="card-actions">
-        <button class="btn btn-ghost btn-sm" data-edit="${esc(g.id)}">Edit</button>
-        <button class="btn btn-danger btn-sm" data-delete="${esc(g.id)}" data-title="${esc(g.title || g.slug)}">Delete</button>
+      <div class="gallery-card-top">
+        <div class="gallery-card-main">
+          <div class="gallery-card-title">${esc(g.title || g.slug)}</div>
+          <div class="gallery-card-meta">${date}${by} · ${link}</div>
+        </div>
+        ${statusBadge(g.status)}
+        <div class="card-actions">
+          <button class="btn btn-ghost btn-sm" data-edit="${esc(g.id)}">Edit</button>
+          <button class="btn btn-danger btn-sm" data-revoke-access="${esc(g.id)}" data-title="${esc(g.title || g.slug)}" title="Invalidate photographer manage link">Revoke access</button>
+          <button class="btn btn-danger btn-sm" data-delete="${esc(g.id)}" data-title="${esc(g.title || g.slug)}">Delete</button>
+        </div>
       </div>`;
     list.appendChild(card);
   }
   c.replaceChildren(list);
   c.querySelectorAll('[data-edit]').forEach(btn =>
     btn.addEventListener('click', () => openEditModal(btn.dataset.edit)));
+  c.querySelectorAll('[data-revoke-access]').forEach(btn =>
+    btn.addEventListener('click', () => revokeGalleryAccess(btn.dataset.revokeAccess, btn.dataset.title)));
   c.querySelectorAll('[data-delete]').forEach(btn =>
     btn.addEventListener('click', () => confirmDeleteGallery(btn.dataset.delete, btn.dataset.title)));
 
@@ -713,6 +718,14 @@ function renderGalleries() {
 }
 
 document.getElementById('refresh-galleries-btn').addEventListener('click', loadGalleries);
+
+async function revokeGalleryAccess(id, title) {
+  if (!confirm(`Revoke photographer access to "${title}"?\nTheir current manage link will stop working. A new link can be sent if needed.`)) return;
+  try {
+    await api('POST', `/api/admin/galleries/${id}/revoke-access`, {});
+    toast('Photographer access revoked');
+  } catch (err) { toast(`Error: ${err.message}`); }
+}
 
 async function confirmDeleteGallery(id, title) {
   if (!confirm(`Delete gallery "${title}"?\nThis removes all source files and the built output.`)) return;

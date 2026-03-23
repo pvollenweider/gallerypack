@@ -20,7 +20,8 @@
  *   DELETE /api/admin/galleries/:id → delete gallery
  *   GET  /api/admin/invites        → list invite links
  *   POST /api/admin/invites        → create invite link
- *   DELETE /api/admin/invites/:token → revoke invite
+ *   DELETE /api/admin/invites/:token → revoke invite (also rotates linked gallery tokens)
+ *   POST /api/admin/galleries/:id/revoke-access → rotate photographer token
  *   GET  /*                        → serve dist/ static files
  *
  * Usage:
@@ -41,6 +42,7 @@ import {
   appendLog, setBuilding, setDone, setError,
   subscribe, unsubscribe,
   updateJob, deleteJob, resetJobForRebuild,
+  rotatePhotographerToken, getJobsByInviteToken,
 } from './jobs.js';
 import { slugify } from '../build/utils.js';
 import {
@@ -188,7 +190,19 @@ app.delete('/api/admin/invites/:token', requireAdmin, (req, res) => {
   if (!deleteInvite(req.params.token)) {
     return res.status(404).json({ error: 'Invite not found' });
   }
+  // Revoke photographer access on all galleries created via this invite
+  for (const job of getJobsByInviteToken(req.params.token)) {
+    rotatePhotographerToken(job.id);
+  }
   res.json({ ok: true });
+});
+
+app.post('/api/admin/galleries/:jobId/revoke-access', requireAdmin, (req, res) => {
+  const job = getJob(req.params.jobId);
+  if (!job) return res.status(404).json({ error: 'Job not found' });
+  const updated = rotatePhotographerToken(job.id);
+  const manageUrl = `${BASE_URL}/my-gallery/${updated.id}?token=${updated.photographerToken}`;
+  res.json({ ok: true, manageUrl });
 });
 
 // ── Admin: settings ───────────────────────────────────────────────────────────
