@@ -528,6 +528,84 @@ async function convertOne(photo, cfg, idx, cachedIsDark = null, paths) {
 
 // ── Manifest (photos.json) ────────────────────────────────────────────────────
 
+// ── Reverse geocoding ─────────────────────────────────────────────────────────
+
+/**
+ * Convert GPS decimal coordinates to a human-readable place name using the
+ * Nominatim reverse geocoding API (OpenStreetMap, no API key required).
+ *
+ * Returns "City, Country" (or the best available approximation), or null on
+ * failure. Nominatim asks for a maximum of 1 request per second.
+ *
+ * @param {number} lat
+ * @param {number} lng
+ * @returns {Promise<string|null>}
+ */
+async function reverseGeocode(lat, lng) {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=12&addressdetails=1`;
+    const res = await fetch(url, {
+      headers: { 'User-Agent': `SSGG/${VERSION} (https://github.com/pvollenweider/ssgg)` },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const a = data.address || {};
+    const city    = a.city || a.town || a.village || a.hamlet || a.municipality || a.county || '';
+    const country = a.country || '';
+    return [city, country].filter(Boolean).join(', ') || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * Resolve GPS coordinates in photo EXIF to human-readable place names.
+ *
+ * Photos whose exif.location is already a string (resolved in a previous build
+ * and cached in photos.json) are skipped entirely — no network calls.
+ * Unique coordinates are deduplicated and looked up one-by-one, respecting the
+ * Nominatim 1 req/s rate limit.  Results are saved back into the manifest so
+ * subsequent builds are fully offline.
+ *
+ * @param {Array}  results      - Photo metadata array (mutated in place).
+ * @param {string} manifestPath - Path to dist/photos.json.
+ */
+async function resolveGpsLocations(results, manifestPath) {
+  const toResolve = results.filter(p => p.exif?.location && typeof p.exif.location === 'object');
+  if (!toResolve.length) return;
+
+  log('\n\x1b[1m🌍  Reverse geocoding\x1b[0m');
+
+  // Deduplicate by rounded coords (~1 km precision) to avoid redundant calls.
+  const cache = new Map();
+
+  for (const photo of toResolve) {
+    const { lat, lng } = photo.exif.location;
+    const key = `${lat.toFixed(2)},${lng.toFixed(2)}`;
+
+    if (!cache.has(key)) {
+      if (cache.size > 0) await new Promise(r => setTimeout(r, 1100)); // Nominatim rate limit
+      const place = await reverseGeocode(lat, lng);
+      // Fall back to plain decimal coords if the API call fails.
+      cache.set(key, place ?? `${Math.abs(lat).toFixed(4)}°${lat >= 0 ? 'N' : 'S'}, ${Math.abs(lng).toFixed(4)}°${lng >= 0 ? 'E' : 'W'}`);
+      ok(`GPS (${key}) → ${cache.get(key)}`);
+    }
+
+    photo.exif.location = cache.get(key);
+  }
+
+  // Persist resolved strings back into the manifest so next builds skip the API.
+  const manifest = loadManifest(manifestPath);
+  for (const photo of toResolve) {
+    if (manifest.photos[photo.exif.originalFile]) {
+      manifest.photos[photo.exif.originalFile].exif.location = photo.exif.location;
+    }
+  }
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf8');
+}
+
+// ── Manifest (photos.json) ────────────────────────────────────────────────────
+
 /**
  * Load the existing dist/photos.json manifest, or return a blank structure.
  * The manifest caches EXIF data and isDark flags so incremental builds do not
@@ -1276,14 +1354,12 @@ function exifHTML(exif) {
       let v = merged[k];
       // Format date taken as a human-readable local string.
       if (k === 'date') { try { v = new Date(v).toLocaleString(); } catch(_){} }
-      // GPS object → Google Maps link: "48.8584°N, 2.2945°E ↗"
-      // Plain string (config fallback) → displayed as-is.
+      // location is resolved to a plain string at build time (reverse geocoding).
+      // GPS object fallback: should not occur for freshly-built galleries, but
+      // handles stale manifests gracefully by showing decimal coords.
       if (k === 'location' && v && typeof v === 'object') {
-        const lat = v.lat, lng = v.lng;
-        const latStr = Math.abs(lat).toFixed(4) + '°' + (lat >= 0 ? 'N' : 'S');
-        const lngStr = Math.abs(lng).toFixed(4) + '°' + (lng >= 0 ? 'E' : 'W');
-        const url = \`https://www.google.com/maps?q=\${lat.toFixed(6)},\${lng.toFixed(6)}\`;
-        v = \`<a href="\${url}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline dotted">\${latStr}, \${lngStr} ↗</a>\`;
+        const { lat, lng } = v;
+        v = \`\${Math.abs(lat).toFixed(4)}°\${lat >= 0 ? 'N' : 'S'}, \${Math.abs(lng).toFixed(4)}°\${lng >= 0 ? 'E' : 'W'}\`;
       }
       return \`<div class="gl-exif-row"><span class="gl-exif-k">\${L[k]}</span><span class="gl-exif-v">\${v}</span></div>\`;
     });
@@ -2368,6 +2444,10 @@ async function buildGallery(srcName, { build }, fontCss) {
   log(`\n\x1b[1m🖼   Conversion (${photos.length} photo(s))\x1b[0m`);
 
   const results = await processPhotos(photos, galCfg, paths);
+
+  // Reverse-geocode any GPS coordinates → human-readable place name.
+  // Results are cached in photos.json so subsequent builds skip the API call.
+  await resolveGpsLocations(results, paths.manifest);
 
   // Resolve date:'auto' — pick the earliest EXIF DateTimeOriginal across all photos.
   if (galCfg.project.date === 'auto') {
