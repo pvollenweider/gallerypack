@@ -176,7 +176,7 @@ Create one config file per gallery. All fields are optional — sensible default
 | `name`                 | _(slug from title)_ | URL-friendly output folder name under `dist/` (overrides the auto-derived slug) |
 | `subtitle`             | — | Short subtitle displayed under the title |
 | `authorEmail`          | — | Contact email shown in the legal notice popup and in the ZIP |
-| `date`                 | _(build date)_ | Shoot date `YYYY-MM-DD` — used in the header and as the copyright year |
+| `date`                 | _(build date)_ | Shoot date `YYYY-MM-DD` — used in the header and as the copyright year. Set to `"auto"` to derive the date automatically from EXIF (`DateTimeOriginal` of the earliest photo) |
 | `location`             | — | Shooting location shown in the header |
 | `description`          | — | Free-text description — also injected as `<meta name="description">` for SEO |
 | `locale`               | `"en"` | Force the UI language and HTML `lang` attribute: `en`, `fr`, `de`, `it`, `es`, `pt`. The legal notice popup additionally respects the visitor's browser language. |

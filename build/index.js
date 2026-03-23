@@ -2364,6 +2364,23 @@ async function buildGallery(srcName, { build }, fontCss) {
 
   const results = await processPhotos(photos, galCfg, paths);
 
+  // Resolve date:'auto' — pick the earliest EXIF DateTimeOriginal across all photos.
+  if (galCfg.project.date === 'auto') {
+    const exifDates = results
+      .map(p => p.exif?.date)
+      .filter(Boolean)
+      .map(d => new Date(d))
+      .filter(d => !isNaN(d.getTime()));
+    if (exifDates.length) {
+      exifDates.sort((a, b) => a - b);
+      galCfg.project.date = exifDates[0].toISOString().slice(0, 10);
+      ok(`date: auto → ${galCfg.project.date}  (earliest EXIF date)`);
+    } else {
+      galCfg.project.date = '';
+      ok('date: auto → no EXIF dates found, date left empty');
+    }
+  }
+
   // HTML + JS output (skipped in --webp-only mode).
   if (!WEBP_ONLY) {
     const isStandalone = !!galCfg.project.standalone;
