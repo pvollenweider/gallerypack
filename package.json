@@ -13,7 +13,8 @@
     "setup:example": "node build/generate-samples.js",
     "setup:example:force": "node build/generate-samples.js --force",
     "serve": "node build/serve.js",
-    "deploy": "bash scripts/deploy-gh-pages.sh"
+    "deploy": "bash scripts/deploy-gh-pages.sh",
+    "publish": "node build/publish.js"
   },
   "dependencies": {
     "exifr": "^7.1.3",

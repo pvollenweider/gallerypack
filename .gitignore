@@ -15,3 +15,6 @@ src/*/photos/
 .idea/
 .vscode/
 *.swp
+
+# Publish config (contains server credentials)
+publish.config.json
