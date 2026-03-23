@@ -52,15 +52,31 @@ const DIST_FONTS     = path.join(DIST_ROOT, 'fonts');
 const { version: VERSION } = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
 
 /**
- * Return all gallery names discovered in src/ (subdirs with a gallery.config.json).
+ * Return all gallery names discovered in src/.
+ * A gallery is any subdirectory that has a gallery.config.json OR a photos/ subfolder.
+ * No config required — defaults are applied at build time.
  */
 function discoverGalleries() {
   if (!fs.existsSync(SRC_ROOT)) return [];
   return fs.readdirSync(SRC_ROOT)
     .filter(name => {
-      const cfgPath = path.join(SRC_ROOT, name, 'gallery.config.json');
-      return fs.statSync(path.join(SRC_ROOT, name)).isDirectory() && fs.existsSync(cfgPath);
+      try {
+        const galDir = path.join(SRC_ROOT, name);
+        return fs.statSync(galDir).isDirectory()
+          && (fs.existsSync(path.join(galDir, 'gallery.config.json'))
+              || fs.existsSync(path.join(galDir, 'photos')));
+      } catch { return false; }
     });
+}
+
+/**
+ * Convert a folder slug to a readable title.
+ * "my-gallery" → "My Gallery", "ete_a_zurich" → "Ete A Zurich"
+ */
+function titleFromSlug(slug) {
+  return String(slug || '').split(/[-_]+/)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
 }
 
 /**
@@ -176,11 +192,35 @@ const fail = (m) => process.stdout.write(`  \x1b[31m✗\x1b[0m  ${m}\n`);
  *
  * @returns {{ project: object, build: object }}
  */
-function readConfig(cfgPath) {
-  if (!fs.existsSync(cfgPath))        { fail(`gallery.config.json introuvable`);  process.exit(1); }
-  if (!fs.existsSync(BUILD_CFG_PATH)) { fail(`build.config.json introuvable`);    process.exit(1); }
-  const { project } = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
-  const build       = JSON.parse(fs.readFileSync(BUILD_CFG_PATH, 'utf8'));
+/**
+ * Load gallery config with smart fallbacks.
+ * If gallery.config.json is absent the build proceeds with sensible defaults
+ * derived from the folder name — no crash, just an info message.
+ * Individual missing fields are also filled automatically.
+ *
+ * Defaults applied when absent:
+ *   title  → title-cased version of srcName  (e.g. "my-shoot" → "My Shoot")
+ *   date   → "auto" (derive from EXIF, or today if no EXIF)
+ *   locale → "fr"
+ *   author → "" (omitted gracefully in the gallery)
+ */
+function readConfig(cfgPath, srcName) {
+  if (!fs.existsSync(BUILD_CFG_PATH)) { fail(`build.config.json introuvable`); process.exit(1); }
+  const build = JSON.parse(fs.readFileSync(BUILD_CFG_PATH, 'utf8'));
+
+  let project = {};
+  if (fs.existsSync(cfgPath)) {
+    const raw = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+    project = raw.project || {};
+  } else {
+    info(`No gallery.config.json found → using defaults  (tip: npm run new-gallery ${srcName || ''})`);
+  }
+
+  // Apply fallbacks for any missing field.
+  if (!project.title)  project.title  = titleFromSlug(srcName || 'gallery');
+  if (!project.date)   project.date   = 'auto';
+  if (!project.locale) project.locale = 'fr';
+
   return { project, build };
 }
 
@@ -2500,9 +2540,10 @@ function escHtml(s) {
  * @returns {Promise<{srcName, distName, project, photoCount, firstPhoto}|null>}
  */
 async function buildGallery(srcName, { build }, fontCss) {
+  const buildStart = Date.now();
   // Read config first so we can compute the dist folder name (private → hash).
   const cfgPath = path.join(SRC_ROOT, srcName, 'gallery.config.json');
-  const galCfg  = readConfig(cfgPath);
+  const galCfg  = readConfig(cfgPath, srcName);
   galCfg.build  = build;
 
   const distName = galleryDistName(galCfg.project, srcName);
@@ -2616,6 +2657,30 @@ async function buildGallery(srcName, { build }, fontCss) {
       if (fs.existsSync(DIST_FONTS)) { copyDirSync(DIST_FONTS, path.join(paths.dist, 'fonts'));  ok('fonts/  → standalone'); }
     }
   }
+
+  // ── Build summary ─────────────────────────────────────────────────────────────
+  const durationSec = ((Date.now() - buildStart) / 1000).toFixed(1);
+  const srcBytes    = photos.reduce((sum, p) => { try { return sum + fs.statSync(p.full).size; } catch { return sum; } }, 0);
+  const srcMB       = (srcBytes / 1024 / 1024).toFixed(1);
+  const summary = {
+    version:      VERSION,
+    gallery:      galCfg.project.title,
+    srcName,
+    distName,
+    dist:         paths.dist,
+    photos:       results.length,
+    sourceSizeMB: parseFloat(srcMB),
+    locale:       galCfg.project.locale || 'fr',
+    date:         galCfg.project.date   || '',
+    builtAt:      new Date().toISOString(),
+    durationSec:  parseFloat(durationSec),
+  };
+  if (!WEBP_ONLY) {
+    fs.writeFileSync(path.join(paths.dist, 'build-summary.json'), JSON.stringify(summary, null, 2), 'utf8');
+  }
+  log(`\n\x1b[1m📋  Summary\x1b[0m`);
+  ok(`${results.length} photo(s)  ·  ${srcMB} MB source  ·  built in ${durationSec}s`);
+  ok(`dist/ → ${paths.dist}`);
 
   return {
     srcName,
