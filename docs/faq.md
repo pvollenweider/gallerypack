@@ -1,34 +1,55 @@
 # FAQ
 
+---
+
 **Can I use SSGG without a web server?**
-Yes. Built galleries open directly from a file system (`file://`). Note that ZIP
-download requires a browser context (it uses the Web Crypto API).
+Yes. Galleries open directly from the filesystem (`file://`). ZIP download requires a browser context (Web Crypto API), but browsing and downloading individual photos works locally.
 
 **Does it work offline after build?**
 Yes. All assets (fonts, vendor JS/CSS, images) are local. No CDN calls at runtime.
 
 **Can I protect a gallery with a password?**
-Not yet built-in. Use server-level basic auth (Apache `.htpasswd`, Nginx
-`auth_basic`) in the meantime. See [docs/privacy-access.md](privacy-access.md).
+Yes — set `access: "password"` in `gallery.config.json`. SSGG generates `.htaccess` + `.htpasswd` for Apache basic auth. Run `npm run publish` to upload with the correct absolute path pre-filled. See [privacy-access.md](privacy-access.md).
 
 **Does it support multiple galleries?**
-Yes. Each gallery is independent under `src/<name>/`. Run `npm run build:all`
-to build all of them and generate a shared index page.
+Yes. Each gallery is a subfolder of `src/`. Run `npm run build:all` to build all of them and generate a shared index page at `dist/index.html`.
+
+**I have no gallery.config.json — will the build crash?**
+No. SSGG applies smart defaults: title from folder name, date from EXIF (or today), locale `fr`. A hint suggests running `npm run new-gallery <name>` to create a proper config.
 
 **Can visitors download the original photos?**
-Configurable per gallery via `allowDownloadImage` and `allowDownloadGallery`.
-When enabled, source copies are placed in `dist/<slug>/originals/`.
-
-**Does it work on GitHub Pages / Netlify / Vercel / Apache / Nginx / S3?**
-Yes — it's plain static files. Any host that serves HTML works.
-
-**How is it different from iCloud Photos / Google Photos / Pixieset?**
-SSGG is not a platform. It's a build tool. You own the files, the hosting, and
-the URLs. Nothing expires, nothing is tracked, no account required.
+Configurable via `allowDownloadImage` (single photo) and `allowDownloadGallery` (full ZIP).
+Set either to `false` to disable. When enabled, source copies are placed in `dist/<slug>/originals/`.
 
 **What image formats are supported as input?**
-JPG, PNG, TIFF, HEIC/HEIF, AVIF. Output is always WebP.
+JPG, JPEG, PNG, TIFF, HEIC/HEIF, AVIF. All output is WebP.
 
-**Does the GPS reverse geocoding require an API key?**
-No. It uses the free Nominatim / OpenStreetMap API. Results are cached in
-`photos.json` so subsequent builds are fully offline.
+**My iPhone photos have no GPS — why?**
+iOS strips GPS metadata when sharing via AirDrop or iCloud Photos with "Remove location data" enabled. Transfer via USB or disable the stripping option in iOS Settings → Privacy → Location Services. SSGG can only use GPS data that is present in the files.
+
+**Does GPS reverse geocoding require an API key?**
+No. SSGG uses the free Nominatim/OpenStreetMap API with no registration. Results are cached in `photos.json` — subsequent builds are fully offline and never call the API again.
+
+**How does date: "auto" work?**
+SSGG reads `DateTimeOriginal` from every photo's EXIF, picks the earliest, and uses it as the gallery date. If no EXIF dates are found, the field is left empty.
+
+**The country name shows in multiple languages (e.g. "Schweiz/Suisse/...").**
+Fixed in v1.1.2. SSGG now uses `Intl.DisplayNames` with the gallery locale to return the country name in the correct language (e.g. "Suisse" for `locale: "fr"`).
+
+**Can I deploy to GitHub Pages / Netlify / Vercel / S3?**
+Yes — it's plain static files. Any host that serves HTML works. Run `npm run deploy` for GitHub Pages (uses a safe isolated git worktree).
+
+**What is the difference between `npm run deploy` and `npm run publish`?**
+`deploy` pushes `dist/` to GitHub Pages (git-based, free). `publish` uploads to your own server via rsync — it also updates `DELIVERY.md` with the live URL and prints the delivery message.
+
+**How do I share a gallery with a client?**
+Build → publish → send the content of `DELIVERY.md` (it's a ready-to-send message with URL, credentials if applicable, and usage instructions).
+
+**Can I add a custom legal notice?**
+Yes. Add `legal.html` and/or `legal.txt` in `src/<gallery>/`. Tokens like `{{AUTHOR}}` and `{{YEAR}}` are replaced at build time. If absent, the built-in template for the gallery locale is used.
+
+**How is this different from iCloud Photos / Google Photos / Pixieset?**
+Those are services — storage, sharing, printing, subscriptions. SSGG is a build tool. You own the output, the hosting, and the URLs. Nothing expires, nothing is tracked. See [what-is-ssgg.md](what-is-ssgg.md).
+
+**How do I rotate the password on a protected gallery?**
+Change or remove the `password` field in `gallery.config.json`, rebuild, and re-publish. A new `.htpasswd` is generated from scratch each time.
