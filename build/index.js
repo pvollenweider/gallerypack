@@ -1186,7 +1186,7 @@ ${[2,3,5,8,10].map(s => {
   <footer class="gallery-footer">
     <button id="legal-btn">Legal notice</button>
     <span class="footer-sep">·</span>
-    <a class="footer-credit" href="https://github.com/pvollenweider/ssgg" target="_blank" rel="noopener">${generatedBy} SSGG ${VERSION}</a>
+    <a class="footer-credit" href="https://github.com/pvollenweider/ssgg" target="_blank" rel="noopener">${generatedBy} SSGG v${VERSION}</a>
   </footer>
 </main>
 
@@ -1266,13 +1266,18 @@ const lang = (PROJECT.locale || navigator.language || 'en').slice(0,2).toLowerCa
 const L = EXIF_I18N[lang] || EXIF_I18N.en;
 
 function exifHTML(exif) {
+  // Merge EXIF location (GPS) with project location as fallback.
+  const merged = { ...exif };
+  if (merged.location === undefined && PROJECT.location) merged.location = PROJECT.location;
+
   const rows = EXIF_KEYS
-    .filter(k => exif[k] !== undefined)
+    .filter(k => merged[k] !== undefined)
     .map(k => {
-      let v = exif[k];
+      let v = merged[k];
       // Format date taken as a human-readable local string.
       if (k === 'date') { try { v = new Date(v).toLocaleString(); } catch(_){} }
-      // Format GPS coords as a Google Maps link: "48.8584°N, 2.2945°E ↗"
+      // GPS object → Google Maps link: "48.8584°N, 2.2945°E ↗"
+      // Plain string (config fallback) → displayed as-is.
       if (k === 'location' && v && typeof v === 'object') {
         const lat = v.lat, lng = v.lng;
         const latStr = Math.abs(lat).toFixed(4) + '°' + (lat >= 0 ? 'N' : 'S');
@@ -2299,7 +2304,7 @@ ${cards}
   </div>
 </main>
 <footer class="footer">
-  <a href="https://github.com/pvollenweider/ssgg" target="_blank" rel="noopener">SSGG ${VERSION}</a>
+  <a href="https://github.com/pvollenweider/ssgg" target="_blank" rel="noopener">SSGG v${VERSION}</a>
 </footer>
 </body>
 </html>`;
