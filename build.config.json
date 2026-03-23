@@ -8,6 +8,8 @@
     "grid": 78,
     "full": 90
   },
-  "slideEffect": "fade",
-  "slideSpeed": 400
+  "autoplay": {
+    "slideEffect": "fade",
+    "slideSpeed": 400
+  }
 }

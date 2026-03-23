@@ -51,6 +51,7 @@ const EXAMPLE_CONFIG = {
     locale:      'en',
     private:     false,
     standalone:  true,
+    autoplay:    { slideshowInterval: 3 },
   },
 };
 
