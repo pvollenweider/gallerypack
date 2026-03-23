@@ -19,3 +19,7 @@ src/*/photos/
 # Publish config (contains server credentials)
 publish.config.json
 photos.json
+
+# v2 server — transient upload temp files and job state
+server/uploads/
+server/jobs.json
