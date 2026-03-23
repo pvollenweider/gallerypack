@@ -1124,6 +1124,30 @@ body.glightbox-open #gl-dl-btn{display:flex}
   max-height:calc(100vh - 70px) !important;
   width:auto !important;max-width:100vw !important
 }
+/* ── Fullscreen: image fills the entire screen, no gaps ─────────────
+   :fullscreen targets the standard API; :-webkit-full-screen covers
+   older Android/Chrome.  dvh (dynamic viewport height) accounts for
+   Android's gesture bar which 100vh sometimes ignores. */
+:fullscreen .gslide-media,
+:-webkit-full-screen .gslide-media{
+  max-height:100vh !important;
+  max-height:100dvh !important;
+  box-shadow:none !important
+}
+:fullscreen .gslide-image img,
+:-webkit-full-screen .gslide-image img{
+  max-height:100vh !important;
+  max-height:100dvh !important;
+  max-width:100vw !important
+}
+:fullscreen .ginner-container,
+:-webkit-full-screen .ginner-container{
+  width:100vw !important;
+  height:100vh !important;
+  height:100dvh !important;
+  max-width:100vw !important;
+  padding:0 !important
+}
 /* Panel description GLightbox masqué — on gère tout via overlays fixes */
 .glightbox-clean .gslide-description{display:none !important}
 
