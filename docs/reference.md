@@ -267,7 +267,7 @@ Cover images for password-protected galleries are copied to `dist/covers/` so th
 | `npm run new-gallery:wizard` | Interactive wizard (all options) |
 | `npm run serve` | Local preview at http://localhost:3000 |
 | `npm run publish -- <name>` | Upload one gallery to remote via rsync |
-| `npm run publish -- --all` | Upload all galleries |
+| `npm run publish:all` | Upload all galleries |
 | `npm run deploy` | Deploy dist/ to GitHub Pages (safe worktree) |
 | `npm run test` | Run invariant tests |
 | `npm run clean` | Wipe dist/ without rebuilding |

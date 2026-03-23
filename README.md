@@ -160,7 +160,7 @@ See [docs/reference.md](docs/reference.md) for all fields.
 | `npm run new-gallery:wizard` | Interactive wizard with all options |
 | `npm run serve` | Local preview at http://localhost:3000 |
 | `npm run publish -- <name>` | Upload one gallery via rsync |
-| `npm run publish -- --all` | Upload all galleries |
+| `npm run publish:all` | Upload all galleries |
 | `npm run deploy` | Deploy `dist/` to GitHub Pages |
 | `npm run test` | Run invariant tests |
 | `npm run clean` | Wipe `dist/` without rebuilding |

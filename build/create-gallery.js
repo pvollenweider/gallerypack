@@ -11,8 +11,8 @@
  *
  * Usage:
  *   npm run new-gallery my-project
- *   npm run new-gallery -- --wizard
- *   npm run new-gallery -- my-project --wizard
+ *   npm run new-gallery:wizard
+ *   npm run new-gallery my-project --wizard
  *
  * @author  Philippe Vollenweider
  * @license MIT
@@ -192,7 +192,7 @@ async function runWizard(presetSlug) {
 function runQuick(slug) {
   if (!slug) {
     console.error('\n  \x1b[31m✗\x1b[0m  Usage: npm run new-gallery <gallery-slug>');
-    console.error('         npm run new-gallery -- --wizard\n');
+    console.error('         npm run new-gallery:wizard\n');
     process.exit(1);
   }
 

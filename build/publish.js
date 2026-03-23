@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * SSGG — Gallery publisher
+ * GalleryPack — Gallery publisher
  *
  * Uploads a built gallery (or all galleries) to a remote server via rsync,
  * then shows the live URL and updates DELIVERY.md with it.
@@ -8,8 +8,8 @@
  * Configuration: publish.config.json at project root.
  *
  * Usage:
- *   npm run publish <gallery-name>
- *   npm run publish -- --all
+ *   npm run publish -- <gallery-name>
+ *   npm run publish:all
  *
  * publish.config.json:
  * {
