@@ -48,7 +48,7 @@ These features are shipped, stable, and covered by tests or real-world use.
 - `npm run new-gallery:wizard` — interactive wizard
 - `npm run build <name>` / `build:all` / `build:clean` / `build:force`
 - `npm run serve` — local preview server
-- `npm run publish -- <name>` / `-- --all` — rsync upload, `.htaccess` path patching
+- `npm run publish -- <name>` / `publish:all` — rsync upload, `.htaccess` path patching
 - `npm run deploy` — GitHub Pages via safe isolated git worktree
 - `npm run test` — pure-function invariant tests (46 cases)
 
