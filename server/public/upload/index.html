@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Upload your photos</title>
+  <style>
+    :root {
+      --bg:      #f7f6f2;
+      --surface: #ffffff;
+      --border:  #e4e2d8;
+      --accent:  #c4933f;
+      --text:    #1c1c1a;
+      --muted:   #888480;
+      --danger:  #c94040;
+      --green:   #2a9e52;
+      --radius:  10px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 15px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Logo ── */
+    .logo {
+      text-align: center;
+      padding: 28px 0 8px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+
+    /* ── Steps wrapper ── */
+    .steps-container {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .step {
+      width: 100%;
+      padding: 0 0 100px; /* space for sticky bar */
+    }
+
+    .step.hidden { display: none; }
+
+    #step2 {
+      animation: slideInRight 0.3s ease;
+    }
+
+    @keyframes slideInRight {
+      from { transform: translateX(60px); opacity: 0; }
+      to   { transform: translateX(0);   opacity: 1; }
+    }
+
+    /* ── Drop zone ── */
+    .upload-area {
+      max-width: 680px;
+      margin: 18px auto 0;
+      padding: 0 16px;
+    }
+
+    .drop-zone {
+      border: 2px dashed var(--border);
+      background: var(--surface);
+      border-radius: var(--radius);
+      min-height: 260px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      user-select: none;
+    }
+
+    .drop-zone.dragover {
+      border-color: var(--accent);
+      background: #f2ede4;
+    }
+
+    .drop-zone .icon {
+      font-size: 42px;
+      line-height: 1;
+    }
+
+    .drop-zone .primary-text {
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .drop-zone .sub-text {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    #file-input { display: none; }
+
+    /* ── Photo grid ── */
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .thumb-wrap {
+      position: relative;
+      aspect-ratio: 1;
+      border-radius: 6px;
+      overflow: hidden;
+      background: var(--surface);
+    }
+
+    .thumb-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .thumb-wrap .remove-btn {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.7);
+      border: none;
+      color: #fff;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .thumb-wrap:hover .remove-btn { opacity: 1; }
+
+    /* ── Sticky bottom bar ── */
+    .bottom-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 10;
+    }
+
+    .bottom-bar .count-label {
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .bottom-bar .count-label span {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: none;
+      border-radius: var(--radius);
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 10px 22px;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+
+    .btn:active { transform: scale(0.97); }
+
+    .btn-accent {
+      background: var(--accent);
+      color: #000;
+    }
+
+    .btn-accent:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      padding: 6px 0;
+      font-size: 13px;
+    }
+
+    .btn-ghost:hover { color: var(--text); }
+
+    .btn-full {
+      width: 100%;
+      justify-content: center;
+      padding: 13px;
+      font-size: 15px;
+    }
+
+    /* ── Step 2 form ── */
+    .form-area {
+      max-width: 560px;
+      margin: 0 auto;
+      padding: 8px 16px 120px;
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--muted);
+      cursor: pointer;
+      background: none;
+      border: none;
+      font-family: inherit;
+      padding: 0;
+      margin-bottom: 24px;
+    }
+
+    .back-link:hover { color: var(--text); }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+      margin-top: 28px;
+    }
+
+    .section-label:first-of-type { margin-top: 0; }
+
+    .field {
+      margin-bottom: 14px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .field label span.req { color: var(--accent); margin-left: 2px; }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    select {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 14px;
+      padding: 10px 12px;
+      outline: none;
+      transition: border-color 0.15s;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    input[type="text"]:focus,
+    input[type="email"]:focus,
+    input[type="password"]:focus,
+    select:focus {
+      border-color: var(--accent);
+    }
+
+    input::placeholder { color: var(--muted); }
+
+    .select-wrap {
+      position: relative;
+    }
+
+    .select-wrap::after {
+      content: '▾';
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      pointer-events: none;
+      font-size: 12px;
+    }
+
+    /* ── Advanced options ── */
+    details.advanced {
+      margin-top: 20px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    details.advanced > summary {
+      padding: 12px 16px;
+      font-size: 13px;
+      color: var(--muted);
+      cursor: pointer;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      user-select: none;
+    }
+
+    details.advanced > summary::-webkit-details-marker { display: none; }
+
+    details.advanced > summary::after {
+      content: '›';
+      font-size: 18px;
+      transition: transform 0.2s;
+    }
+
+    details.advanced[open] > summary::after {
+      transform: rotate(90deg);
+    }
+
+    .advanced-body {
+      padding: 4px 16px 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Radio group ── */
+    .radio-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .radio-label {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 14px;
+      color: var(--text);
+      cursor: pointer;
+      padding: 8px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      transition: border-color 0.15s;
+    }
+
+    .radio-label:has(input:checked) {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .radio-label input[type="radio"] {
+      accent-color: var(--accent);
+    }
+
+    /* ── Checkboxes ── */
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-size: 14px;
+      color: var(--text);
+      cursor: pointer;
+      margin-bottom: 10px;
+    }
+
+    .checkbox-label input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    /* ── Password reveal field ── */
+    #password-field {
+      margin-top: 10px;
+    }
+
+    /* ── Error banner ── */
+    .error-banner {
+      background: rgba(201, 64, 64, 0.12);
+      border: 1px solid var(--danger);
+      color: var(--danger);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 14px;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    .error-banner.visible { display: block; }
+
+    /* ── Overlay ── */
+    #overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(13, 13, 13, 0.88);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      z-index: 100;
+      display: none;
+    }
+
+    #overlay.visible { display: flex; }
+
+    .spinner {
+      width: 42px;
+      height: 42px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #overlay p {
+      font-size: 16px;
+      color: var(--text);
+    }
+
+    /* ── Responsive tweaks ── */
+    @media (min-width: 500px) {
+      .photo-grid {
+        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="logo">GalleryPack</div>
+
+<div class="steps-container">
+
+  <!-- ════════════════════ STEP 1 ════════════════════ -->
+  <div id="step1" class="step">
+    <div class="upload-area">
+      <div class="drop-zone" id="drop-zone">
+        <div class="icon">📷</div>
+        <div class="primary-text">Drop your photos here</div>
+        <div class="sub-text">or click to select</div>
+      </div>
+      <input type="file" id="file-input" accept="image/*,image/heic,image/heif" multiple />
+      <div class="photo-grid" id="photo-grid"></div>
+    </div>
+  </div>
+
+  <!-- ════════════════════ STEP 2 ════════════════════ -->
+  <div id="step2" class="step hidden">
+    <div class="form-area">
+
+      <button class="back-link" id="back-btn">← Back to photos</button>
+
+      <div class="error-banner" id="error-banner"></div>
+
+      <div class="section-label">About you</div>
+
+      <div class="field">
+        <label for="f-name">Name <span class="req">*</span></label>
+        <input type="text" id="f-name" name="photographerName" required placeholder="Your name" />
+      </div>
+      <div class="field">
+        <label for="f-email">Email</label>
+        <input type="email" id="f-email" name="photographerEmail" placeholder="your@email.com" />
+      </div>
+
+      <div class="section-label">Your gallery</div>
+
+      <div class="field">
+        <label for="f-title">Title <span class="req">*</span></label>
+        <input type="text" id="f-title" name="title" required placeholder="Project title" />
+      </div>
+
+      <details class="advanced">
+        <summary>Advanced options</summary>
+        <div class="advanced-body">
+
+          <div class="field" style="margin-top:14px;">
+            <label for="f-lang">Language</label>
+            <div class="select-wrap">
+              <select id="f-lang" name="locale">
+                <option value="fr">French</option>
+                <option value="en" selected>English</option>
+                <option value="de">German</option>
+                <option value="es">Spanish</option>
+                <option value="it">Italian</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="f-location">Location <span style="font-size:11px;color:var(--muted)">(optional, overridden by EXIF)</span></label>
+            <input type="text" id="f-location" name="location" placeholder="Paris, France" />
+          </div>
+
+          <div class="field">
+            <label>Protection</label>
+            <div class="radio-group">
+              <label class="radio-label">
+                <input type="radio" name="access" value="public" checked /> Public
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="access" value="password" /> Password-protected
+              </label>
+            </div>
+            <div id="password-field" style="display:none; margin-top:10px;">
+              <input type="password" id="f-password" name="password" placeholder="Gallery password" />
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Downloads</label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="f-dl-image" name="allowDownloadImage" checked />
+              Allow photo downloads
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="f-dl-gallery" name="allowDownloadGallery" checked />
+              Allow full gallery download
+            </label>
+          </div>
+
+        </div>
+      </details>
+
+      <div style="margin-top: 28px;">
+        <button class="btn btn-accent btn-full" id="submit-btn">Create my gallery →</button>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- Sticky bottom bar (step 1 only) -->
+<div class="bottom-bar" id="bottom-bar">
+  <div class="count-label"><span id="count-num">0</span> photos selected</div>
+  <button class="btn btn-accent" id="continue-btn" disabled>Continue →</button>
+</div>
+
+<!-- Upload overlay -->
+<div id="overlay">
+  <div class="spinner"></div>
+  <p>Uploading your photos…</p>
+</div>
+
+<script>
+  // ── Globals ──────────────────────────────────────────
+  let selectedFiles = [];
+
+  const dropZone      = document.getElementById('drop-zone');
+  const fileInput     = document.getElementById('file-input');
+  const photoGrid     = document.getElementById('photo-grid');
+  const countNum      = document.getElementById('count-num');
+  const continueBtn   = document.getElementById('continue-btn');
+  const bottomBar     = document.getElementById('bottom-bar');
+  const step1         = document.getElementById('step1');
+  const step2         = document.getElementById('step2');
+  const backBtn       = document.getElementById('back-btn');
+  const submitBtn     = document.getElementById('submit-btn');
+  const overlay       = document.getElementById('overlay');
+  const errorBanner   = document.getElementById('error-banner');
+  const accessRadios  = document.querySelectorAll('input[name="access"]');
+  const passwordField = document.getElementById('password-field');
+
+  // ── File handling ────────────────────────────────────
+  function mergeFiles(newFiles) {
+    const existing = new Set(selectedFiles.map(f => f.name + f.size));
+    for (const f of newFiles) {
+      if (!existing.has(f.name + f.size)) {
+        selectedFiles.push(f);
+        existing.add(f.name + f.size);
+      }
+    }
+    renderGrid();
+    updateBar();
+  }
+
+  function removeFile(index) {
+    URL.revokeObjectURL(photoGrid.children[index]?.querySelector('img')?.src);
+    selectedFiles.splice(index, 1);
+    renderGrid();
+    updateBar();
+  }
+
+  function renderGrid() {
+    photoGrid.innerHTML = '';
+    selectedFiles.forEach((file, i) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'thumb-wrap';
+
+      const img = document.createElement('img');
+      img.src = URL.createObjectURL(file);
+      img.alt = file.name;
+
+      const btn = document.createElement('button');
+      btn.className = 'remove-btn';
+      btn.textContent = '×';
+      btn.title = 'Remove';
+      btn.addEventListener('click', (e) => { e.stopPropagation(); removeFile(i); });
+
+      wrap.appendChild(img);
+      wrap.appendChild(btn);
+      photoGrid.appendChild(wrap);
+    });
+  }
+
+  function updateBar() {
+    countNum.textContent = selectedFiles.length;
+    continueBtn.disabled = selectedFiles.length === 0;
+  }
+
+  // ── Drop zone events ─────────────────────────────────
+  dropZone.addEventListener('click', () => fileInput.click());
+
+  dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('dragover');
+  });
+
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    const files = [...e.dataTransfer.files].filter(f => f.type.startsWith('image/'));
+    mergeFiles(files);
+  });
+
+  fileInput.addEventListener('change', () => {
+    mergeFiles([...fileInput.files]);
+    fileInput.value = ''; // reset so same files can be re-added if removed
+  });
+
+  // ── Step navigation ───────────────────────────────────
+  continueBtn.addEventListener('click', () => {
+    step1.classList.add('hidden');
+    bottomBar.style.display = 'none';
+    step2.classList.remove('hidden');
+  });
+
+  backBtn.addEventListener('click', () => {
+    step2.classList.add('hidden');
+    step1.classList.remove('hidden');
+    bottomBar.style.display = '';
+    hideError();
+  });
+
+  // ── Password-protected toggle ─────────────────────────
+  accessRadios.forEach(radio => {
+    radio.addEventListener('change', () => {
+      passwordField.style.display = radio.value === 'password' && radio.checked ? 'block' : 'none';
+    });
+  });
+
+  // ── Submit ────────────────────────────────────────────
+  function showError(msg) {
+    errorBanner.textContent = msg;
+    errorBanner.classList.add('visible');
+  }
+
+  function hideError() {
+    errorBanner.classList.remove('visible');
+  }
+
+  submitBtn.addEventListener('click', async () => {
+    hideError();
+
+    const name  = document.getElementById('f-name').value.trim();
+    const title = document.getElementById('f-title').value.trim();
+
+    if (!name)  return showError('Please enter your name.');
+    if (!title) return showError('Please enter a gallery title.');
+    if (selectedFiles.length === 0) return showError('Please select at least one photo.');
+
+    const access   = document.querySelector('input[name="access"]:checked').value;
+    const password = document.getElementById('f-password').value;
+    if (access === 'password' && !password.trim()) {
+      return showError('Please enter a password for your gallery.');
+    }
+
+    const fd = new FormData();
+    selectedFiles.forEach(f => fd.append('photos', f));
+    fd.append('photographerName',     name);
+    fd.append('photographerEmail',    document.getElementById('f-email').value.trim());
+    fd.append('title',                title);
+    fd.append('locale',               document.getElementById('f-lang').value);
+    fd.append('access',               access);
+    if (access === 'password') fd.append('password', password);
+    fd.append('allowDownloadImage',   document.getElementById('f-dl-image').checked   ? '1' : '0');
+    fd.append('allowDownloadGallery', document.getElementById('f-dl-gallery').checked ? '1' : '0');
+    fd.append('location', document.getElementById('f-location').value.trim());
+
+    overlay.classList.add('visible');
+    submitBtn.disabled = true;
+
+    // window.INVITE_TOKEN is injected server-side
+    const token = (typeof window.INVITE_TOKEN !== 'undefined') ? window.INVITE_TOKEN : '';
+
+    try {
+      const res = await fetch(`/api/upload/${token}`, {
+        method: 'POST',
+        body: fd,
+      });
+
+      overlay.classList.remove('visible');
+
+      if (res.status === 202) {
+        const data = await res.json();
+        window.location.href = data.statusUrl;
+        return;
+      }
+
+      let msg = `Upload failed (${res.status})`;
+      try {
+        const err = await res.json();
+        if (err.error || err.message) msg = err.error || err.message;
+      } catch (_) {}
+      showError(msg);
+    } catch (err) {
+      overlay.classList.remove('visible');
+      showError('Network error — please check your connection and try again.');
+    }
+
+    submitBtn.disabled = false;
+  });
+
+  // ── Invite pre-fill ───────────────────────────────────
+  function applyInviteData() {
+    const d = (typeof window.INVITE_DATA !== 'undefined') ? window.INVITE_DATA : null;
+    if (!d) return;
+    if (d.photographerName)  { document.getElementById('f-name').value  = d.photographerName; }
+    if (d.photographerEmail) { document.getElementById('f-email').value = d.photographerEmail; }
+    if (d.galleryTitle)    { document.getElementById('f-title').value    = d.galleryTitle; }
+    if (d.galleryLocation) { document.getElementById('f-location').value = d.galleryLocation; }
+    if (d.galleryLocale)   { document.getElementById('f-lang').value     = d.galleryLocale; }
+    if (d.galleryAccess) {
+      document.querySelectorAll('input[name="access"]').forEach(r => {
+        r.checked = r.value === d.galleryAccess;
+      });
+      if (d.galleryAccess === 'password') {
+        document.getElementById('password-field').style.display = 'block';
+      }
+    }
+    if (d.galleryPassword) { document.getElementById('f-password').value = d.galleryPassword; }
+    if (d.allowDownloadImage   != null) { document.getElementById('f-dl-image').checked   = d.allowDownloadImage; }
+    if (d.allowDownloadGallery != null) { document.getElementById('f-dl-gallery').checked = d.allowDownloadGallery; }
+    // If singleDelivery, lock pre-filled fields
+    if (d.singleDelivery) {
+      if (d.galleryTitle)    { const el = document.getElementById('f-title');    el.readOnly = true; el.style.opacity = '.6'; }
+      if (d.galleryLocation) { const el = document.getElementById('f-location'); el.readOnly = true; el.style.opacity = '.6'; }
+    }
+  }
+
+  applyInviteData();
+</script>
+</body>
+</html>

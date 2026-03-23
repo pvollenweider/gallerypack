@@ -43,7 +43,31 @@ No accounts. No platform. Just your files, your hosting, your rules.
 
 ---
 
-## ⚡ Quick start
+## 🖥️ v2 — Web server mode
+
+GalleryPack v2 adds a full web interface on top of the build tool.
+
+```bash
+# With Docker (recommended)
+cp docker-compose.yml.example docker-compose.yml  # or edit docker-compose.yml directly
+# Set ADMIN_PASSWORD and SESSION_SECRET in docker-compose.yml
+docker compose up -d
+# → http://localhost:3000/admin
+```
+
+| URL | Description |
+|-----|-------------|
+| `/admin` | Admin panel — manage galleries, invite links, SMTP settings |
+| `/new` | Create a gallery directly (admin shortcut) |
+| `/upload/<token>` | Photographer upload page (via invite link) |
+| `/status/<id>` | Build progress page |
+| `/my-gallery/<id>?token=…` | Photographer gallery management |
+
+See [docs/INSTALL.md](docs/INSTALL.md) for full installation guide (Docker, native Node.js, Nginx, SSL, systemd).
+
+---
+
+## ⚡ Quick start (CLI)
 
 ```bash
 # 1. Clone and install
@@ -178,6 +202,8 @@ See [docs/reference.md](docs/reference.md) for all fields.
 | [docs/naming-convention.md](docs/naming-convention.md) | How output files are named |
 | [docs/faq.md](docs/faq.md) | Common questions |
 | [docs/roadmap.md](docs/roadmap.md) | v1 scope, known debt, what comes next |
+| [docs/INSTALL.md](docs/INSTALL.md) | v2 installation guide (Docker, VPS, Nginx, SSL) |
+| [docs/USAGE.md](docs/USAGE.md) | v2 usage guide (admin panel, invite links, photographer flow) |
 
 ---
 

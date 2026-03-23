@@ -7,8 +7,9 @@
  * States: queued → building → done | error
  */
 
-import fs   from 'fs';
-import path from 'path';
+import fs     from 'fs';
+import path   from 'path';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 
 const __DIR      = path.dirname(fileURLToPath(import.meta.url));
@@ -46,17 +47,25 @@ load();
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-export function createJob(id, slug, title) {
+export function createJob(id, slug, title, {
+  photographerName  = null,
+  photographerEmail = null,
+  inviteToken       = null,
+} = {}) {
   const job = {
     id,
     slug,
     title,
-    status:      'queued',
-    log:         [],
-    galleryUrl:  null,
-    error:       null,
-    createdAt:   new Date().toISOString(),
-    completedAt: null,
+    status:             'queued',
+    log:                [],
+    galleryUrl:         null,
+    error:              null,
+    createdAt:          new Date().toISOString(),
+    completedAt:        null,
+    photographerName,
+    photographerEmail,
+    inviteToken,
+    photographerToken:  crypto.randomBytes(24).toString('hex'),
   };
   jobs.set(id, job);
   save();
@@ -65,6 +74,40 @@ export function createJob(id, slug, title) {
 
 export function getJob(id) {
   return jobs.get(id) || null;
+}
+
+/** Partial update of job metadata (title, photographerName, photographerEmail). */
+export function updateJob(id, fields) {
+  const job = jobs.get(id);
+  if (!job) return null;
+  const allowed = ['title', 'photographerName', 'photographerEmail'];
+  for (const key of allowed) {
+    if (key in fields) job[key] = fields[key];
+  }
+  save();
+  return job;
+}
+
+/** Remove a job from the store. */
+export function deleteJob(id) {
+  if (!jobs.has(id)) return false;
+  jobs.delete(id);
+  save();
+  return true;
+}
+
+/** Reset a completed/failed job back to queued state for a rebuild. */
+export function resetJobForRebuild(id) {
+  const job = jobs.get(id);
+  if (!job) return null;
+  job.status      = 'queued';
+  job.log         = [];
+  job.error       = null;
+  job.galleryUrl  = null;
+  job.completedAt = null;
+  save();
+  emit(id, 'status', { status: 'queued' });
+  return job;
 }
 
 export function allJobs() {

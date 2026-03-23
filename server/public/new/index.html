@@ -8,13 +8,14 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:      #0d0d0d;
-      --surface: #181818;
-      --border:  #2a2a2a;
-      --accent:  #e8c97a;
-      --text:    #e8e8e8;
-      --muted:   #666;
-      --danger:  #e05555;
+      --bg:      #f7f6f2;
+      --surface: #ffffff;
+      --border:  #e4e2d8;
+      --accent:  #c4933f;
+      --text:    #1c1c1a;
+      --muted:   #888480;
+      --danger:  #c94040;
+      --green:   #2a9e52;
       --radius:  10px;
     }
 
@@ -88,7 +89,7 @@
     }
     .dropzone:hover, .dropzone.drag-over {
       border-color: var(--accent);
-      background: rgba(232,201,122,.04);
+      background: rgba(196,147,63,.05);
     }
     .dropzone input[type=file] {
       position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
@@ -144,7 +145,7 @@
     .toggle input { opacity: 0; width: 0; height: 0; }
     .slider {
       position: absolute; cursor: pointer; inset: 0;
-      background: #333; border-radius: 20px; transition: .2s;
+      background: #c8c6c0; border-radius: 20px; transition: .2s;
     }
     .slider::before {
       content: ''; position: absolute;
@@ -196,7 +197,7 @@
     /* Error banner */
     #error {
       display: none;
-      background: rgba(224,85,85,.12);
+      background: rgba(201,64,64,.12);
       border: 1px solid var(--danger);
       border-radius: var(--radius);
       color: var(--danger);
@@ -228,7 +229,7 @@
   <p class="section-title">Gallery details</p>
 
   <div class="field">
-    <label for="title">Title <span style="color:#e05555">*</span></label>
+    <label for="title">Title <span style="color:#c94040">*</span></label>
     <input type="text" id="title" name="title" placeholder="Summer in Zürich" required>
   </div>
 

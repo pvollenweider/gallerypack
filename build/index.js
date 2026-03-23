@@ -835,6 +835,9 @@ function buildHTML(cfg, photos, fontCss = '', standalone = false, customLegal = 
   };
   const generatedBy = CREDIT_I18N[htmlLang] || CREDIT_I18N.en;
 
+  const isStandalone = Boolean(cfg.project.standalone);
+  const backLink = isStandalone ? '' : `<a href="../" class="bar-back" title="Back to gallery list">←</a>`;
+
   const html = `<!DOCTYPE html>
 <html lang="${htmlLang}">
 <head>
@@ -892,6 +895,8 @@ html,body{height:100%;background:var(--bg);color:var(--ink);overscroll-behavior:
 .bar-count{
   font-family:'Poppins',sans-serif;font-size:11px;color:var(--muted)
 }
+.bar-back{color:rgba(255,255,255,.55);text-decoration:none;font-size:18px;line-height:1;padding:0 12px 0 0;flex-shrink:0;transition:color .2s;display:flex;align-items:center}
+.bar-back:hover{color:rgba(255,255,255,.9)}
 #dl-all-btn{
   display:inline-flex;align-items:center;gap:6px;
   font-family:'Poppins',sans-serif;font-size:11px;font-weight:400;
@@ -1335,6 +1340,7 @@ body.sw-idle.glightbox-open{cursor:none}
 <body>
 
 <div class="bar">
+${backLink}
   <div>
     <div class="bar-title" id="bTitle"></div>
     <div class="bar-meta"  id="bMeta"></div>
