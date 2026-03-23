@@ -1,0 +1,915 @@
+{
+  "photos": {
+    "20230623-A7408942.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_001",
+      "index": 1,
+      "role": "big",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "FE 35mm F1.4 GM",
+        "date": "2023-06-23T19:24:32.000Z",
+        "shutter": "1/1000s",
+        "aperture": "ƒ/2.2",
+        "iso": "ISO 1600",
+        "focal": "35mm",
+        "focal35": "35mm (éq. 35mm)",
+        "originalFile": "20230623-A7408942.jpeg",
+        "fileSize": "13.3 MB"
+      }
+    },
+    "20230623-A7408960.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_002",
+      "index": 2,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "FE 35mm F1.4 GM",
+        "date": "2023-06-23T20:14:23.000Z",
+        "shutter": "1/500s",
+        "aperture": "ƒ/1.6",
+        "iso": "ISO 2500",
+        "focal": "35mm",
+        "focal35": "35mm (éq. 35mm)",
+        "originalFile": "20230623-A7408960.jpeg",
+        "fileSize": "32.2 MB"
+      }
+    },
+    "20230720-A7409716.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_003",
+      "index": 3,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "FE 35mm F1.4 GM",
+        "date": "2023-07-20T14:02:59.000Z",
+        "shutter": "1/60s",
+        "aperture": "ƒ/1.4",
+        "iso": "ISO 12800",
+        "focal": "35mm",
+        "focal35": "35mm (éq. 35mm)",
+        "originalFile": "20230720-A7409716.jpeg",
+        "fileSize": "44.0 MB"
+      }
+    },
+    "20230722-A7409806.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_004",
+      "index": 4,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "FE 35mm F1.4 GM",
+        "date": "2023-07-22T14:41:49.000Z",
+        "shutter": "1/125s",
+        "aperture": "ƒ/2.8",
+        "iso": "ISO 6400",
+        "focal": "35mm",
+        "focal35": "35mm (éq. 35mm)",
+        "originalFile": "20230722-A7409806.jpeg",
+        "fileSize": "10.2 MB"
+      }
+    },
+    "20230722-A7409820.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_005",
+      "index": 5,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "FE 35mm F1.4 GM",
+        "date": "2023-07-22T15:00:29.000Z",
+        "shutter": "1/125s",
+        "aperture": "ƒ/1.8",
+        "iso": "ISO 4000",
+        "focal": "35mm",
+        "focal35": "35mm (éq. 35mm)",
+        "originalFile": "20230722-A7409820.jpeg",
+        "fileSize": "8.2 MB"
+      }
+    },
+    "20230801-A7400169.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_006",
+      "index": 6,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "FE 35mm F1.4 GM",
+        "date": "2023-08-01T13:55:03.000Z",
+        "shutter": "1/50s",
+        "aperture": "ƒ/2",
+        "iso": "ISO 12800",
+        "focal": "35mm",
+        "focal35": "35mm (éq. 35mm)",
+        "originalFile": "20230801-A7400169.jpeg",
+        "fileSize": "58.2 MB"
+      }
+    },
+    "20230801-A7400265.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_007",
+      "index": 7,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "FE 35mm F1.4 GM",
+        "date": "2023-08-01T14:01:18.000Z",
+        "shutter": "1/60s",
+        "aperture": "ƒ/1.6",
+        "iso": "ISO 3200",
+        "focal": "35mm",
+        "focal35": "35mm (éq. 35mm)",
+        "originalFile": "20230801-A7400265.jpeg",
+        "fileSize": "18.2 MB"
+      }
+    },
+    "2025092025-trio_Improviste-A7409795-NB.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_008",
+      "index": 8,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "FE 135mm F1.8 GM",
+        "date": "2025-09-20T19:47:48.000Z",
+        "shutter": "1/320s",
+        "aperture": "ƒ/1.8",
+        "iso": "ISO 3200",
+        "focal": "135mm",
+        "focal35": "135mm (éq. 35mm)",
+        "originalFile": "2025092025-trio_Improviste-A7409795-NB.jpeg",
+        "fileSize": "12.4 MB"
+      }
+    },
+    "2025092025-trio_Improviste-A7409822.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_009",
+      "index": 9,
+      "role": "big",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "FE 135mm F1.8 GM",
+        "date": "2025-09-20T19:51:28.000Z",
+        "shutter": "1/1000s",
+        "aperture": "ƒ/5.6",
+        "iso": "ISO 3200",
+        "focal": "135mm",
+        "focal35": "135mm (éq. 35mm)",
+        "originalFile": "2025092025-trio_Improviste-A7409822.jpeg",
+        "fileSize": "20.8 MB"
+      }
+    },
+    "20251116-EVAMAR-Duo-7400312.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_010",
+      "index": 10,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "FE 135mm F1.8 GM",
+        "date": "2025-11-16T18:08:13.000Z",
+        "shutter": "1/160s",
+        "aperture": "ƒ/1.8",
+        "iso": "ISO 3200",
+        "focal": "135mm",
+        "focal35": "135mm (éq. 35mm)",
+        "originalFile": "20251116-EVAMAR-Duo-7400312.jpeg",
+        "fileSize": "16.3 MB"
+      }
+    },
+    "A7400132.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_011",
+      "index": 11,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "FE 135mm F1.8 GM",
+        "date": "2025-10-04T17:18:38.000Z",
+        "shutter": "1/800s",
+        "aperture": "ƒ/2",
+        "iso": "ISO 1600",
+        "focal": "135mm",
+        "focal35": "135mm (éq. 35mm)",
+        "originalFile": "A7400132.jpeg",
+        "fileSize": "11.0 MB"
+      }
+    },
+    "A7400168.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_012",
+      "index": 12,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "85mm F1.4 DG DN | Art 020",
+        "date": "2025-10-04T17:24:09.000Z",
+        "shutter": "1/800s",
+        "aperture": "ƒ/1.4",
+        "iso": "ISO 1600",
+        "focal": "85mm",
+        "focal35": "85mm (éq. 35mm)",
+        "originalFile": "A7400168.jpeg",
+        "fileSize": "23.1 MB"
+      }
+    },
+    "A7400202.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_013",
+      "index": 13,
+      "role": "big",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "FE 135mm F1.8 GM",
+        "date": "2025-10-04T18:31:00.000Z",
+        "shutter": "1/800s",
+        "aperture": "ƒ/2.2",
+        "iso": "ISO 1600",
+        "focal": "135mm",
+        "focal35": "135mm (éq. 35mm)",
+        "originalFile": "A7400202.jpeg",
+        "fileSize": "18.0 MB"
+      }
+    },
+    "A7400540.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_014",
+      "index": 14,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "85mm F1.4 DG DN | Art 020",
+        "date": "2025-11-29T19:35:54.000Z",
+        "shutter": "1/125s",
+        "aperture": "ƒ/1.6",
+        "iso": "ISO 12800",
+        "focal": "85mm",
+        "focal35": "85mm (éq. 35mm)",
+        "originalFile": "A7400540.jpeg",
+        "fileSize": "31.6 MB"
+      }
+    },
+    "A7400872.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_015",
+      "index": 15,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "E 70-180mm F2.8 A056",
+        "date": "2024-06-22T14:42:54.000Z",
+        "shutter": "1/500s",
+        "aperture": "ƒ/2.8",
+        "iso": "ISO 4000",
+        "focal": "114mm",
+        "focal35": "114mm (éq. 35mm)",
+        "originalFile": "A7400872.jpeg",
+        "fileSize": "18.3 MB"
+      }
+    },
+    "A7401025.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_016",
+      "index": 16,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "85mm F1.4 DG DN | Art 020",
+        "date": "2025-12-20T17:53:01.000Z",
+        "shutter": "1/160s",
+        "aperture": "ƒ/1.4",
+        "iso": "ISO 3200",
+        "focal": "85mm",
+        "focal35": "85mm (éq. 35mm)",
+        "originalFile": "A7401025.jpeg",
+        "fileSize": "21.2 MB"
+      }
+    },
+    "A7401153.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_017",
+      "index": 17,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "85mm F1.4 DG DN | Art 020",
+        "date": "2025-12-20T19:00:01.000Z",
+        "shutter": "1/200s",
+        "aperture": "ƒ/1.4",
+        "iso": "ISO 3200",
+        "focal": "85mm",
+        "focal35": "85mm (éq. 35mm)",
+        "originalFile": "A7401153.jpeg",
+        "fileSize": "23.1 MB"
+      }
+    },
+    "A7401165.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_018",
+      "index": 18,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "85mm F1.4 DG DN | Art 020",
+        "date": "2025-12-20T19:03:09.000Z",
+        "shutter": "1/200s",
+        "aperture": "ƒ/1.4",
+        "iso": "ISO 3200",
+        "focal": "85mm",
+        "focal35": "85mm (éq. 35mm)",
+        "originalFile": "A7401165.jpeg",
+        "fileSize": "21.3 MB"
+      }
+    },
+    "A7401219.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_019",
+      "index": 19,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "24mm F1.4 DG HSM | Art 015",
+        "date": "2025-12-20T19:42:15.000Z",
+        "shutter": "1/320s",
+        "aperture": "ƒ/1.4",
+        "iso": "ISO 12800",
+        "focal": "24mm",
+        "focal35": "24mm (éq. 35mm)",
+        "originalFile": "A7401219.jpeg",
+        "fileSize": "10.8 MB"
+      }
+    },
+    "A7401339.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_020",
+      "index": 20,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "E 70-180mm F2.8 A056",
+        "date": "2024-06-23T09:41:37.000Z",
+        "shutter": "1/1000s",
+        "aperture": "ƒ/2.8",
+        "iso": "ISO 6400",
+        "focal": "95mm",
+        "focal35": "95mm (éq. 35mm)",
+        "originalFile": "A7401339.jpeg",
+        "fileSize": "40.4 MB"
+      }
+    },
+    "A7402223-NB.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_021",
+      "index": 21,
+      "role": "big",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "FE 135mm F1.8 GM",
+        "date": "2025-05-24T17:51:36.000Z",
+        "shutter": "1/125s",
+        "aperture": "ƒ/1.8",
+        "iso": "ISO 2500",
+        "focal": "135mm",
+        "focal35": "135mm (éq. 35mm)",
+        "originalFile": "A7402223-NB.jpeg",
+        "fileSize": "3.4 MB"
+      }
+    },
+    "A7402481.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_022",
+      "index": 22,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "FE 135mm F1.8 GM",
+        "date": "2025-05-25T12:12:41.000Z",
+        "shutter": "1/500s",
+        "aperture": "ƒ/1.8",
+        "iso": "ISO 10000",
+        "focal": "135mm",
+        "focal35": "135mm (éq. 35mm)",
+        "originalFile": "A7402481.jpeg",
+        "fileSize": "16.2 MB"
+      }
+    },
+    "A7404549.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_023",
+      "index": 23,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "FE 135mm F1.8 GM",
+        "date": "2025-06-13T18:50:58.000Z",
+        "shutter": "1/500s",
+        "aperture": "ƒ/1.8",
+        "iso": "ISO 5000",
+        "focal": "135mm",
+        "focal35": "135mm (éq. 35mm)",
+        "originalFile": "A7404549.jpeg",
+        "fileSize": "56.3 MB"
+      }
+    },
+    "A7406065-nb.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_024",
+      "index": 24,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "85mm F1.4 DG DN | Art 020",
+        "date": "2025-06-29T16:25:14.000Z",
+        "shutter": "1/500s",
+        "aperture": "ƒ/2.2",
+        "iso": "ISO 3200",
+        "focal": "85mm",
+        "focal35": "85mm (éq. 35mm)",
+        "originalFile": "A7406065-nb.jpeg",
+        "fileSize": "4.3 MB"
+      }
+    },
+    "A7406097.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_025",
+      "index": 25,
+      "role": "big",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "FE 135mm F1.8 GM",
+        "date": "2025-06-29T16:31:29.000Z",
+        "shutter": "1/500s",
+        "aperture": "ƒ/2.2",
+        "iso": "ISO 2500",
+        "focal": "135mm",
+        "focal35": "135mm (éq. 35mm)",
+        "originalFile": "A7406097.jpeg",
+        "fileSize": "13.3 MB"
+      }
+    },
+    "A7406877.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_026",
+      "index": 26,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "FE 135mm F1.8 GM",
+        "date": "2025-02-05T21:16:39.000Z",
+        "shutter": "1/250s",
+        "aperture": "ƒ/1.8",
+        "iso": "ISO 4000",
+        "focal": "135mm",
+        "focal35": "135mm (éq. 35mm)",
+        "originalFile": "A7406877.jpeg",
+        "fileSize": "20.5 MB"
+      }
+    },
+    "A7407142.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_027",
+      "index": 27,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "FE 135mm F1.8 GM",
+        "date": "2025-03-09T18:13:48.000Z",
+        "shutter": "1/100s",
+        "aperture": "ƒ/1.8",
+        "iso": "ISO 12800",
+        "focal": "135mm",
+        "focal35": "135mm (éq. 35mm)",
+        "originalFile": "A7407142.jpeg",
+        "fileSize": "28.6 MB"
+      }
+    },
+    "A7407367.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_028",
+      "index": 28,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "Viltrox 16mm F1.8 FE",
+        "date": "2025-03-15T22:17:41.000Z",
+        "shutter": "1/200s",
+        "aperture": "ƒ/1.8",
+        "iso": "ISO 12800",
+        "focal": "16mm",
+        "focal35": "16mm (éq. 35mm)",
+        "originalFile": "A7407367.jpeg",
+        "fileSize": "50.5 MB"
+      }
+    },
+    "A7407981.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_029",
+      "index": 29,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "E 70-180mm F2.8 A056",
+        "date": "2024-06-09T03:15:04.000Z",
+        "shutter": "1/500s",
+        "aperture": "ƒ/2.8",
+        "iso": "ISO 3200",
+        "focal": "180mm",
+        "focal35": "180mm (éq. 35mm)",
+        "originalFile": "A7407981.jpeg",
+        "fileSize": "38.1 MB"
+      }
+    },
+    "A7408304.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_030",
+      "index": 30,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "24mm F1.4 DG HSM | Art 015",
+        "date": "2025-04-13T14:57:36.000Z",
+        "shutter": "1/125s",
+        "aperture": "ƒ/4",
+        "iso": "ISO 10000",
+        "focal": "24mm",
+        "focal35": "24mm (éq. 35mm)",
+        "originalFile": "A7408304.jpeg",
+        "fileSize": "33.0 MB"
+      }
+    },
+    "A7408552.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_031",
+      "index": 31,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "85mm F1.4 DG DN | Art 020",
+        "date": "2025-09-06T14:15:26.000Z",
+        "shutter": "1/3200s",
+        "aperture": "ƒ/1.8",
+        "iso": "ISO 100",
+        "focal": "85mm",
+        "focal35": "85mm (éq. 35mm)",
+        "originalFile": "A7408552.jpeg",
+        "fileSize": "22.1 MB"
+      }
+    },
+    "DSC09923.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_032",
+      "index": 32,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "28-70mm F2.8 DG DN | Contemporary 021",
+        "date": "2023-04-25T18:00:26.000Z",
+        "shutter": "1/100s",
+        "aperture": "ƒ/4.5",
+        "iso": "ISO 1600",
+        "focal": "65.3mm",
+        "focal35": "65mm (éq. 35mm)",
+        "originalFile": "DSC09923.jpeg",
+        "fileSize": "9.6 MB"
+      }
+    },
+    "Dukkha-20230510-114.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_033",
+      "index": 33,
+      "role": "big",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "E 70-180mm F2.8 A056",
+        "date": "2023-05-11T19:06:49.000Z",
+        "shutter": "1/500s",
+        "aperture": "ƒ/2.8",
+        "iso": "ISO 1250",
+        "focal": "121mm",
+        "focal35": "121mm (éq. 35mm)",
+        "originalFile": "Dukkha-20230510-114.jpeg",
+        "fileSize": "11.8 MB"
+      }
+    },
+    "Dukkha-20230510-149.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_034",
+      "index": 34,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "E 70-180mm F2.8 A056",
+        "date": "2023-05-11T19:27:03.000Z",
+        "shutter": "1/1000s",
+        "aperture": "ƒ/2.8",
+        "iso": "ISO 1600",
+        "focal": "96mm",
+        "focal35": "96mm (éq. 35mm)",
+        "originalFile": "Dukkha-20230510-149.jpeg",
+        "fileSize": "7.9 MB"
+      }
+    },
+    "Dukkha-20230510-166.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_035",
+      "index": 35,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "E 70-180mm F2.8 A056",
+        "date": "2023-05-11T19:29:26.000Z",
+        "shutter": "1/1000s",
+        "aperture": "ƒ/2.8",
+        "iso": "ISO 3200",
+        "focal": "95mm",
+        "focal35": "95mm (éq. 35mm)",
+        "originalFile": "Dukkha-20230510-166.jpeg",
+        "fileSize": "31.2 MB"
+      }
+    },
+    "Dukkha-84.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_036",
+      "index": 36,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "E 70-180mm F2.8 A056",
+        "date": "2023-05-11T19:32:43.000Z",
+        "shutter": "1/500s",
+        "aperture": "ƒ/2.8",
+        "iso": "ISO 4000",
+        "focal": "130mm",
+        "focal35": "130mm (éq. 35mm)",
+        "originalFile": "Dukkha-84.jpeg",
+        "fileSize": "8.9 MB"
+      }
+    },
+    "Horizon-29-11-22025-A7400500.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_037",
+      "index": 37,
+      "role": "big",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "FE 135mm F1.8 GM",
+        "date": "2025-11-29T19:22:59.000Z",
+        "shutter": "1/200s",
+        "aperture": "ƒ/1.8",
+        "iso": "ISO 12800",
+        "focal": "135mm",
+        "focal35": "135mm (éq. 35mm)",
+        "originalFile": "Horizon-29-11-22025-A7400500.jpeg",
+        "fileSize": "34.9 MB"
+      }
+    },
+    "Revelation-20230517-129.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_038",
+      "index": 38,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "E 70-180mm F2.8 A056",
+        "date": "2023-05-17T18:08:27.000Z",
+        "shutter": "1/125s",
+        "aperture": "ƒ/2.8",
+        "iso": "ISO 500",
+        "focal": "99mm",
+        "focal35": "99mm (éq. 35mm)",
+        "originalFile": "Revelation-20230517-129.jpeg",
+        "fileSize": "10.2 MB"
+      }
+    },
+    "Revelation-20230517-170.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_039",
+      "index": 39,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "E 70-180mm F2.8 A056",
+        "date": "2023-05-17T18:25:46.000Z",
+        "shutter": "1/500s",
+        "aperture": "ƒ/2.8",
+        "iso": "ISO 3200",
+        "focal": "70mm",
+        "focal35": "70mm (éq. 35mm)",
+        "originalFile": "Revelation-20230517-170.jpeg",
+        "fileSize": "14.7 MB"
+      }
+    },
+    "Revelation-20230517-230.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_040",
+      "index": 40,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "E 70-180mm F2.8 A056",
+        "date": "2023-05-17T18:51:22.000Z",
+        "shutter": "1/500s",
+        "aperture": "ƒ/2.8",
+        "iso": "ISO 12800",
+        "focal": "115mm",
+        "focal35": "115mm (éq. 35mm)",
+        "originalFile": "Revelation-20230517-230.jpeg",
+        "fileSize": "7.7 MB"
+      }
+    },
+    "Revelation-20230517-237.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_041",
+      "index": 41,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "E 70-180mm F2.8 A056",
+        "date": "2023-05-17T18:52:38.000Z",
+        "shutter": "1/500s",
+        "aperture": "ƒ/2.8",
+        "iso": "ISO 5000",
+        "focal": "116mm",
+        "focal35": "116mm (éq. 35mm)",
+        "originalFile": "Revelation-20230517-237.jpeg",
+        "fileSize": "10.5 MB"
+      }
+    },
+    "Saed-Giorgia-Heloise-20230512-108.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_042",
+      "index": 42,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "E 70-180mm F2.8 A056",
+        "date": "2023-05-12T18:56:20.000Z",
+        "shutter": "1/500s",
+        "aperture": "ƒ/2.8",
+        "iso": "ISO 2000",
+        "focal": "97mm",
+        "focal35": "97mm (éq. 35mm)",
+        "originalFile": "Saed-Giorgia-Heloise-20230512-108.jpeg",
+        "fileSize": "21.4 MB"
+      }
+    },
+    "Saed-Giorgia-Heloise-20230512-114.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_043",
+      "index": 43,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "E 70-180mm F2.8 A056",
+        "date": "2023-05-12T19:05:16.000Z",
+        "shutter": "1/500s",
+        "aperture": "ƒ/2.8",
+        "iso": "ISO 5000",
+        "focal": "95mm",
+        "focal35": "95mm (éq. 35mm)",
+        "originalFile": "Saed-Giorgia-Heloise-20230512-114.jpeg",
+        "fileSize": "39.6 MB"
+      }
+    },
+    "Shems_Bendali_Quintet_17-01-2026_A7401428.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_044",
+      "index": 44,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "FE 35mm F1.4 GM",
+        "date": "2026-01-17T21:33:23.000Z",
+        "shutter": "1/500s",
+        "aperture": "ƒ/1.8",
+        "iso": "ISO 1000",
+        "focal": "35mm",
+        "focal35": "35mm (éq. 35mm)",
+        "originalFile": "Shems_Bendali_Quintet_17-01-2026_A7401428.jpeg",
+        "fileSize": "18.3 MB"
+      }
+    },
+    "Symbiosis-16-12-2025-A7400963.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_045",
+      "index": 45,
+      "role": "big",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "FE 135mm F1.8 GM",
+        "date": "2025-12-14T18:23:45.000Z",
+        "shutter": "1/500s",
+        "aperture": "ƒ/2.2",
+        "iso": "ISO 3200",
+        "focal": "135mm",
+        "focal35": "135mm (éq. 35mm)",
+        "originalFile": "Symbiosis-16-12-2025-A7400963.jpeg",
+        "fileSize": "13.9 MB"
+      }
+    },
+    "carte-blanche-20260614-136.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_046",
+      "index": 46,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "E 70-180mm F2.8 A056",
+        "date": "2023-06-14T17:56:13.000Z",
+        "shutter": "1/1000s",
+        "aperture": "ƒ/2.8",
+        "iso": "ISO 8000",
+        "focal": "70mm",
+        "focal35": "70mm (éq. 35mm)",
+        "originalFile": "carte-blanche-20260614-136.jpeg",
+        "fileSize": "21.0 MB"
+      }
+    },
+    "carte-blanche-20260614-227.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_047",
+      "index": 47,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "E 70-180mm F2.8 A056",
+        "date": "2023-06-14T18:39:00.000Z",
+        "shutter": "1/800s",
+        "aperture": "ƒ/2.8",
+        "iso": "ISO 12800",
+        "focal": "167mm",
+        "focal35": "167mm (éq. 35mm)",
+        "originalFile": "carte-blanche-20260614-227.jpeg",
+        "fileSize": "18.7 MB"
+      }
+    },
+    "carte-blanche-20260614-239.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_048",
+      "index": 48,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "E 70-180mm F2.8 A056",
+        "date": "2023-06-14T18:42:26.000Z",
+        "shutter": "1/1000s",
+        "aperture": "ƒ/2.8",
+        "iso": "ISO 8000",
+        "focal": "180mm",
+        "focal35": "180mm (éq. 35mm)",
+        "originalFile": "carte-blanche-20260614-239.jpeg",
+        "fileSize": "21.5 MB"
+      }
+    },
+    "edc-20230610-2214.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_049",
+      "index": 49,
+      "role": "big",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "E 70-180mm F2.8 A056",
+        "date": "2023-06-10T18:06:08.000Z",
+        "shutter": "1/500s",
+        "aperture": "ƒ/2.8",
+        "iso": "ISO 8000",
+        "focal": "70mm",
+        "focal35": "70mm (éq. 35mm)",
+        "originalFile": "edc-20230610-2214.jpeg",
+        "fileSize": "51.4 MB"
+      }
+    },
+    "hommage-au-vivant_20230527-186.jpeg": {
+      "name": "philippeVollenweider_quelquesSpectaclesEtLive_20260322_050",
+      "index": 50,
+      "role": "small",
+      "isDark": true,
+      "exif": {
+        "camera": "SONY ILCE-7M4",
+        "lens": "E 70-180mm F2.8 A056",
+        "date": "2023-05-27T18:30:16.000Z",
+        "shutter": "1/500s",
+        "aperture": "ƒ/2.8",
+        "iso": "ISO 1250",
+        "focal": "152mm",
+        "focal35": "152mm (éq. 35mm)",
+        "originalFile": "hommage-au-vivant_20230527-186.jpeg",
+        "fileSize": "15.2 MB"
+      }
+    }
+  },
+  "generated": "2026-03-22T21:16:40.962Z",
+  "project": {
+    "name": "quelques-spectacles-et-live",
+    "title": "Quelques spectacles et live",
+    "author": "Philippe Vollenweider",
+    "authorEmail": "author@example.com",
+    "date": "2026-03-22",
+    "location": "Divers",
+    "description": "Quelques images de spectacle",
+    "locale": "fr"
+  }
+}

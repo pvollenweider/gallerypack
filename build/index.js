@@ -543,8 +543,6 @@ async function convertOne(photo, cfg, idx, cachedIsDark = null, paths) {
  */
 async function reverseGeocode(lat, lng, locale = 'en') {
   try {
-    // Use the two-letter language code for the Accept-Language header so Nominatim
-    // returns place names (especially the country) in the gallery's locale.
     const lang = locale.slice(0, 2).toLowerCase();
     const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=12&addressdetails=1`;
     const res = await fetch(url, {
@@ -556,8 +554,16 @@ async function reverseGeocode(lat, lng, locale = 'en') {
     if (!res.ok) return null;
     const data = await res.json();
     const a = data.address || {};
-    const city    = a.city || a.town || a.village || a.hamlet || a.municipality || a.county || '';
-    const country = a.country || '';
+    const city = a.city || a.town || a.village || a.hamlet || a.municipality || a.county || '';
+    // Use Intl.DisplayNames to get the country name in the gallery's locale.
+    // This avoids multilingual names like "Schweiz/Suisse/Svizzera/Svizra" that
+    // Nominatim sometimes returns for countries with multiple official languages.
+    const cc = (a.country_code || '').toUpperCase();
+    let country = a.country || '';
+    if (cc) {
+      try { country = new Intl.DisplayNames([lang, 'en'], { type: 'region' }).of(cc) || country; }
+      catch (_) {}
+    }
     return [city, country].filter(Boolean).join(', ') || null;
   } catch (_) {
     return null;
@@ -587,7 +593,11 @@ async function resolveGpsLocations(results, manifestPath, locale = 'en') {
   const cache = new Map();
 
   for (const photo of toResolve) {
-    const { lat, lng } = photo.exif.location;
+    // Ensure lat/lng are actual numbers regardless of how they were stored.
+    const lat = Number(photo.exif.location.lat);
+    const lng = Number(photo.exif.location.lng);
+    if (isNaN(lat) || isNaN(lng)) continue;
+
     const key = `${lat.toFixed(2)},${lng.toFixed(2)}`;
 
     if (!cache.has(key)) {
