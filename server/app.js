@@ -74,6 +74,10 @@ app.use('/new', express.static(path.join(__DIR, 'public', 'new')));
 
 // ── Status page ───────────────────────────────────────────────────────────────
 app.use('/status', express.static(path.join(__DIR, 'public', 'status')));
+// Serve the SPA for /status/<id> routes (id is handled client-side)
+app.get('/status/:id', (req, res) => {
+  res.sendFile(path.join(__DIR, 'public', 'status', 'index.html'));
+});
 
 // ── API: create gallery ───────────────────────────────────────────────────────
 app.post('/api/galleries', upload.array('photos'), async (req, res) => {
