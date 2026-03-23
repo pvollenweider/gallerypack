@@ -1,6 +1,6 @@
 # File naming convention
 
-SSGG generates deterministic, human-readable file names for every processed photo.
+> **TL;DR** — You don't need to care about this. Drop your photos in `src/<name>/photos/`, build, and GalleryPack produces clean, consistent file names automatically. This page is here if you're curious about the logic — or need to understand why a file is named the way it is.
 
 ---
 

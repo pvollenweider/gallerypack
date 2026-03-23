@@ -143,7 +143,7 @@ function scaffold(slug, config) {
 
 async function runWizard(presetSlug) {
   const rl = createRl();
-  console.log('\n\x1b[1m  SSGG — New gallery wizard\x1b[0m');
+  console.log('\n\x1b[1m  GalleryPack — New gallery wizard\x1b[0m');
   console.log('  Press Enter to accept the default shown in brackets.\n');
 
   const title  = await ask(rl, '  Gallery title', 'My Gallery');
@@ -209,7 +209,7 @@ function runQuick(slug) {
     date:  today(),
   });
 
-  console.log(`\n\x1b[1m  SSGG — Creating gallery: ${clean}\x1b[0m`);
+  console.log(`\n\x1b[1m  GalleryPack — Creating gallery: ${clean}\x1b[0m`);
   scaffold(clean, config);
 }
 

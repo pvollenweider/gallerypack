@@ -64,7 +64,7 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`\n  \x1b[32m✓\x1b[0m  SSGG dev server running`);
+  console.log(`\n  \x1b[32m✓\x1b[0m  GalleryPack dev server running`);
   console.log(`     http://localhost:${PORT}/\n`);
 
   // List available galleries.

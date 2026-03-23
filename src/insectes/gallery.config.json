@@ -1,14 +1,16 @@
 {
   "project": {
     "name": "insectes",
-    "title": "Insectes",
+    "title": "insectes",
     "author": "Philippe Vollenweider",
     "authorEmail": "philippe@vollenweider.org",
     "date": "auto",
-    "location": "Neuchatel",
-    "description": "Des insectes en instrument",
+    "description": "Test for private",
     "locale": "fr",
-    "allowDownloadImage": false,
-    "allowDownloadGallery": false
+    "access": "password",
+    "password": "bzz-bzz",
+    "autoplay": {
+      "slideshowInterval": 3
+    }
   }
 }

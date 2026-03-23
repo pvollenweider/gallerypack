@@ -1,13 +1,12 @@
 #!/usr/bin/env node
 /**
- * SSGG — Simple Static Gallery Generator
+ * GalleryPack — Simple Static Gallery Generator
  * Build pipeline: converts source photos into a self-contained static gallery.
  *
  * Usage:
  *   npm run build          — incremental build (skips existing images)
  *   npm run build:force    — reconvert all images
  *   npm run build:clean    — wipe dist/ and rebuild from scratch
- *   npm run build:webp     — reconvert WebP only
  *
  * @author  Philippe Vollenweider <philippe@vollenweider.org>
  * @license MIT
@@ -574,7 +573,7 @@ async function reverseGeocode(lat, lng, locale = 'en') {
     const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=12&addressdetails=1`;
     const res = await fetch(url, {
       headers: {
-        'User-Agent': `SSGG/${VERSION} (https://github.com/pvollenweider/ssgg)`,
+        'User-Agent': `GalleryPack/${VERSION} (https://github.com/pvollenweider/ssgg)`,
         'Accept-Language': `${lang},en;q=0.8`,
       },
     });
@@ -1368,7 +1367,7 @@ ${[2,3,5,8,10].map(s => {
   <footer class="gallery-footer">
     <button id="legal-btn">Legal notice</button>
     <span class="footer-sep">·</span>
-    <a class="footer-credit" href="https://github.com/pvollenweider/ssgg" target="_blank" rel="noopener">${generatedBy} SSGG v${VERSION}</a>
+    <a class="footer-credit" href="https://github.com/pvollenweider/ssgg" target="_blank" rel="noopener">${generatedBy} GalleryPack v${VERSION}</a>
   </footer>
 </main>
 
@@ -2371,10 +2370,38 @@ function collectBuiltGalleries() {
         const manifest = JSON.parse(fs.readFileSync(path.join(DIST_ROOT, entry, 'photos.json'), 'utf8'));
         const project  = manifest.project || {};
         if (project.private) return null;   // skip private galleries
+
         const photos     = Object.values(manifest.photos || {});
         const photoCount = photos.length;
         const firstPhoto = photos.find(p => p.name)?.name || null;
-        return { distName: entry, project, photoCount, firstPhoto };
+
+        // Resolve date: if 'auto' or missing, derive from earliest EXIF date across photos.
+        let resolvedDate = (project.date && project.date !== 'auto') ? project.date : null;
+        if (!resolvedDate) {
+          const dates = photos.map(p => p.exif?.date).filter(Boolean).sort();
+          resolvedDate = dates[0] ? dates[0].slice(0, 10) : null;
+        }
+
+        // Resolve location: if missing, derive from reverse-geocoded EXIF locations.
+        let resolvedLocation = (project.location && project.location !== 'auto') ? project.location : null;
+        if (!resolvedLocation) {
+          const locs    = photos.map(p => p.exif?.location).filter(Boolean);
+          const unique  = [...new Set(locs)];
+          if (unique.length === 1) {
+            resolvedLocation = unique[0];
+          } else if (unique.length > 1) {
+            // Multiple distinct locations → try to surface the common country (last segment).
+            const countries = [...new Set(unique.map(l => l.split(',').pop().trim()))];
+            resolvedLocation = countries.length === 1 ? countries[0] : null;
+          }
+        }
+
+        return {
+          distName:  entry,
+          project:   { ...project, date: resolvedDate, location: resolvedLocation },
+          photoCount,
+          firstPhoto,
+        };
       } catch (_) { return null; }
     })
     .filter(Boolean);
@@ -2386,6 +2413,9 @@ function collectBuiltGalleries() {
  * @param {string} fontCss - Inlinable @font-face CSS.
  */
 function buildIndexHTML(fontCss) {
+  // index.html sits at dist/ root, so fonts/ is a sibling dir (not ../fonts/).
+  const rootFontCss = fontCss.replace(/url\('\.\.\/fonts\//g, "url('fonts/");
+  fontCss = rootFontCss;
   const galleries = collectBuiltGalleries();
 
   // Sort by project date descending (most recent first), then alphabetically.
@@ -2399,15 +2429,23 @@ function buildIndexHTML(fontCss) {
     const p      = g.project;
     const yr     = p.date ? p.date.slice(0, 4) : '';
     const meta   = [p.location, yr].filter(Boolean).join(' \u00b7 ');
+    // Password-protected galleries serve their cover from dist/covers/ (outside
+    // the .htaccess zone) so the site index can display it without a 401 error.
     const bgImg  = g.firstPhoto
-      ? `<img class="card-bg" src="${escHtml(g.distName)}/img/grid/${escHtml(g.firstPhoto)}.webp" alt="" loading="lazy">`
+      ? (g.project.access === 'password'
+        ? `<img class="card-bg" src="covers/${escHtml(g.distName)}.webp" alt="" loading="lazy">`
+        : `<img class="card-bg" src="${escHtml(g.distName)}/img/grid/${escHtml(g.firstPhoto)}.webp" alt="" loading="lazy">`)
       : `<div class="card-bg card-bg-empty"></div>`;
     const subtitleHtml  = p.subtitle    ? `<div class="card-sub">${escHtml(p.subtitle)}</div>`   : '';
     const authorHtml    = p.author      ? `<div class="card-author">\u00a9\u00a0${escHtml(p.author)}</div>` : '';
     const metaHtml      = meta          ? `<span>${escHtml(meta)}</span>` : '';
     const countHtml     = `<span class="card-count">${g.photoCount}\u00a0photo${g.photoCount !== 1 ? 's' : ''}</span>`;
+    const lockHtml      = p.access === 'password'
+      ? `<div class="card-lock" title="Galerie protégée par mot de passe"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1a5 5 0 0 0-5 5v3H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V11a2 2 0 0 0-2-2h-2V6a5 5 0 0 0-5-5zm-3 5a3 3 0 0 1 6 0v3H9V6zm3 6a2 2 0 0 1 1 3.73V17a1 1 0 0 1-2 0v-1.27A2 2 0 0 1 12 12z"/></svg></div>`
+      : '';
     return `<a class="card" href="${escHtml(g.distName)}/">
   ${bgImg}
+  ${lockHtml}
   <div class="card-body">
     <div class="card-title">${escHtml(p.title || g.distName)}</div>
     ${subtitleHtml}
@@ -2426,7 +2464,7 @@ function buildIndexHTML(fontCss) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SSGG — Galleries</title>
+<title>GalleryPack</title>
 <style>
 ${fontCss}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -2475,6 +2513,14 @@ html,body{min-height:100%;background:var(--bg);color:var(--ink);font-family:'Pop
 }
 .card-sep{color:rgba(255,255,255,.2)}
 .card-count{color:var(--accent);font-weight:500}
+.card-lock{
+  position:absolute;top:10px;right:10px;
+  width:28px;height:28px;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  border-radius:50%;color:rgba(255,255,255,.75);z-index:2
+}
+.card-lock svg{width:13px;height:13px}
 .empty{color:var(--muted);font-size:13px;text-align:center;padding:48px 0}
 .empty code{color:rgba(255,255,255,.5);font-family:monospace;font-size:12px}
 .footer{text-align:center;padding:0 0 32px;font-size:10px;color:rgba(255,255,255,.15);letter-spacing:.1em;text-transform:uppercase}
@@ -2495,7 +2541,7 @@ ${cards}
   </div>
 </main>
 <footer class="footer">
-  <a href="https://github.com/pvollenweider/ssgg" target="_blank" rel="noopener">SSGG v${VERSION}</a>
+  <a href="https://github.com/pvollenweider/ssgg" target="_blank" rel="noopener">GalleryPack v${VERSION}</a>
 </footer>
 </body>
 </html>`;
@@ -2579,7 +2625,7 @@ function buildDeliveryMessage(project, summary, authInfo) {
 
   lines.push('');
   lines.push('---');
-  lines.push(`*${isFr ? 'Généré' : 'Generated'} by [SSGG](https://github.com/pvollenweider/ssgg) v${VERSION}*`);
+  lines.push(`*${isFr ? 'Généré' : 'Generated'} by [GalleryPack](https://github.com/pvollenweider/ssgg) v${VERSION}*`);
   return lines.join('\n') + '\n';
 }
 
@@ -2719,6 +2765,19 @@ async function buildGallery(srcName, { build }, fontCss) {
     fs.writeFileSync(path.join(paths.dist, '.htpasswd'), authInfo.htpasswd, 'utf8');
     ok(`.htaccess + .htpasswd → generated (user: ${authInfo.username} / pwd: ${authInfo.password})`);
     log(`\n  \x1b[33m🔒  Password: ${authInfo.password}\x1b[0m\n`);
+
+    // Copy the first grid thumbnail to dist/covers/<distName>.webp so the site
+    // index can display the cover image without hitting the .htaccess-protected zone.
+    if (results[0]?.name) {
+      const coversDir = path.join(DIST_ROOT, 'covers');
+      fs.mkdirSync(coversDir, { recursive: true });
+      const srcCover  = path.join(paths.distImg, 'grid', `${results[0].name}.webp`);
+      const destCover = path.join(coversDir, `${distName}.webp`);
+      if (fs.existsSync(srcCover)) {
+        fs.copyFileSync(srcCover, destCover);
+        ok(`cover → dist/covers/${distName}.webp  (outside protected zone)`);
+      }
+    }
   }
 
   // ── Build summary ─────────────────────────────────────────────────────────────

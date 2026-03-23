@@ -1,6 +1,6 @@
 # Output structure
 
-Everything SSGG produces goes into `dist/`. This folder is the deploy contract — its structure is stable across versions.
+> **TL;DR** — Everything GalleryPack produces goes into `dist/`. This folder is the deploy contract — its structure is stable across versions. Never commit it; deploy it with `npm run publish` or `npm run deploy`.
 
 ---
 
@@ -32,8 +32,11 @@ Shared assets (vendor JS/CSS, fonts) live at the `dist/` root and are shared acr
 dist/
 ├── index.html    Site index listing all public galleries
 ├── vendor/       GLightbox, tiny-slider, JSZip
-└── fonts/        Poppins (subset, self-hosted)
+├── fonts/        Poppins (subset, self-hosted)
+└── covers/       Cover thumbnails for password-protected galleries (outside auth zone)
 ```
+
+The `covers/` directory contains one `.webp` per password-protected gallery, copied outside the `.htaccess` zone so the site index can display cover images without an auth prompt.
 
 ---
 

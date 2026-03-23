@@ -68,7 +68,7 @@ let targets;
 if (BUILD_ALL) {
   targets = fs.readdirSync(DIST)
     .filter(n => fs.statSync(path.join(DIST, n)).isDirectory()
-              && n !== 'vendor' && n !== 'fonts');
+              && n !== 'vendor' && n !== 'fonts' && n !== 'covers');
 } else if (GALLERY_ARG) {
   // Accept either srcName or distName
   const distEntries = fs.readdirSync(DIST)
@@ -95,7 +95,7 @@ if (BUILD_ALL) {
   // Auto: single gallery or prompt
   const distEntries = fs.readdirSync(DIST)
     .filter(n => fs.statSync(path.join(DIST, n)).isDirectory()
-              && n !== 'vendor' && n !== 'fonts');
+              && n !== 'vendor' && n !== 'fonts' && n !== 'covers');
   if (distEntries.length === 1) {
     targets = distEntries;
   } else {
@@ -105,11 +105,42 @@ if (BUILD_ALL) {
   }
 }
 
-// ── Publish each target ────────────────────────────────────────────────────────
+// ── Upload shared assets (fonts/, vendor/, covers/) ──────────────────────────
+const SHARED_DIRS = ['fonts', 'vendor', 'covers'];
+
 log('');
 log('\x1b[1m🚀  Publishing\x1b[0m');
 log(`   Remote : ${pub.remote}:${pub.remotePath}`);
 log(`   Base   : ${pub.baseUrl}`);
+log('');
+
+// Upload root index.html (galleries landing page) if present
+const rootIndex = path.join(DIST, 'index.html');
+if (fs.existsSync(rootIndex)) {
+  info('Uploading site index (index.html)…');
+  try {
+    execSync(`rsync ${rsyncFlags.replace('--delete', '')} "${rootIndex}" "${pub.remote}:${pub.remotePath}/index.html"`, { stdio: 'inherit' });
+    ok('index.html → uploaded');
+  } catch (e) {
+    fail(`rsync failed for index.html: ${e.message}`);
+    process.exit(1);
+  }
+  log('');
+}
+
+for (const shared of SHARED_DIRS) {
+  const localShared  = path.join(DIST, shared);
+  const remoteShared = `${pub.remote}:${pub.remotePath}/${shared}/`;
+  if (!fs.existsSync(localShared)) continue;
+  info(`Syncing shared assets: ${shared}/`);
+  try {
+    execSync(`rsync ${rsyncFlags} "${localShared}/" "${remoteShared}"`, { stdio: 'inherit' });
+    ok(`${shared}/ → uploaded`);
+  } catch (e) {
+    fail(`rsync failed for ${shared}/: ${e.message}`);
+    process.exit(1);
+  }
+}
 log('');
 
 for (const distName of targets) {

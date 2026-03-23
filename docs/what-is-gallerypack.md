@@ -1,10 +1,10 @@
-# What SSGG is — and is not
+# What GalleryPack is — and is not
 
-Understanding the scope helps you decide if SSGG is the right tool.
+> **TL;DR** — GalleryPack is a command-line build tool. You run a command, it produces a ready-to-deploy photo gallery. No cloud, no subscription, no backend.
 
 ---
 
-## What SSGG is
+## What GalleryPack is
 
 **A build tool.** You run a command, it produces files. Nothing more.
 
@@ -16,7 +16,7 @@ Understanding the scope helps you decide if SSGG is the right tool.
 
 ---
 
-## What SSGG does well
+## What GalleryPack does well
 
 - Produce a polished, client-ready gallery in under a minute
 - Generate clean, predictable file names and folder structure
@@ -30,23 +30,23 @@ Understanding the scope helps you decide if SSGG is the right tool.
 
 ---
 
-## What SSGG is not
+## What GalleryPack is not
 
 **Not a platform.** There are no accounts, no dashboards, no subscriptions.
 
 **Not a CMS.** You cannot edit metadata or reorder photos in a browser. You edit the config file and rebuild.
 
-**Not Google Photos / iCloud / Pixieset.** Those are services with storage, sharing, printing, and collaboration features. SSGG only generates a viewer.
+**Not Google Photos / iCloud / Pixieset.** Those are services with storage, sharing, printing, and collaboration features. GalleryPack only generates a viewer.
 
 **Not a strong access-control system.** The `access: "password"` mode uses Apache basic auth — pragmatic, not cryptographic. The `private` (hashed URL) mode is security through obscurity. If you need truly private galleries, add server-level auth independently.
 
-**Not a video gallery.** SSGG handles still images only.
+**Not a video gallery.** GalleryPack handles still images only.
 
 **Not multi-user.** There is no role management, no upload interface for third parties, no admin panel.
 
 ---
 
-## When to use SSGG
+## When to use GalleryPack
 
 - You shoot photos professionally or as a hobby and want to share them without a third-party service
 - You need a quick, clean delivery link for a client or colleague
@@ -54,7 +54,7 @@ Understanding the scope helps you decide if SSGG is the right tool.
 - You host your own server (Apache, Nginx) or use a static hosting service
 - You want full control of the output — file names, structure, legal notice, download permissions
 
-## When not to use SSGG
+## When not to use GalleryPack
 
 - You need multiple users to upload and manage galleries through a web interface
 - You need strong access control beyond basic auth
@@ -68,5 +68,5 @@ Understanding the scope helps you decide if SSGG is the right tool.
 
 > Your photos, your server, your rules.
 
-SSGG privileges **simplicity, predictability, and ownership** over features.
+GalleryPack privileges **simplicity, predictability, and ownership** over features.
 The tool should be smart enough that you never have to think — but transparent enough that you always understand what it did.

@@ -1,5 +1,5 @@
 /**
- * SSGG — test/invariants.test.js
+ * GalleryPack — test/invariants.test.js
  *
  * Tests for pure utility functions in build/utils.js.
  * Run with: npm test
@@ -232,4 +232,64 @@ test('MANIFEST_SCHEMA_VERSION is a semver-like string', () => {
 
 test('CONFIG_SCHEMA_VERSION is a semver-like string', () => {
   assert.match(CONFIG_SCHEMA_VERSION, /^\d+\.\d+$/);
+});
+
+// ── Edge cases & footguns ─────────────────────────────────────────────────────
+// These tests document known behaviours that could silently produce wrong output.
+
+test('buildName: date "auto" (unresolved) produces name without date segment', () => {
+  // "auto" contains no digits → date segment is empty → omitted from name.
+  // In production the build pipeline resolves "auto" to a real date before calling
+  // buildName, so this never fires.  The test pins the behaviour so a future
+  // refactor doesn't silently change it.
+  const name = buildName({ author: 'Alice', title: 'Test', date: 'auto' }, 0);
+  assert.equal(name, 'alice_test_001');
+  assert.ok(!name.includes('auto'), 'raw "auto" token must not appear in file name');
+});
+
+test('buildName: empty date falls back to today (YYYYMMDD)', () => {
+  const name = buildName({ author: 'Alice', title: 'Test', date: '' }, 0);
+  // Should contain an 8-digit date-like segment derived from today
+  assert.match(name, /alice_test_\d{8}_001/);
+});
+
+test('galleryDistName: private with all-empty fields still produces a 16-char hash', () => {
+  // Degenerate case: no author / title / date → seed is "||" → still a valid hash
+  const hash = galleryDistName({ private: true }, 'fallback');
+  assert.match(hash, /^[0-9a-f]{16}$/);
+});
+
+test('validateConfig: access "password" with password field is valid', () => {
+  const warns = validateConfig({ title: 'X', access: 'password', password: 'amber-cloud-42' });
+  assert.deepEqual(warns, []);
+});
+
+test('validateConfig: invalid access value (e.g. the mode name itself) warns', () => {
+  // Catches the real-world typo of setting access to a non-mode string.
+  // The build continues (warns only) — this test documents that the warning fires.
+  const warns = validateConfig({ title: 'X', access: 'bzz-bzz' });
+  assert.equal(warns.length, 1);
+  assert.match(warns[0], /access/);
+  assert.match(warns[0], /public.*password|password.*public/);
+});
+
+test('validateConfig: private: true does not trigger any warning', () => {
+  const warns = validateConfig({ title: 'Secret', private: true });
+  assert.deepEqual(warns, []);
+});
+
+test('slugify: non-Latin scripts collapse to empty string', () => {
+  // Chinese / Arabic / Hebrew characters have no ASCII equivalent after NFD →
+  // they collapse to "-" which is then trimmed.  Output is "".
+  assert.equal(slugify('中文'), '');
+  assert.equal(slugify('عربي'), '');
+});
+
+test('galleryDistName: public falls back through name → title → srcName', () => {
+  // name wins
+  assert.equal(galleryDistName({ name: 'n', title: 't' }, 's'), 'n');
+  // no name → title
+  assert.equal(galleryDistName({ title: 'My Title' }, 's'), 'my-title');
+  // no name, no title → srcName
+  assert.equal(galleryDistName({}, 'src-fallback'), 'src-fallback');
 });

@@ -219,6 +219,94 @@ function buildForest(w, h, seed, bot, pts) {
   return out;
 }
 
+// ── House generator ─────────────────────────────────────────────────────────────
+/**
+ * Generate 1–2 hamlet clusters of 2–4 houses below the road (or on the lower
+ * slope when there is no road).  Houses within a cluster are tight together and
+ * never overlap each other.
+ *
+ * Positions are expressed as `frac` — fraction of mountain height below the
+ * ridge (0 = at ridge, 1 = at the very base).  This maps directly to y-coords:
+ *   baseY = ridgeY_at_x + frac * (h − ridgeY_at_x)
+ *
+ * @param {number}                w         - Image width in px.
+ * @param {number}                h         - Image height in px.
+ * @param {number}                seed      - PRNG seed.
+ * @param {number[]}              bot       - Mountain base colour [R, G, B].
+ * @param {{x:number,y:number}[]} pts       - Ridge control vertices.
+ * @param {number|null}           roadDepth - Road depth (same frac unit), or null.
+ * @returns {string}                        - SVG rect/polygon elements.
+ */
+function buildHouses(w, h, seed, bot, pts, roadDepth) {
+  const wallColor = lighten(bot, 18);
+  const roofColor = darken(bot, 0.50);
+
+  // Houses sit BELOW the road.  Add a 12 % margin so they are clearly under it.
+  const minFrac = roadDepth !== null ? roadDepth * 1.12 : 0.28;
+  const maxFrac = 0.80;   // don't go all the way to the mountain base
+  if (minFrac >= maxFrac) return '';   // road too deep — no room
+
+  const placed = [];   // bounding boxes of already-drawn houses (for overlap check)
+  let out = '';
+
+  const numClusters = 1 + (rand(seed, 700) > 0.42 ? 1 : 0);   // 1 or 2 hamlets
+
+  for (let ci = 0; ci < numClusters; ci++) {
+    // Cluster anchor — random point in the lower-slope zone.
+    const anchorX    = Math.round((0.10 + rand(seed, ci * 31 + 710) * 0.80) * w);
+    const anchorFrac = minFrac + rand(seed, ci * 31 + 711) * (maxFrac - minFrac) * 0.65;
+    const numInCluster = 2 + Math.floor(rand(seed, ci * 31 + 712) * 3);   // 2–4
+
+    for (let i = 0; i < numInCluster; i++) {
+      // Fixed size for this (ci, i) pair — stays consistent across placement attempts.
+      const bh = Math.round(h * (0.019 + rand(seed, ci * 31 + i * 7 + 722) * 0.011));
+      const bw = Math.round(bh * (1.25 + rand(seed, ci * 31 + i * 7 + 723) * 0.55));
+      const roofH = Math.round(bh * (0.52 + rand(seed, ci * 31 + i * 7 + 724) * 0.36));
+
+      // Try up to 10 slightly different positions to avoid overlapping neighbours.
+      for (let attempt = 0; attempt < 10; attempt++) {
+        const aOff   = attempt * 97;   // offset keeps per-attempt values distinct
+        const spreadX = Math.round((rand(seed, ci * 31 + i * 7 + aOff + 720) - 0.5) * w * 0.06);
+        const spreadF = (rand(seed, ci * 31 + i * 7 + aOff + 721) - 0.5) * 0.04;
+
+        const tx   = Math.max(10, Math.min(w - 10, anchorX + spreadX));
+        const frac = Math.max(minFrac, Math.min(maxFrac, anchorFrac + spreadF));
+
+        const ry    = getRidgeY(pts, tx);
+        const baseY = Math.round(ry + frac * (h - ry));
+        const bx    = tx - Math.floor(bw / 2);
+        const by    = baseY - bh;
+        const roofTop = by - roofH;
+
+        // Bounding box with a small gap so adjacent rooftops don't touch.
+        const gap = Math.max(4, Math.round(bw * 0.15));
+        const bb  = { x1: bx - gap, x2: bx + bw + gap, y1: roofTop - gap, y2: baseY + gap };
+        const overlaps = placed.some(p =>
+          bb.x1 < p.x2 && bb.x2 > p.x1 && bb.y1 < p.y2 && bb.y2 > p.y1
+        );
+        if (overlaps) continue;
+
+        // Place the house.
+        placed.push(bb);
+        const overhang = Math.round(bw * 0.07);
+        const ridgePx  = bx + Math.floor(bw / 2);
+        const opacity  = (0.72 + frac * 0.15).toFixed(2);
+
+        out += `\n  <rect x="${bx}" y="${by}" width="${bw}" height="${bh}" fill="rgb(${wallColor})" opacity="${opacity}"/>`;
+        out += `\n  <polygon points="${bx - overhang},${by} ${bx + bw + overhang},${by} ${ridgePx},${roofTop}" fill="rgb(${roofColor})" opacity="${opacity}"/>`;
+        if (rand(seed, ci * 31 + i * 7 + 725) > 0.45) {
+          const cw = Math.max(2, Math.round(bw * 0.09));
+          const ch = Math.round(roofH * 0.42);
+          const cx = bx + Math.round(bw * (0.60 + rand(seed, ci * 31 + i * 7 + 726) * 0.20));
+          out += `\n  <rect x="${cx}" y="${roofTop + Math.round(roofH * 0.18)}" width="${cw}" height="${ch}" fill="rgb(${roofColor})" opacity="${opacity}"/>`;
+        }
+        break;   // placed successfully — move to next house
+      }
+    }
+  }
+  return out;
+}
+
 // ── Road generator ──────────────────────────────────────────────────────────────
 /**
  * Generate a single winding mountain road as a two-stroke Bézier path
@@ -343,10 +431,14 @@ function buildSVG(w, h, seed, top, bot) {
   // Gradient anchor: approximate upper edge of the mountain.
   const ridgeY = Math.round(h * 0.28);
 
-  const clouds = buildClouds(w, h, seed);
-  const forest = buildForest(w, h, seed, bot, pts);
+  const clouds    = buildClouds(w, h, seed);
+  const forest    = buildForest(w, h, seed, bot, pts);
   // ~65 % of images have a road (deterministic via seed).
-  const road   = rand(seed, 500) > 0.35 ? buildRoad(w, h, seed, bot, pts) : '';
+  const hasRoad   = rand(seed, 500) > 0.35;
+  const road      = hasRoad ? buildRoad(w, h, seed, bot, pts) : '';
+  // Road depth = fraction of mountain height from ridge; mirrors buildRoad's formula.
+  const roadDepth = hasRoad ? 0.28 + rand(seed, 501) * 0.25 : null;
+  const houses    = buildHouses(w, h, seed, bot, pts, roadDepth);
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
   <defs>
@@ -364,8 +456,9 @@ function buildSVG(w, h, seed, top, bot) {
   </defs>
   <rect width="${w}" height="${h}" fill="url(#gsky)"/>${clouds}
   <path d="${mountainD}" fill="url(#gmtn)"/>
-  <g clip-path="url(#clip-mtn)">${forest}${road}
+  <g clip-path="url(#clip-mtn)">${road}${houses}
   </g>
+  ${forest}
   <path d="${ridge}" fill="none"
         stroke="rgb(${stroke})" stroke-width="${sw}"
         stroke-linejoin="round" stroke-linecap="round"/>

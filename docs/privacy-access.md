@@ -1,6 +1,18 @@
 # Privacy & access modes
 
-SSGG offers three access modes. Choose based on your actual security needs.
+> **TL;DR** — Three modes: **public** (default), **private link** (unguessable URL, no password prompt), **password** (Apache basic auth, shows a lock icon in the site index). Password protection only works on Apache — not on GitHub Pages or Netlify.
+
+---
+
+## Which mode should I use?
+
+| Situation | Recommended mode |
+|-----------|-----------------|
+| Sharing publicly — portfolio, event, blog | **Public** |
+| Client preview before validation | **Private link** |
+| Client delivery with download rights | **Password** |
+| Sensitive content on Apache | **Password** |
+| Sensitive content on GitHub Pages / Netlify | **Private link** (+ server-level auth independently) |
 
 ---
 
@@ -66,11 +78,13 @@ With a manual password:
 - `.htpasswd` is written to `dist/<slug>/`
 - The password is shown in the terminal `🔒 Password: ruby-coral-30`
 - The password is saved in `build-summary.json` and `DELIVERY.md`
+- A lock icon (🔒) appears on the gallery card in the site index (`dist/index.html`)
+- The cover thumbnail is copied to `dist/covers/<slug>.webp` (outside the protected zone) so the site index can display it without triggering an auth prompt
 
 ### What happens at publish time (`npm run publish`)
 
 - `__HTPASSWD_PATH__` in `.htaccess` is automatically replaced with the real absolute server path (e.g. `/var/www/html/galleries/my-gallery/.htpasswd`)
-- Files are uploaded via rsync
+- Files are uploaded via rsync, including the shared `covers/` directory
 
 ### Password format
 
@@ -91,6 +105,7 @@ The `.htaccess` covers all content in the folder:
 
 - Apache with `mod_authn_file` and `AllowOverride AuthConfig` (standard on most shared hosting)
 - The gallery must be served from a directory where `.htaccess` is honoured
+- **GitHub Pages, Netlify, Vercel, and other CDN-based hosts do not support `.htaccess`** — use `private: true` (unguessable URL) on those platforms instead
 
 ### Changing the password
 
@@ -102,14 +117,14 @@ Re-run the build with a new `password` field (or remove it to auto-generate). Th
 
 When using any access restriction, ensure it covers **all assets** — not just the HTML page. Protecting only `index.html` while leaving `img/` accessible defeats the purpose.
 
-SSGG's `.htaccess` covers everything by default.
+GalleryPack's `.htaccess` covers everything by default.
 
 ---
 
 ## Comparison
 
-| Mode | URL | Indexed | Credential | Server-side |
-|------|-----|---------|------------|-------------|
-| Public | predictable | yes | none | no |
-| Private link | hash | no | link only | no |
-| Password | predictable | optional | username + password | Apache only |
+| Mode | URL | Indexed | Credential | Lock icon | Works on GitHub Pages |
+|------|-----|---------|------------|-----------|----------------------|
+| Public | predictable | yes | none | — | ✓ |
+| Private link | hash | no | link only | — | ✓ |
+| Password | predictable | yes (🔒) | username + password | ✓ | ✗ (Apache only) |

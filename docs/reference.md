@@ -1,12 +1,12 @@
-# SSGG — Configuration reference
+# GalleryPack — Configuration reference
 
-> Complete reference for all configuration fields. For quick start, see [README.md](../README.md).
+> **TL;DR** — Put your photos in `src/<name>/photos/`, optionally add a `gallery.config.json`, and run `npm run build <name>`. Everything else is optional.
 
 ---
 
 ## gallery.config.json
 
-Created by `npm run new-gallery` or `npm run new-gallery -- --wizard`.
+Created by `npm run new-gallery` or `npm run new-gallery:wizard`.
 Located at `src/<gallery-name>/gallery.config.json`.
 
 ```json
@@ -54,9 +54,50 @@ Located at `src/<gallery-name>/gallery.config.json`.
 | `allowDownloadGallery` | boolean | `true` | Allow full gallery ZIP download |
 | `autoplay.slideshowInterval` | number | `3` | Slideshow auto-advance interval in seconds |
 
+### Common scenarios
+
+```json
+// Client delivery — password-protected, ZIP download enabled
+{
+  "project": {
+    "title": "Wedding — Sophie & Marc",
+    "author": "Your Name",
+    "date": "2025-06-14",
+    "locale": "fr",
+    "access": "password",
+    "allowDownloadGallery": true
+  }
+}
+```
+
+```json
+// Public portfolio — no download, English
+{
+  "project": {
+    "title": "Street — Tokyo 2025",
+    "author": "Your Name",
+    "locale": "en",
+    "access": "public",
+    "allowDownloadImage": false,
+    "allowDownloadGallery": false
+  }
+}
+```
+
+```json
+// Private preview link — no password prompt, hidden from index
+{
+  "project": {
+    "title": "Draft — Paris Series",
+    "author": "Your Name",
+    "private": true
+  }
+}
+```
+
 ### Zero-config builds
 
-`gallery.config.json` is optional. If absent, SSGG applies smart defaults:
+`gallery.config.json` is optional. If absent, GalleryPack applies smart defaults:
 - `title` → derived from folder name (`my-shoot` → `My Shoot`)
 - `date` → `"auto"` (earliest EXIF date, or today if none)
 - `locale` → `"fr"`
@@ -210,6 +251,7 @@ dist/my-shoot/
 ```
 
 Shared assets live at `dist/vendor/` and `dist/fonts/` (or inside the gallery for standalone mode).
+Cover images for password-protected galleries are copied to `dist/covers/` so the site index can display them without triggering an auth prompt.
 
 ---
 
@@ -221,13 +263,15 @@ Shared assets live at `dist/vendor/` and `dist/fonts/` (or inside the gallery fo
 | `npm run build:all` | Build all galleries + site index |
 | `npm run build:clean` | Wipe dist/ and full rebuild |
 | `npm run build:force` | Force-reconvert all images |
-| `npm run build:webp` | Reconvert WebP only (no HTML) |
 | `npm run new-gallery <slug>` | Create gallery scaffold |
-| `npm run new-gallery -- --wizard` | Interactive wizard (all options) |
+| `npm run new-gallery:wizard` | Interactive wizard (all options) |
 | `npm run serve` | Local preview at http://localhost:3000 |
-| `npm run publish <name>` | Upload gallery to remote via rsync |
+| `npm run publish -- <name>` | Upload one gallery to remote via rsync |
 | `npm run publish -- --all` | Upload all galleries |
 | `npm run deploy` | Deploy dist/ to GitHub Pages (safe worktree) |
+| `npm run test` | Run invariant tests |
+| `npm run clean` | Wipe dist/ without rebuilding |
+| `npm run setup:example` | Regenerate example gallery source images |
 
 ---
 
