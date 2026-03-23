@@ -1240,7 +1240,7 @@ body.sw-idle.glightbox-open{cursor:none}
     <span class="bar-count" id="bCount"></span>
     <select id="sw-interval" title="Slideshow interval" aria-label="Slideshow interval">
 ${[2,3,5,8,10].map(s => {
-  const def = project.slideshowInterval || 5;
+  const def = project.slideshowInterval || 3;
   return `      <option value="${s}"${s === def ? ' selected' : ''}>${s}s</option>`;
 }).join('\n')}
     </select>
@@ -1648,7 +1648,7 @@ const SW_IDLE_DELAY  = 2500;   // ms of inactivity before hiding controls
 const swBtn          = document.getElementById('slideshow-btn');
 const swIntervalSel  = document.getElementById('sw-interval');
 // Interval is read live from the selector so the user can change it mid-show.
-const swGetInterval  = () => (parseInt(swIntervalSel.value, 10) || 5) * 1000;
+const swGetInterval  = () => (parseInt(swIntervalSel.value, 10) || 3) * 1000;
 const swIcon       = document.getElementById('sw-icon');
 const glSwBtn      = document.getElementById('gl-sw-btn');
 const glSwIcon     = document.getElementById('gl-sw-icon');
