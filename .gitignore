@@ -23,3 +23,8 @@ photos.json
 # v2 server — transient upload temp files and job state
 server/uploads/
 server/jobs.json
+server/invites.json
+server/settings.json
+
+# Claude Code memory
+.claude/

@@ -243,6 +243,85 @@ sudo systemctl restart gallerypack
 
 ---
 
+## Apache Reverse Proxy
+
+If your server already runs Apache (common on shared hosts and classic VPS setups), you can use it as the reverse proxy instead of Nginx.
+
+### 1. Enable required modules
+
+```bash
+sudo a2enmod proxy proxy_http proxy_wstunnel headers rewrite ssl
+sudo systemctl restart apache2
+```
+
+### 2. Create a VirtualHost config
+
+Create `/etc/apache2/sites-available/gallerypack.conf`:
+
+```apache
+<VirtualHost *:80>
+    ServerName your-domain.com
+
+    # Increase upload limit for large photo batches (adjust as needed)
+    LimitRequestBody 2147483648
+
+    # Increase timeouts for long builds
+    Timeout 600
+    ProxyTimeout 600
+
+    ProxyPreserveHost On
+    ProxyPass        / http://127.0.0.1:3000/
+    ProxyPassReverse / http://127.0.0.1:3000/
+
+    # Required for SSE (build log streaming) — disable response buffering
+    SetEnv proxy-sendchunked 1
+    SetEnv proxy-nokeepalive 1
+
+    RequestHeader set X-Forwarded-Proto "http"
+</VirtualHost>
+```
+
+Enable and test:
+
+```bash
+sudo a2ensite gallerypack
+sudo apache2ctl configtest
+sudo systemctl reload apache2
+```
+
+### 3. Obtain SSL certificate (Let's Encrypt)
+
+```bash
+sudo apt-get install -y certbot python3-certbot-apache
+sudo certbot --apache -d your-domain.com
+```
+
+Certbot adds the HTTPS VirtualHost automatically. Verify it includes the same proxy directives, then update `BASE_URL` to `https://your-domain.com` and restart GalleryPack.
+
+### 4. Update BASE_URL
+
+In `docker-compose.yml` (or your systemd unit):
+
+```
+BASE_URL=https://your-domain.com
+```
+
+Then:
+
+```bash
+# Docker
+docker compose up -d
+
+# systemd
+sudo systemctl restart gallerypack
+```
+
+### Note on SSE streaming
+
+Apache's default mod_proxy buffers responses, which breaks the live build log stream. The `proxy-sendchunked` and `proxy-nokeepalive` directives above disable that buffering. If you see the build log panel stay empty, double-check these are present in your VirtualHost.
+
+---
+
 ## Updating GalleryPack
 
 ### Docker
@@ -319,6 +398,13 @@ GalleryPack can send emails when:
    - **From address** — e.g. `GalleryPack <noreply@your-domain.com>`
 3. Click **Save**
 
+### Important: port 587 vs 465
+
+- **Port 587 (STARTTLS)** — most common. Leave "Direct SSL/TLS" **unchecked**.
+- **Port 465 (direct SSL)** — check "Direct SSL/TLS". Used by some providers (e.g. older setups).
+
+Enabling "Direct SSL/TLS" on port 587 causes an SSL handshake error (`wrong version number`).
+
 ### Gmail example
 
 Use an App Password (requires 2FA on your Google account):
@@ -326,7 +412,7 @@ Use an App Password (requires 2FA on your Google account):
 - Port: `587`
 - Username: `your.email@gmail.com`
 - Password: your 16-character App Password
-- TLS: enabled
+- Direct SSL/TLS: unchecked (STARTTLS is used automatically)
 
 ### Transactional email services (recommended for production)
 
