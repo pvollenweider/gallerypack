@@ -541,11 +541,17 @@ async function convertOne(photo, cfg, idx, cachedIsDark = null, paths) {
  * @param {number} lng
  * @returns {Promise<string|null>}
  */
-async function reverseGeocode(lat, lng) {
+async function reverseGeocode(lat, lng, locale = 'en') {
   try {
+    // Use the two-letter language code for the Accept-Language header so Nominatim
+    // returns place names (especially the country) in the gallery's locale.
+    const lang = locale.slice(0, 2).toLowerCase();
     const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=12&addressdetails=1`;
     const res = await fetch(url, {
-      headers: { 'User-Agent': `SSGG/${VERSION} (https://github.com/pvollenweider/ssgg)` },
+      headers: {
+        'User-Agent': `SSGG/${VERSION} (https://github.com/pvollenweider/ssgg)`,
+        'Accept-Language': `${lang},en;q=0.8`,
+      },
     });
     if (!res.ok) return null;
     const data = await res.json();
@@ -569,8 +575,9 @@ async function reverseGeocode(lat, lng) {
  *
  * @param {Array}  results      - Photo metadata array (mutated in place).
  * @param {string} manifestPath - Path to dist/photos.json.
+ * @param {string} locale       - Gallery locale (e.g. 'fr', 'en') for place name language.
  */
-async function resolveGpsLocations(results, manifestPath) {
+async function resolveGpsLocations(results, manifestPath, locale = 'en') {
   const toResolve = results.filter(p => p.exif?.location && typeof p.exif.location === 'object');
   if (!toResolve.length) return;
 
@@ -585,7 +592,7 @@ async function resolveGpsLocations(results, manifestPath) {
 
     if (!cache.has(key)) {
       if (cache.size > 0) await new Promise(r => setTimeout(r, 1100)); // Nominatim rate limit
-      const place = await reverseGeocode(lat, lng);
+      const place = await reverseGeocode(lat, lng, locale);
       // Fall back to plain decimal coords if the API call fails.
       cache.set(key, place ?? `${Math.abs(lat).toFixed(4)}°${lat >= 0 ? 'N' : 'S'}, ${Math.abs(lng).toFixed(4)}°${lng >= 0 ? 'E' : 'W'}`);
       ok(`GPS (${key}) → ${cache.get(key)}`);
@@ -2517,7 +2524,7 @@ async function buildGallery(srcName, { build }, fontCss) {
 
   // Reverse-geocode any GPS coordinates → human-readable place name.
   // Results are cached in photos.json so subsequent builds skip the API call.
-  await resolveGpsLocations(results, paths.manifest);
+  await resolveGpsLocations(results, paths.manifest, galCfg.project.locale || 'en');
 
   // Resolve date:'auto' — pick the earliest EXIF DateTimeOriginal across all photos.
   if (galCfg.project.date === 'auto') {
