@@ -75,6 +75,22 @@ ${manageUrl ? `<p>You can also manage your gallery (add/remove photos) here:<br>
 }
 
 /**
+ * Send photographer access link (after revocation or initial grant).
+ */
+export async function notifyAccessGranted({ manageUrl, galleryTitle, photographerName, photographerEmail }) {
+  if (!photographerEmail) return false;
+  const appName = getSetting('appName', 'GalleryPack');
+  const subject = `Your gallery management link — ${galleryTitle}`;
+  const html = `
+<p>Hello${photographerName ? ` ${photographerName}` : ''},</p>
+<p>Here is your management link for gallery <strong>${galleryTitle}</strong>:</p>
+<p><a href="${manageUrl}">${manageUrl}</a></p>
+<p style="color:#888;font-size:12px">— ${appName}</p>`;
+  const text = `Hello${photographerName ? ` ${photographerName}` : ''},\n\nHere is your management link for gallery "${galleryTitle}":\n${manageUrl}\n\n— ${appName}`;
+  return sendMail({ to: photographerEmail, subject, html, text });
+}
+
+/**
  * Send invite link to photographer (and copy to admin).
  */
 export async function notifyInviteCreated({ uploadUrl, photographerEmail, photographerName, label }) {
