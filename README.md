@@ -32,18 +32,20 @@ npm run serve
 # → open http://localhost:3000/my-shoot/
 ```
 
-That's it. The output in `dist/my-shoot/` is ready to deploy anywhere.
+The output in `dist/my-shoot/` is ready to deploy anywhere.
 
 ---
 
 ## What you get
 
 - **Editorial grid** — 3-column layout with big/small tiles, all square-cropped
-- **Full-screen lightbox** — keyboard, touch swipe, fullscreen on mobile and desktop
-- **Slideshow** — auto-advance, configurable interval, animated progress bar
+- **Full-screen lightbox** — keyboard navigation, touch swipe, fullscreen on mobile and desktop
+- **Slideshow** — auto-advance with progress bar, configurable interval (default 3s)
 - **EXIF overlay** — camera, lens, aperture, shutter, ISO, GPS location (reverse-geocoded, no API key)
 - **Google Maps pin** — clickable link from GPS coordinates in the EXIF panel
-- **Build summary** — photo count, source size, duration, saved to `build-summary.json`
+- **Password protection** — generates `.htaccess` + `.htpasswd` for Apache basic auth
+- **Build summary** — photo count, source size, duration → `build-summary.json`
+- **Delivery message** — `DELIVERY.md` with URL, credentials, and copy-paste instructions
 - **Download** — individual photo or full gallery ZIP (configurable)
 - **Legal notice** — auto-generated in your locale (fr / en / de / es / it / pt)
 - **Zero runtime dependencies** — plain HTML + CSS + JS + WebP images, works offline
@@ -52,9 +54,11 @@ That's it. The output in `dist/my-shoot/` is ready to deploy anywhere.
 
 ## Zero-config build
 
-No `gallery.config.json`? No problem. Drop photos in `src/my-shoot/photos/` and run:
+No `gallery.config.json`? No problem:
 
 ```bash
+mkdir -p src/my-shoot/photos
+# drop photos in src/my-shoot/photos/
 npm run build my-shoot
 ```
 
@@ -65,17 +69,29 @@ Defaults applied automatically:
 
 ---
 
-## Deploy
+## Protect a gallery
+
+```json
+{ "project": { "access": "password" } }
+```
+
+A memorable password is auto-generated (`ruby-coral-30`), shown during build, and included in `DELIVERY.md`. See [docs/privacy-access.md](docs/privacy-access.md).
+
+---
+
+## Publish
 
 ```bash
 # Build all galleries + site index
 npm run build:all
 
-# Deploy to GitHub Pages (safe — uses an isolated git worktree)
+# Upload to your server via rsync (reads publish.config.json)
+npm run publish my-shoot
+# → patches .htaccess, uploads, updates DELIVERY.md with live URL
+
+# Deploy to GitHub Pages (safe git worktree)
 npm run deploy
 ```
-
-Or copy `dist/` to any static host (Apache, Nginx, Netlify, Vercel, S3…).
 
 ---
 
@@ -83,13 +99,14 @@ Or copy `dist/` to any static host (Apache, Nginx, Netlify, Vercel, S3…).
 
 | Command | Description |
 |---------|-------------|
-| `npm run build <name>` | Build a single gallery |
-| `npm run build:all` | Build every gallery + site index |
+| `npm run build <name>` | Incremental build (skips existing images) |
+| `npm run build:all` | Build all galleries + site index |
 | `npm run build:clean` | Wipe `dist/` and rebuild from scratch |
 | `npm run build:force` | Force-reconvert all images |
-| `npm run new-gallery <slug>` | Create gallery scaffold (quick mode) |
+| `npm run new-gallery <slug>` | Create gallery scaffold (quick) |
 | `npm run new-gallery -- --wizard` | Interactive wizard with all options |
 | `npm run serve` | Local preview server |
+| `npm run publish <name>` | Upload gallery to remote server via rsync |
 | `npm run deploy` | Deploy `dist/` to GitHub Pages |
 
 ---
@@ -98,9 +115,10 @@ Or copy `dist/` to any static host (Apache, Nginx, Netlify, Vercel, S3…).
 
 | Page | Contents |
 |------|----------|
-| [docs/reference.md](docs/reference.md) | Full configuration reference, all options |
+| [docs/reference.md](docs/reference.md) | Full configuration reference — all fields, all options |
+| [docs/what-is-ssgg.md](docs/what-is-ssgg.md) | What SSGG is, what it is not, when to use it |
 | [docs/output-structure.md](docs/output-structure.md) | What's in `dist/` and why |
-| [docs/naming-convention.md](docs/naming-convention.md) | File naming logic |
+| [docs/naming-convention.md](docs/naming-convention.md) | Photo file naming logic |
 | [docs/privacy-access.md](docs/privacy-access.md) | Public / private-link / password modes |
 | [docs/faq.md](docs/faq.md) | Common questions |
 
