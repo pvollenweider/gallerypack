@@ -4,7 +4,9 @@ import multer       from 'multer';
 import path         from 'path';
 import fs           from 'fs';
 import { getDb }    from '../db/database.js';
-import { requireAdmin } from '../middleware/auth.js';
+import { getGalleryRole } from '../db/helpers.js';
+import { requireAuth } from '../middleware/auth.js';
+import { can } from '../authorization/index.js';
 import { ROOT }         from '../../../../packages/engine/src/fs.js';
 import { createStorage } from '../../../../packages/shared/src/storage/index.js';
 
@@ -13,7 +15,7 @@ import { createStorage } from '../../../../packages/shared/src/storage/index.js'
 export const fileStorage = createStorage();
 
 const router = Router();
-router.use(requireAdmin);
+router.use(requireAuth);
 
 // Source photos path: src/<slug>/photos/ (local) or equivalent prefix (S3)
 function photosPrefix(slug) {
@@ -65,6 +67,10 @@ const upload = multer({
 router.get('/:id/photos/:filename/preview', async (req, res) => {
   const gallery = ensureGalleryBelongsToStudio(req, res);
   if (!gallery) return;
+  const galleryRole = getGalleryRole(req.userId, gallery.id);
+  if (!can(req.user, 'read', 'gallery', { gallery, studioRole: req.studioRole, galleryRole })) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
 
   const safe     = path.basename(req.params.filename);
   const filePath = path.join(photosDir(gallery.slug), safe);
@@ -89,6 +95,10 @@ router.get('/:id/photos/:filename/preview', async (req, res) => {
 router.get('/:id/photos', async (req, res) => {
   const gallery = ensureGalleryBelongsToStudio(req, res);
   if (!gallery) return;
+  const galleryRole = getGalleryRole(req.userId, gallery.id);
+  if (!can(req.user, 'read', 'gallery', { gallery, studioRole: req.studioRole, galleryRole })) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
 
   const dir = photosDir(gallery.slug);
   if (!fs.existsSync(dir)) return res.json([]);
@@ -140,6 +150,12 @@ const MAX_PHOTOS_PER_GALLERY = 500;
 router.post('/:id/photos', upload.array('photos', 200), (req, res) => {
   const gallery = ensureGalleryBelongsToStudio(req, res);
   if (!gallery) return;
+  const galleryRole = getGalleryRole(req.userId, gallery.id);
+  if (!can(req.user, 'upload', 'photo', { studioRole: req.studioRole, galleryRole })) {
+    // Clean up any already-uploaded files
+    for (const f of req.files || []) { try { fs.unlinkSync(f.path); } catch {} }
+    return res.status(403).json({ error: 'Forbidden' });
+  }
 
   // Enforce max photos quota
   const dir = photosDir(gallery.slug);
@@ -168,6 +184,10 @@ router.post('/:id/photos', upload.array('photos', 200), (req, res) => {
 router.delete('/:id/photos/:filename', (req, res) => {
   const gallery = ensureGalleryBelongsToStudio(req, res);
   if (!gallery) return;
+  const galleryRole = getGalleryRole(req.userId, gallery.id);
+  if (!can(req.user, 'delete', 'photo', { studioRole: req.studioRole, galleryRole })) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
 
   const safe = path.basename(req.params.filename);
   const filePath = path.join(photosDir(gallery.slug), safe);
@@ -183,6 +203,10 @@ router.delete('/:id/photos/:filename', (req, res) => {
 router.put('/:id/photos/order', (req, res) => {
   const gallery = ensureGalleryBelongsToStudio(req, res);
   if (!gallery) return;
+  const galleryRole = getGalleryRole(req.userId, gallery.id);
+  if (!can(req.user, 'write', 'gallery', { studioRole: req.studioRole, galleryRole })) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
 
   const { order } = req.body || {};
   if (!Array.isArray(order)) return res.status(400).json({ error: 'order must be an array of filenames' });
