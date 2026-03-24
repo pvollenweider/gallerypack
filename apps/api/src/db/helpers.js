@@ -1,6 +1,6 @@
 // apps/api/src/db/helpers.js — reusable query helpers
 import { getDb } from './database.js';
-import { randomBytes, createHmac, timingSafeEqual, scryptSync } from 'crypto';
+import { randomBytes, randomUUID, createHmac, timingSafeEqual, scryptSync } from 'crypto';
 
 // ── ID generation ─────────────────────────────────────────────────────────────
 
@@ -377,4 +377,68 @@ export function listGalleryMembers(galleryId) {
     WHERE gm.gallery_id = ?
     ORDER BY gm.created_at ASC
   `).all(galleryId);
+}
+
+// ── Invitations (studio user invitations) ────────────────────────────────────
+
+const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+/**
+ * Create an invitation for a new user to join a studio.
+ * @param {string} studioId
+ * @param {string} email
+ * @param {string} role  - one of: owner, admin, editor, photographer
+ * @param {string} createdBy - user ID of the inviting admin
+ * @returns {object} invitation row
+ */
+export function createInvitation(studioId, email, role, createdBy) {
+  const id       = randomUUID();
+  const token    = randomBytes(32).toString('hex');
+  const now      = Date.now();
+  const expiresAt = now + INVITATION_TTL_MS;
+  getDb().prepare(`
+    INSERT INTO invitations (id, studio_id, email, role, token, created_by, created_at, expires_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(id, studioId, email, role, token, createdBy, now, expiresAt);
+  return getDb().prepare('SELECT * FROM invitations WHERE id = ?').get(id);
+}
+
+/** Returns an invitation row by token, or null. */
+export function getInvitationByToken(token) {
+  return getDb().prepare('SELECT * FROM invitations WHERE token = ?').get(token) || null;
+}
+
+/**
+ * Accept an invitation: create user, grant membership, mark accepted.
+ * Runs in a transaction. Returns the new user.
+ * @param {string} token
+ * @param {string} password - plain-text password for the new account
+ * @returns {object} new user row
+ */
+export function acceptInvitation(token, password) {
+  const db = getDb();
+  return db.transaction(() => {
+    const inv = db.prepare('SELECT * FROM invitations WHERE token = ?').get(token);
+    if (!inv) throw Object.assign(new Error('Invitation not found'), { status: 404 });
+    if (inv.accepted_at) throw Object.assign(new Error('Invitation already accepted'), { status: 409 });
+    if (inv.expires_at < Date.now()) throw Object.assign(new Error('Invitation has expired'), { status: 410 });
+
+    const passwordHash = hashPassword(password);
+    const user = createUser({ studioId: inv.studio_id, email: inv.email, passwordHash, role: inv.role });
+    upsertStudioMembership(inv.studio_id, user.id, inv.role);
+    db.prepare('UPDATE invitations SET accepted_at = ? WHERE id = ?').run(Date.now(), inv.id);
+    return user;
+  })();
+}
+
+/** List all invitations for a studio, newest first. */
+export function listInvitations(studioId) {
+  return getDb()
+    .prepare('SELECT * FROM invitations WHERE studio_id = ? ORDER BY created_at DESC')
+    .all(studioId);
+}
+
+/** Delete an invitation by id. */
+export function deleteInvitation(id) {
+  getDb().prepare('DELETE FROM invitations WHERE id = ?').run(id);
 }

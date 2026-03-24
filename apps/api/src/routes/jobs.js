@@ -1,11 +1,12 @@
 // apps/api/src/routes/jobs.js — build job queue + SSE progress stream
 import { Router } from 'express';
 import { getDb }  from '../db/database.js';
-import { createJob, getJob, listJobs, getEvents } from '../db/helpers.js';
-import { requireAdmin } from '../middleware/auth.js';
+import { createJob, getJob, listJobs, getEvents, getGalleryRole } from '../db/helpers.js';
+import { requireAuth } from '../middleware/auth.js';
+import { can } from '../authorization/index.js';
 
 const router = Router();
-router.use(requireAdmin);
+router.use(requireAuth);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -31,6 +32,9 @@ router.post('/:id/build', (req, res) => {
     .prepare('SELECT * FROM galleries WHERE id = ? AND studio_id = ?')
     .get(req.params.id, req.studioId);
   if (!gallery) return res.status(404).json({ error: 'Gallery not found' });
+  if (!can(req.user, 'publish', 'gallery', { studioRole: req.studioRole })) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
 
   // Enforce max 1 concurrent build per studio
   const running = getDb()
