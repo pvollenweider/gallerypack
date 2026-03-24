@@ -113,8 +113,8 @@ export function updateJobStatus(id, status, fields = {}) {
   const now = Date.now();
   if (timeCol && fields[timeCol] === undefined) fields[timeCol] = now;
   if (fields.error_msg !== undefined) {
-    getDb().prepare('UPDATE build_jobs SET status = ?, error_msg = ?, updated_at = ? WHERE id = ?')
-      .run(status, fields.error_msg, now, id);
+    getDb().prepare('UPDATE build_jobs SET status = ?, error_msg = ? WHERE id = ?')
+      .run(status, fields.error_msg, id);
   }
   if (timeCol) {
     getDb().prepare(`UPDATE build_jobs SET status = ?, ${timeCol} = ? WHERE id = ?`)
