@@ -1,0 +1,57 @@
+name: gallerypack-test
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    restart: "no"
+    ports:
+      - "4001:4000"
+    volumes:
+      - /tmp/gallerypack-test/data:/app/data
+      - /tmp/gallerypack-test/src:/app/src
+      - /tmp/gallerypack-test/dist:/app/dist
+    environment:
+      PORT:           "4000"
+      NODE_ENV:       "production"
+      DATA_DIR:       "/app/data"
+      ADMIN_PASSWORD: "test1234"
+      SESSION_SECRET: "test-secret-not-for-production"
+      BASE_URL:       "http://localhost:4001"
+      DIST_DIR:       "/app/dist"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    restart: "no"
+    depends_on:
+      api:
+        condition: service_healthy
+    volumes:
+      - /tmp/gallerypack-test/data:/app/data
+      - /tmp/gallerypack-test/src:/app/src
+      - /tmp/gallerypack-test/dist:/app/dist
+    environment:
+      NODE_ENV: "production"
+      DATA_DIR: "/app/data"
+      BASE_URL: "http://localhost:8081"
+
+  proxy:
+    image: caddy:2-alpine
+    restart: "no"
+    ports:
+      - "8081:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - /tmp/gallerypack-test/dist:/srv/galleries:ro
+      - /tmp/gallerypack-test-caddy:/data
+    depends_on:
+      - api

@@ -2,6 +2,7 @@
 import express    from 'express';
 import cookieParser from 'cookie-parser';
 import path       from 'path';
+import fs         from 'fs';
 import { fileURLToPath } from 'url';
 
 import { runMigrations } from './db/migrations/run.js';
@@ -24,9 +25,11 @@ import settingsRoutes from './routes/settings.js';
 import studiosRoutes  from './routes/studios.js';
 import { getSettings, getSession } from './db/helpers.js';
 
-const __DIR     = path.dirname(fileURLToPath(import.meta.url));
-const PORT      = process.env.PORT || 4000;
+const __DIR      = path.dirname(fileURLToPath(import.meta.url));
+const PORT       = process.env.PORT || 4000;
 const ADMIN_DIST = process.env.ADMIN_DIST || path.join(__DIR, '../../../../apps/web/dist');
+// Gallery dist dir — served as static files when no reverse proxy (Caddy) is in front
+const DIST_DIR   = process.env.DIST_DIR   || path.join(__DIR, '../../../../dist');
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 runMigrations();
@@ -94,6 +97,16 @@ app.use('/api/jobs',                jobsRoutes); // for /api/jobs/:jobId and /ap
 app.use('/api/invites',             invitesRoutes);
 app.use('/api/invitations',         invitationsRouter);
 app.use('/api/studios',             studiosRoutes);
+
+// ── Built galleries — static files (fallback when no reverse proxy in front) ──
+// Serves /dist/<slug>/* as static files and falls back to index.html for SPA routing.
+app.use(express.static(DIST_DIR, { index: 'index.html' }));
+app.get(/^\/([^/]+)\/?$/, (req, res, next) => {
+  const slug    = req.params[0];
+  const indexHtml = path.join(DIST_DIR, slug, 'index.html');
+  if (fs.existsSync(indexHtml)) return res.sendFile(indexHtml);
+  next();
+});
 
 // ── Public gallery listing (served when Caddy falls back for missing /index.html) ──
 app.get('/', (req, res) => {
