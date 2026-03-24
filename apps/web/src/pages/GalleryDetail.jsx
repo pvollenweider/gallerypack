@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api }          from '../lib/api.js';
 import { UploadZone }   from '../components/UploadZone.jsx';
+import { Toast }        from '../components/Toast.jsx';
 
 const LOCALES  = ['fr','en','de','es','it','pt'];
 const ACCESS   = ['public','private','password'];
@@ -20,6 +21,7 @@ export default function GalleryDetail() {
   const [reordering,   setReordering]   = useState(false);
   const [sortAsc,      setSortAsc]      = useState(true);
   const [needsRebuild, setNeedsRebuild] = useState(false);
+  const [toast,        setToast]        = useState('');
 
   useEffect(() => { load(); }, [id]);
 
@@ -51,7 +53,7 @@ export default function GalleryDetail() {
     try {
       const updated = await api.updateGallery(id, form);
       setGallery(updated);
-      alert('Saved.');
+      setToast('Settings saved');
     } catch (e) { alert(e.message); }
     finally { setSaving(false); }
   }
@@ -267,6 +269,7 @@ export default function GalleryDetail() {
           </div>
         )}
       </main>
+      <Toast message={toast} onDone={() => setToast('')} />
     </div>
   );
 }

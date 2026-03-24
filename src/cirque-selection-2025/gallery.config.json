@@ -1,0 +1,17 @@
+{
+  "project": {
+    "name": "cirque-selection-2025",
+    "title": "Cirque - Sélection 2025",
+    "author": "Philippe Vollenweider",
+    "location": "Fondation Aigues-Vertes et Camping Le Terroir à Présilly",
+    "date": "auto",
+    "locale": "fr",
+    "autoplay": {
+      "slideshowInterval": 3
+    },
+    "authorEmail": "author@example.com",
+    "standalone": true,
+    "allowDownloadImage": false,
+    "allowDownloadGallery": false
+  }
+}
