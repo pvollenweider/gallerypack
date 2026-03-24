@@ -35,16 +35,7 @@ app.use(cookieParser());
 // ── Rate limiters ─────────────────────────────────────────────────────────────
 const uploadRateLimit = rateLimit({ windowMs: 60_000, max: 100 }); // 100 req/min per IP on upload
 
-// ── Routes ────────────────────────────────────────────────────────────────────
-app.use('/api/auth',                authRoutes);
-app.use('/api/galleries',           galleriesRoutes);
-app.use('/api/galleries',           accessRoutes);
-app.use('/api/galleries',           uploadRateLimit, photosRoutes);
-app.use('/api/galleries',           jobsRoutes);
-app.use('/api',                     jobsRoutes); // for /api/jobs/:jobId routes
-app.use('/api/invites',             invitesRoutes);
-
-// ── Health ────────────────────────────────────────────────────────────────────
+// ── Health (must be registered before the catch-all /api router) ──────────────
 const _storage = createStorage();
 app.get('/api/health', async (req, res) => {
   const checks = { ok: true, version: process.env.npm_package_version || '0.0.1' };
@@ -79,6 +70,15 @@ app.get('/api/health', async (req, res) => {
 
   res.status(checks.ok ? 200 : 503).json(checks);
 });
+
+// ── Routes ────────────────────────────────────────────────────────────────────
+app.use('/api/auth',                authRoutes);
+app.use('/api/galleries',           galleriesRoutes);
+app.use('/api/galleries',           accessRoutes);
+app.use('/api/galleries',           uploadRateLimit, photosRoutes);
+app.use('/api/galleries',           jobsRoutes);
+app.use('/api',                     jobsRoutes); // for /api/jobs/:jobId routes
+app.use('/api/invites',             invitesRoutes);
 
 // ── Error handler ─────────────────────────────────────────────────────────────
 app.use(errorHandler);
