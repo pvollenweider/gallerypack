@@ -33,13 +33,13 @@ COPY apps/api/package.json        apps/api/
 RUN npm ci --omit=dev && npm rebuild sharp
 
 # Copy source
-COPY packages/ packages/
-COPY apps/api/  apps/api/
+COPY packages/         packages/
+COPY apps/api/         apps/api/
 
 # Copy built admin SPA from stage 1
 COPY --from=web-build /app/apps/web/dist /app/admin-dist
 
-RUN mkdir -p data storage/src storage/dist
+RUN mkdir -p data src dist
 
 EXPOSE 4000
 ENV NODE_ENV=production
