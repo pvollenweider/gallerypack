@@ -1,8 +1,8 @@
-# Caddyfile — GalleryPack SaaS production reverse proxy
+# Caddyfile - GalleryPack SaaS production reverse proxy
 # The admin SPA and API are both served by the Express API container.
 
 {$DOMAIN:localhost} {
-    # ── API + Admin SPA ───────────────────────────────────────────────────────
+    # API + Admin SPA
     handle /api/* {
         reverse_proxy api:4000 {
             header_up X-Forwarded-For {remote_host}
@@ -15,9 +15,11 @@
         reverse_proxy api:4000
     }
 
-    # ── Built galleries (static files) ───────────────────────────────────────
+    # Built galleries (static files)
     handle /* {
         root * /srv/galleries
+        # Rewrite directory requests to their index.html so the file matcher works
+        try_files {path} {path}/index.html
         file_server {
             precompressed br gzip
         }
@@ -35,7 +37,7 @@
         X-Frame-Options        "SAMEORIGIN"
         Referrer-Policy        "strict-origin-when-cross-origin"
         -Server
-        # Note: no Content-Security-Policy header here — Vite bundles inline scripts
+        # Note: no Content-Security-Policy header - Vite bundles inline scripts
         # that require 'unsafe-inline'. CSP can be added once the app uses nonces.
     }
 }
