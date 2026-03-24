@@ -5,12 +5,22 @@ import path         from 'path';
 import fs           from 'fs';
 import { getDb }    from '../db/database.js';
 import { requireAdmin } from '../middleware/auth.js';
-import { ROOT }     from '../../../../packages/engine/src/fs.js';
+import { ROOT }         from '../../../../packages/engine/src/fs.js';
+import { createStorage } from '../../../../packages/shared/src/storage/index.js';
+
+// Storage adapter — resolved once at startup from env
+// Provides a uniform interface whether files live on disk or in S3.
+export const fileStorage = createStorage();
 
 const router = Router();
 router.use(requireAdmin);
 
-// Upload staging area: src/<slug>/photos/
+// Source photos path: src/<slug>/photos/ (local) or equivalent prefix (S3)
+function photosPrefix(slug) {
+  return path.join('src', slug, 'photos');
+}
+
+// Absolute path on disk (only used for multer + fs ops — local driver only)
 function photosDir(slug) {
   return path.join(ROOT, 'src', slug, 'photos');
 }
@@ -52,7 +62,7 @@ const upload = multer({
 });
 
 // GET /api/galleries/:id/photos
-router.get('/:id/photos', (req, res) => {
+router.get('/:id/photos', async (req, res) => {
   const gallery = ensureGalleryBelongsToStudio(req, res);
   if (!gallery) return;
 
@@ -69,10 +79,12 @@ router.get('/:id/photos', (req, res) => {
     });
 
   // Attach processed thumbnail name from photos.json manifest if available
-  const manifestPath = path.join(ROOT, 'dist', gallery.slug, 'photos.json');
+  // Use storage adapter so this works for both local and S3 deployments.
+  const manifestKey = path.join('dist', gallery.slug, 'photos.json').replace(/\\/g, '/');
   let nameMap = {};
   try {
-    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    const buf = await fileStorage.read(manifestKey);
+    const manifest = JSON.parse(buf.toString('utf8'));
     for (const [file, info] of Object.entries(manifest.photos || {})) {
       nameMap[file] = info.name;
     }
