@@ -1,0 +1,45 @@
+# Caddyfile — GalleryPack SaaS production reverse proxy
+# Replace {$DOMAIN} with your actual domain (env var or literal).
+
+{$DOMAIN:localhost} {
+    # ── Admin web UI (React SPA) ──────────────────────────────────────────────
+    handle /admin/* {
+        root * /srv/admin
+        try_files {path} /admin/index.html
+        file_server
+    }
+
+    # ── API ───────────────────────────────────────────────────────────────────
+    handle /api/* {
+        reverse_proxy api:4000 {
+            header_up X-Forwarded-For {remote_host}
+            # Disable buffering for SSE streams
+            flush_interval -1
+        }
+    }
+
+    # ── Built galleries (static) ──────────────────────────────────────────────
+    handle /* {
+        root * /srv/galleries
+        file_server {
+            # Serve pre-compressed WebP/AVIF where available
+            precompressed br gzip
+        }
+        # Fall back to API for galleries not yet built
+        @missing not file
+        handle @missing {
+            reverse_proxy api:4000
+        }
+    }
+
+    # Gzip compression
+    encode gzip
+
+    # Security headers
+    header {
+        X-Content-Type-Options    "nosniff"
+        X-Frame-Options           "SAMEORIGIN"
+        Referrer-Policy           "strict-origin-when-cross-origin"
+        -Server
+    }
+}

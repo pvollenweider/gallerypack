@@ -32,6 +32,14 @@ router.post('/:id/build', (req, res) => {
     .get(req.params.id, req.studioId);
   if (!gallery) return res.status(404).json({ error: 'Gallery not found' });
 
+  // Enforce max 1 concurrent build per studio
+  const running = getDb()
+    .prepare("SELECT COUNT(*) as n FROM build_jobs WHERE studio_id = ? AND status IN ('queued','running')")
+    .get(req.studioId);
+  if (running.n >= 1) {
+    return res.status(429).json({ error: 'A build is already in progress. Please wait for it to finish.' });
+  }
+
   const { force = false } = req.body || {};
   const job = createJob({
     galleryId:   gallery.id,

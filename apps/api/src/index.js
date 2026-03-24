@@ -7,6 +7,9 @@ import { fileURLToPath } from 'url';
 import { runMigrations } from './db/migrations/run.js';
 import { bootstrap }     from './services/bootstrap.js';
 import { errorHandler }  from './middleware/error.js';
+import { rateLimit }     from './middleware/rateLimit.js';
+import { getDb }         from './db/database.js';
+import { createStorage } from '../../../packages/shared/src/storage/index.js';
 
 import authRoutes      from './routes/auth.js';
 import galleriesRoutes from './routes/galleries.js';
@@ -29,16 +32,53 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// ── Routes ────────────────────────────────────────────────────────────────────
-app.use('/api/auth',      authRoutes);
-app.use('/api/galleries', galleriesRoutes);
-app.use('/api/galleries', accessRoutes);
-app.use('/api/galleries', photosRoutes);
-app.use('/api/galleries', jobsRoutes);
-app.use('/api',           jobsRoutes); // for /api/jobs/:jobId routes
-app.use('/api/invites',   invitesRoutes);
+// ── Rate limiters ─────────────────────────────────────────────────────────────
+const uploadRateLimit = rateLimit({ windowMs: 60_000, max: 100 }); // 100 req/min per IP on upload
 
-app.get('/api/health', (req, res) => res.json({ ok: true, version: process.env.npm_package_version || '0.0.1' }));
+// ── Routes ────────────────────────────────────────────────────────────────────
+app.use('/api/auth',                authRoutes);
+app.use('/api/galleries',           galleriesRoutes);
+app.use('/api/galleries',           accessRoutes);
+app.use('/api/galleries',           uploadRateLimit, photosRoutes);
+app.use('/api/galleries',           jobsRoutes);
+app.use('/api',                     jobsRoutes); // for /api/jobs/:jobId routes
+app.use('/api/invites',             invitesRoutes);
+
+// ── Health ────────────────────────────────────────────────────────────────────
+const _storage = createStorage();
+app.get('/api/health', async (req, res) => {
+  const checks = { ok: true, version: process.env.npm_package_version || '0.0.1' };
+
+  // DB check
+  try {
+    getDb().prepare('SELECT 1').get();
+    checks.db = 'connected';
+  } catch (e) {
+    checks.db  = 'error';
+    checks.ok  = false;
+  }
+
+  // Storage check
+  try {
+    await _storage.exists('__health');
+    checks.storage = 'ok';
+  } catch (e) {
+    checks.storage = 'error';
+    checks.ok      = false;
+  }
+
+  // Worker liveness: check for a recently enqueued/running job as proxy
+  try {
+    const recent = getDb()
+      .prepare("SELECT COUNT(*) as n FROM build_jobs WHERE status IN ('queued','running') AND created_at > ?")
+      .get(Date.now() - 5 * 60_000);
+    checks.worker = recent.n > 0 ? 'running' : 'idle';
+  } catch {
+    checks.worker = 'unknown';
+  }
+
+  res.status(checks.ok ? 200 : 503).json(checks);
+});
 
 // ── Error handler ─────────────────────────────────────────────────────────────
 app.use(errorHandler);

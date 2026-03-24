@@ -1,6 +1,7 @@
 // workers/builder/src/index.js — build queue worker
 // Polls build_jobs for queued jobs and executes them one at a time.
 // Runs as a standalone process alongside the API server.
+import fs           from 'fs';
 import { getDb }    from '../../../apps/api/src/db/database.js';
 import { runJob }   from './runner.js';
 import { runWatchdog } from './watchdog.js';
@@ -46,6 +47,12 @@ function watchdog() {
 // ── Start ─────────────────────────────────────────────────────────────────────
 setInterval(poll, POLL_INTERVAL_MS);
 setInterval(watchdog, WATCHDOG_INTERVAL_MS);
+
+// Write a liveness file for the Docker HEALTHCHECK every 30s
+const ALIVE_FILE = '/tmp/worker.alive';
+function touchAlive() { try { fs.writeFileSync(ALIVE_FILE, String(Date.now())); } catch {} }
+touchAlive();
+setInterval(touchAlive, 30_000);
 
 // Graceful shutdown
 process.on('SIGTERM', () => { console.log('Worker shutting down…'); process.exit(0); });

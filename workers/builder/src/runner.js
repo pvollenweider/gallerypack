@@ -117,5 +117,16 @@ export async function runJob(jobId) {
   } finally {
     // Restore stdout
     process.stdout.write = originalWrite;
+
+    // Clean up any temp work directories left by the build (e.g. __tmp_* under dist/)
+    try {
+      const tmpPattern = path.join(ROOT, 'dist', `__tmp_${gallery.slug}_*`);
+      const { globSync } = await import('glob').catch(() => ({ globSync: null }));
+      if (globSync) {
+        for (const dir of globSync(tmpPattern)) {
+          fs.rmSync(dir, { recursive: true, force: true });
+        }
+      }
+    } catch {} // non-fatal — temp cleanup is best-effort
   }
 }

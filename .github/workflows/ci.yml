@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [saas, main]
+  push:
+    branches: [saas, main]
+
+jobs:
+  test:
+    name: Test (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: ["20", "22"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ matrix.node }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test — packages/engine
+        run: npm test --workspace=packages/engine
+
+      - name: Test — packages/shared
+        run: |
+          test_dir="packages/shared/test"
+          if [ -d "$test_dir" ]; then
+            npm test --workspace=packages/shared
+          else
+            echo "No tests in packages/shared — skipping"
+          fi
+
+      - name: Test — apps/api
+        run: |
+          test_dir="apps/api/test"
+          if [ -d "$test_dir" ]; then
+            npm test --workspace=apps/api
+          else
+            echo "No tests in apps/api — skipping"
+          fi
+
+  build-web:
+    name: Build web (Node 20)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build apps/web
+        run: npm run build --workspace=apps/web

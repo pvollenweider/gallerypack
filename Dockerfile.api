@@ -1,0 +1,30 @@
+FROM node:20-bookworm-slim
+
+# Sharp/libvips native deps (engine processes images too)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      libvips-dev libheif-dev libwebp-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install all workspace deps first (layer cache)
+COPY package*.json ./
+COPY packages/engine/package.json   packages/engine/
+COPY packages/shared/package.json   packages/shared/
+COPY apps/api/package.json          apps/api/
+RUN npm ci --omit=dev && npm rebuild sharp
+
+# Copy source
+COPY packages/ packages/
+COPY apps/api/  apps/api/
+
+RUN mkdir -p data storage/src storage/dist
+
+EXPOSE 4000
+ENV NODE_ENV=production
+ENV PORT=4000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD node -e "fetch('http://localhost:4000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
+CMD ["node", "apps/api/src/index.js"]

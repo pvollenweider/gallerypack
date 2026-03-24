@@ -93,10 +93,28 @@ router.get('/:id/photos', async (req, res) => {
   res.json(files.map(f => ({ ...f, thumb: nameMap[f.file] || null })));
 });
 
+const MAX_PHOTOS_PER_GALLERY = 500;
+
 // POST /api/galleries/:id/photos — upload one or more photos
 router.post('/:id/photos', upload.array('photos', 200), (req, res) => {
   const gallery = ensureGalleryBelongsToStudio(req, res);
   if (!gallery) return;
+
+  // Enforce max photos quota
+  const dir = photosDir(gallery.slug);
+  const EXTS = new Set(['.jpg','.jpeg','.png','.tiff','.tif','.heic','.heif','.avif']);
+  const existing = fs.existsSync(dir)
+    ? fs.readdirSync(dir).filter(f => EXTS.has(path.extname(f).toLowerCase())).length
+    : 0;
+
+  if (existing + (req.files?.length || 0) > MAX_PHOTOS_PER_GALLERY) {
+    // Delete just-uploaded files to avoid leaving orphans
+    for (const f of req.files || []) { try { fs.unlinkSync(f.path); } catch {} }
+    return res.status(422).json({
+      error: `Gallery quota exceeded. Max ${MAX_PHOTOS_PER_GALLERY} photos per gallery (currently ${existing}).`,
+    });
+  }
+
   const uploaded = (req.files || []).map(f => ({ file: f.filename, size: f.size }));
   res.status(201).json({ uploaded: uploaded.length, files: uploaded });
 });
