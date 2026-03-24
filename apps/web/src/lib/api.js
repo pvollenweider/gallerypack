@@ -38,6 +38,7 @@ export const api = {
   // Settings
   getSettings:  ()     => req('GET',   '/settings'),
   saveSettings: (data) => req('PATCH', '/settings', data),
+  smtpTest:     ()     => req('POST',  '/settings/smtp-test'),
 
   // Jobs
   triggerBuild: (galleryId, force = false) => req('POST', `/galleries/${galleryId}/build`, { force }),
