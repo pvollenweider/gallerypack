@@ -12,6 +12,8 @@ Your photos, your server, your rules.
 
 **Live demo** — [photos.vollenweider.org/gallerypack/](https://photos.vollenweider.org/gallerypack/)
 
+> **Architecture** — All new code goes in `apps/`, `workers/`, or `packages/`. No exceptions.
+
 ---
 
 ## SaaS / hosted stack
@@ -76,107 +78,6 @@ docker compose -f docker-compose.saas.yml up -d
 | [docs/saas/quick-install.md](docs/saas/quick-install.md) | 5-minute install with Docker Compose |
 | [docs/saas/getting-started.md](docs/saas/getting-started.md) | Admin panel, roles, team management, settings, access control |
 | [docs/saas/api-reference.md](docs/saas/api-reference.md) | All REST API endpoints |
-
----
-
-## CLI mode — build locally, deploy anywhere
-
-The CLI tool runs on your machine, reads a `src/<gallery>/` folder, and produces a self-contained `dist/<gallery>/` folder of static HTML you can host anywhere — Apache, Nginx, GitHub Pages, S3, Netlify.
-
-```
-src/my-shoot/photos/*.jpg  →  npm run build  →  dist/my-shoot/  →  your server
-```
-
-### Quick start
-
-```bash
-# 1. Clone and install
-git clone https://github.com/pvollenweider/gallerypack.git
-cd gallerypack
-npm install
-
-# 2. Create a gallery scaffold
-npm run new-gallery my-shoot
-# Drop your photos into src/my-shoot/photos/
-
-# 3. Build
-npm run build my-shoot
-
-# 4. Preview locally
-npm run serve
-# → http://localhost:3000/my-shoot/
-
-# 5a. Publish via rsync (requires publish.config.json)
-npm run publish
-
-# 5b. Or export dist/ for FTP / cPanel upload
-npm run export -- --apache-path=/var/www/html/galleries
-npm run export:zip       # same + creates dist-export.zip
-```
-
-### Commands
-
-| Command | Description |
-|---------|-------------|
-| `npm run build <name>` | Incremental build (skips existing WebP) |
-| `npm run build:all` | Build all galleries + site index |
-| `npm run build:force` | Force-reconvert all images |
-| `npm run build:clean` | Wipe `dist/` and rebuild from scratch |
-| `npm run new-gallery <slug>` | Create gallery scaffold |
-| `npm run new-gallery:wizard` | Interactive wizard with all options |
-| `npm run serve` | Local preview at http://localhost:3000 |
-| `npm run export` | Build all + patch `.htaccess` for Apache deployment |
-| `npm run export:zip` | Same + create `dist-export.zip` for FTP upload |
-| `npm run publish` | Upload one gallery via rsync (interactive) |
-| `npm run publish:all` | Upload all galleries via rsync |
-| `npm run deploy` | Deploy `dist/` to GitHub Pages |
-| `npm run test` | Run invariant tests |
-| `npm run clean` | Wipe `dist/` |
-
-### Configuration
-
-`gallery.config.json` — full example:
-
-```json
-{
-  "project": {
-    "title":                "My Gallery",
-    "subtitle":             "A brief description",
-    "author":               "Jane Smith",
-    "authorEmail":          "jane@example.com",
-    "date":                 "2025-06-01",
-    "location":             "Zürich, Switzerland",
-    "locale":               "en",
-    "access":               "public",
-    "password":             "maple-cloud-42",
-    "private":              false,
-    "standalone":           false,
-    "allowDownloadImage":   true,
-    "allowDownloadGallery": true,
-    "coverPhoto":           "DSC01234.jpg",
-    "autoplay": {
-      "slideshowInterval": 3
-    },
-    "legal": {
-      "copyright": "© Jane Smith — All rights reserved"
-    }
-  }
-}
-```
-
-See [docs/reference.md](docs/reference.md) for all fields.
-
-### CLI documentation
-
-| Page | Contents |
-|------|----------|
-| [docs/INSTALL.md](docs/INSTALL.md) | Full installation guide |
-| [docs/USAGE.md](docs/USAGE.md) | Admin panel, invite links, photographer flow, i18n |
-| [docs/reference.md](docs/reference.md) | All `gallery.config.json` fields |
-| [docs/privacy-access.md](docs/privacy-access.md) | Public / private / password modes |
-| [docs/output-structure.md](docs/output-structure.md) | What's in `dist/` and why |
-| [docs/naming-convention.md](docs/naming-convention.md) | How output files are named |
-| [docs/faq.md](docs/faq.md) | Common questions |
 
 ---
 
