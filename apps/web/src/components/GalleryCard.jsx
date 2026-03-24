@@ -8,9 +8,41 @@ const STATUS_COLOR = {
   queued:   '#2563eb',
 };
 
+// Format a date range (from/to as YYYY-MM-DD) into a compact human label
+function formatDateRange(dateRange, fallback) {
+  const src = dateRange || (fallback ? { from: fallback, to: fallback } : null);
+  if (!src) return null;
+
+  const parse = s => {
+    if (!s) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return new Date(s + 'T12:00:00');
+    if (/^\d{4}-\d{2}$/.test(s))       return new Date(s + '-01T12:00:00');
+    return null;
+  };
+
+  const from = parse(src.from);
+  const to   = parse(src.to);
+  if (!from) return fallback || null;
+
+  const sameDay   = from.toISOString().slice(0, 10) === (to || from).toISOString().slice(0, 10);
+  const sameMonth = from.getFullYear() === (to || from).getFullYear() &&
+                    from.getMonth()    === (to || from).getMonth();
+  const sameYear  = from.getFullYear() === (to || from).getFullYear();
+
+  const monthYear = d => d.toLocaleDateString('fr-CH', { month: 'long', year: 'numeric' });
+  const dayMonth  = d => d.toLocaleDateString('fr-CH', { day: 'numeric', month: 'long', year: 'numeric' });
+  const shortMonth = d => d.toLocaleDateString('fr-CH', { month: 'short', year: 'numeric' });
+
+  if (sameDay)   return dayMonth(from);
+  if (sameMonth) return monthYear(from);
+  if (sameYear)  return `${from.toLocaleDateString('fr-CH', { month: 'long' })} – ${monthYear(to)}`;
+  return `${shortMonth(from)} – ${shortMonth(to)}`;
+}
+
 export function GalleryCard({ gallery, onBuild, onDelete }) {
   const navigate = useNavigate();
   const color    = STATUS_COLOR[gallery.buildStatus] || '#6b7280';
+  const dateLabel = formatDateRange(gallery.dateRange, gallery.date);
 
   return (
     <div style={s.card} onClick={() => navigate(`/galleries/${gallery.id}`)}>
@@ -21,7 +53,7 @@ export function GalleryCard({ gallery, onBuild, onDelete }) {
       </div>
       <div style={s.body}>
         <h3 style={s.title}>{gallery.title || gallery.slug}</h3>
-        {gallery.date && <p style={s.meta}>{gallery.date}</p>}
+        {dateLabel && <p style={s.meta}>{dateLabel}</p>}
         <div style={s.footer}>
           <span style={{ ...s.badge, background: color }}>{gallery.buildStatus}</span>
           <div style={s.actions} onClick={e => e.stopPropagation()}>

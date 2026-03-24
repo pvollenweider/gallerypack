@@ -79,6 +79,7 @@ app.use('/admin', express.static(ADMIN_DIST));
 app.get(/^\/admin(\/.*)?$/, (req, res) => res.sendFile(path.join(ADMIN_DIST, 'index.html')));
 
 // ── Routes ────────────────────────────────────────────────────────────────────
+app.use('/api/public',              publicRoutes);           // no auth — must be before /api catch-all
 app.use('/api/auth',                authRoutes);
 app.use('/api/galleries',           galleriesRoutes);
 app.use('/api/galleries',           accessRoutes);
@@ -86,7 +87,6 @@ app.use('/api/galleries',           uploadRateLimit, photosRoutes);
 app.use('/api/galleries',           jobsRoutes);
 app.use('/api',                     jobsRoutes); // for /api/jobs/:jobId routes
 app.use('/api/invites',             invitesRoutes);
-app.use('/api/public',              publicRoutes);
 
 // ── Public gallery listing (served when Caddy falls back for missing /index.html) ──
 app.get('/', (req, res) => {
