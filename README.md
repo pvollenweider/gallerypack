@@ -2,9 +2,9 @@
 
 > Deliver photo galleries fast.
 
-GalleryPack turns a folder of photos into a clean, ready-to-share static gallery — from the command line or from a web interface.
+GalleryPack turns a folder of photos into a clean, ready-to-share static gallery — from a web admin panel or from the command line.
 
-No accounts. No platform. Just your files, your hosting, your rules.
+Your photos, your server, your rules.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20-brightgreen)](https://nodejs.org/)
@@ -12,57 +12,84 @@ No accounts. No platform. Just your files, your hosting, your rules.
 
 **Live demo** — [photos.vollenweider.org/gallerypack/](https://photos.vollenweider.org/gallerypack/)
 
-| Gallery | Access |
-|---------|--------|
-| [Summer in Zürich](https://photos.vollenweider.org/gallerypack/summer-zurich-2025/) | public |
-| [Quelques spectacles et live](https://photos.vollenweider.org/gallerypack/quelques-spectacles-et-live/) | public |
-| [Insectes](https://photos.vollenweider.org/gallerypack/insectes/) | 🔒 password — user: `gallery` / pwd: `bzz-bzz` |
-
 ---
 
 ## Branches
 
 | Branch | Description |
 |--------|-------------|
-| `main` / `v2` | Stable CLI tool + lightweight hosted server (`server/app.js`) |
-| `saas` | Full SaaS stack — React admin UI, REST API, job queue, invite system, S3 storage |
+| `v2` | **Primary branch** — full SaaS admin stack (React + Express + background worker + Caddy) |
+| `main` | Stable CLI tool |
 
 ---
 
-## Two ways to use GalleryPack
+## v2 — SaaS / hosted stack
 
-### CLI mode — build locally, deploy anywhere
+The `v2` branch is the primary branch. It runs a multi-service stack managed by Docker Compose. Galleries are created and managed from a React admin panel; builds run in a background worker; Caddy handles HTTPS and static file serving.
 
-You run the build tool on your machine. It produces a `dist/` folder of static files you can host anywhere.
+### Stack
+
+| Component | Description |
+|-----------|-------------|
+| `apps/web` | React SPA — admin panel |
+| `apps/api` | Express REST API (port 4000, internal) |
+| `workers/builder` | Background worker — processes photo builds from a queue |
+| `proxy` | Caddy — HTTPS termination, static gallery serving |
+
+### Quick start
+
+```bash
+git clone https://github.com/pvollenweider/gallerypack.git
+cd gallerypack
+cp .env.saas.example .env    # edit ADMIN_PASSWORD and SESSION_SECRET
+docker compose -f docker-compose.saas.yml up -d
+```
+
+- Admin panel: `https://localhost/admin/`
+- Public gallery listing: `https://localhost/`
+
+### Features
+
+- **Gallery management** — create, rename, delete galleries from the admin panel
+- **Photo upload** — drag & drop files or upload an entire folder; per-file progress
+- **EXIF date ranges** — date ranges extracted automatically from photo EXIF metadata
+- **Cover photo picker** — select the cover image from the uploaded photos
+- **i18n** — admin UI and gallery viewer in French, English, and German (fr / en / de)
+- **Private and password gallery indicators** — badges in the admin gallery grid
+- **Disk usage display** — per-gallery storage size shown in the gallery list
+- **Background builds** — build jobs queued and processed by the worker; live log streamed to the browser via SSE
+- **Invite system** — create invite links for photographers to upload without admin access
+- **Public landing page** — dark-themed index listing all non-private galleries
+
+### Access modes
+
+| Mode | Behaviour | When to use |
+|------|-----------|-------------|
+| **Public** | Anyone with the URL can view; listed on the public landing page | Open portfolio, event photos |
+| **Private** | Not listed anywhere; URL is the only protection (no password prompt) | Draft preview, personal sharing |
+| **Password** | Gallery protected with an Apache `.htaccess` password file | Client delivery, confidential work |
+
+> Password protection is enforced server-side by Apache (`.htaccess`). It is currently Apache-only. Caddy-native enforcement is pending.
+
+### Documentation
+
+| Page | Contents |
+|------|----------|
+| [docs/saas/quick-install.md](docs/saas/quick-install.md) | 5-minute install with Docker Compose |
+| [docs/saas/getting-started.md](docs/saas/getting-started.md) | Admin panel, settings, access control, invites |
+| [docs/saas/api-reference.md](docs/saas/api-reference.md) | All REST API endpoints |
+
+---
+
+## CLI mode — build locally, deploy anywhere
+
+The CLI tool runs on your machine, reads a `src/<gallery>/` folder, and produces a self-contained `dist/<gallery>/` folder of static HTML you can host anywhere — Apache, Nginx, GitHub Pages, S3, Netlify.
 
 ```
 src/my-shoot/photos/*.jpg  →  npm run build  →  dist/my-shoot/  →  your server
 ```
 
-### SaaS mode — multi-tenant hosted stack (`saas` branch)
-
-Run the full SaaS stack with Docker Compose. Photographers upload via invite links, you manage galleries from a React admin panel, builds run in a background worker.
-
-```
-git checkout saas
-cp .env.saas.example .env   # edit ADMIN_PASSWORD + SESSION_SECRET
-docker compose -f docker-compose.saas.yml up -d
-# → https://your-domain/admin
-```
-
-See [docs/saas/quick-install.md](docs/saas/quick-install.md) for the full 5-minute guide.
-
-### Hosted mode (v2) — lightweight single-tenant server
-
-You run the GalleryPack server (Docker recommended). Photographers upload from a browser, you manage everything from an admin panel, builds happen automatically.
-
-```
-Photographer → /upload/token → admin panel → build → dist/ → galleries served
-```
-
----
-
-## Quick start — CLI
+### Quick start
 
 ```bash
 # 1. Clone and install
@@ -89,57 +116,26 @@ npm run export -- --apache-path=/var/www/html/galleries
 npm run export:zip       # same + creates dist-export.zip
 ```
 
-The `dist/my-shoot/` folder is self-contained static HTML — deploy on Apache, Nginx, GitHub Pages, S3, Netlify, anywhere.
+### Commands
 
----
+| Command | Description |
+|---------|-------------|
+| `npm run build <name>` | Incremental build (skips existing WebP) |
+| `npm run build:all` | Build all galleries + site index |
+| `npm run build:force` | Force-reconvert all images |
+| `npm run build:clean` | Wipe `dist/` and rebuild from scratch |
+| `npm run new-gallery <slug>` | Create gallery scaffold |
+| `npm run new-gallery:wizard` | Interactive wizard with all options |
+| `npm run serve` | Local preview at http://localhost:3000 |
+| `npm run export` | Build all + patch `.htaccess` for Apache deployment |
+| `npm run export:zip` | Same + create `dist-export.zip` for FTP upload |
+| `npm run publish` | Upload one gallery via rsync (interactive) |
+| `npm run publish:all` | Upload all galleries via rsync |
+| `npm run deploy` | Deploy `dist/` to GitHub Pages |
+| `npm run test` | Run invariant tests |
+| `npm run clean` | Wipe `dist/` |
 
-## Quick start — Hosted (Docker)
-
-```bash
-git clone https://github.com/pvollenweider/gallerypack.git
-cd gallerypack
-
-# Development (Node.js serves everything on :3000)
-cp docker-compose.yml  # edit ADMIN_PASSWORD and SESSION_SECRET
-docker compose up -d
-# → http://localhost:3000/admin
-
-# Production (Apache serves dist/ statically, Node.js handles admin/api)
-cp deploy/.env.example deploy/.env   # edit all values
-docker compose -f deploy/docker-compose.prod.yml up -d
-# → configure Apache with deploy/apache-vhost.conf
-```
-
-See [docs/INSTALL.md](docs/INSTALL.md) for the full installation guide.
-
----
-
-## What you get
-
-- **Responsive grid** — 3-column layout with big/small tiles, square-cropped thumbnails
-- **Full-screen lightbox** — keyboard navigation, touch swipe, fullscreen
-- **Slideshow** — auto-advance with configurable interval
-- **EXIF overlay** — camera, lens, aperture, shutter, ISO, GPS location
-- **Download** — individual photo or full gallery ZIP (configurable per gallery)
-- **Legal notice** — auto-generated in your locale (fr / en / de / es / it / pt)
-- **Delivery message** — `DELIVERY.md` ready to copy-paste and send to your client
-- **Multilingual UI** — 6 languages (fr / en / de / es / it / pt), auto-detected
-
----
-
-## Access modes
-
-| Mode | How | When to use |
-|------|-----|-------------|
-| **Public** | Standard URL, listed in site index | Open portfolio, event photos |
-| **Private link** | Hashed unguessable URL, hidden from index | Draft preview, personal sharing |
-| **Password** | Apache Basic Auth via `.htaccess` | Client delivery, confidential work |
-
-> Password protection is enforced server-side by Apache (`.htaccess`). It works out of the box with Apache deployments. See [docs/privacy-access.md](docs/privacy-access.md).
-
----
-
-## Configuration
+### Configuration
 
 `gallery.config.json` — full example:
 
@@ -170,68 +166,19 @@ See [docs/INSTALL.md](docs/INSTALL.md) for the full installation guide.
 }
 ```
 
-Common scenarios:
-
-```json
-// Client delivery with password and full download
-{ "project": { "access": "password", "allowDownloadGallery": true } }
-
-// Public portfolio, no download
-{ "project": { "access": "public", "allowDownloadImage": false, "allowDownloadGallery": false } }
-
-// Private preview link (no password prompt, hidden from index)
-{ "project": { "private": true } }
-
-// Set a specific cover photo (shown in gallery list)
-{ "project": { "coverPhoto": "DSC08753.jpg" } }
-```
-
 See [docs/reference.md](docs/reference.md) for all fields.
 
----
-
-## Commands
-
-| Command | Description |
-|---------|-------------|
-| `npm run build <name>` | Incremental build (skips existing WebP) |
-| `npm run build:all` | Build all galleries + site index |
-| `npm run build:force` | Force-reconvert all images |
-| `npm run build:clean` | Wipe `dist/` and rebuild from scratch |
-| `npm run new-gallery <slug>` | Create gallery scaffold |
-| `npm run new-gallery:wizard` | Interactive wizard with all options |
-| `npm run serve` | Local preview at http://localhost:3000 |
-| `npm run export` | Build all + patch `.htaccess` for Apache deployment |
-| `npm run export:zip` | Same + create `dist-export.zip` for FTP upload |
-| `npm run publish` | Upload one gallery via rsync (interactive) |
-| `npm run publish:all` | Upload all galleries via rsync |
-| `npm run deploy` | Deploy `dist/` to GitHub Pages |
-| `npm run test` | Run invariant tests |
-| `npm run clean` | Wipe `dist/` |
-| `npm run dev` | Start hosted server (dev mode, port 3000) |
-
----
-
-## Documentation
+### CLI documentation
 
 | Page | Contents |
 |------|----------|
-| [docs/INSTALL.md](docs/INSTALL.md) | Full installation guide — CLI, Docker dev, Apache+Docker prod, Nginx |
+| [docs/INSTALL.md](docs/INSTALL.md) | Full installation guide |
 | [docs/USAGE.md](docs/USAGE.md) | Admin panel, invite links, photographer flow, i18n |
 | [docs/reference.md](docs/reference.md) | All `gallery.config.json` fields |
 | [docs/privacy-access.md](docs/privacy-access.md) | Public / private / password modes |
 | [docs/output-structure.md](docs/output-structure.md) | What's in `dist/` and why |
 | [docs/naming-convention.md](docs/naming-convention.md) | How output files are named |
 | [docs/faq.md](docs/faq.md) | Common questions |
-| [deploy/DEPLOY.md](deploy/DEPLOY.md) | Apache + Docker production deployment |
-
-**SaaS branch (`saas`):**
-
-| Page | Contents |
-|------|----------|
-| [docs/saas/quick-install.md](docs/saas/quick-install.md) | 5-minute install with Docker Compose |
-| [docs/saas/getting-started.md](docs/saas/getting-started.md) | Architecture, env vars, admin panel, access control, email |
-| [docs/saas/api-reference.md](docs/saas/api-reference.md) | All REST API endpoints |
 
 ---
 
