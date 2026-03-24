@@ -20,6 +20,15 @@ No accounts. No platform. Just your files, your hosting, your rules.
 
 ---
 
+## Branches
+
+| Branch | Description |
+|--------|-------------|
+| `main` / `v2` | Stable CLI tool + lightweight hosted server (`server/app.js`) |
+| `saas` | Full SaaS stack — React admin UI, REST API, job queue, invite system, S3 storage |
+
+---
+
 ## Two ways to use GalleryPack
 
 ### CLI mode — build locally, deploy anywhere
@@ -30,7 +39,20 @@ You run the build tool on your machine. It produces a `dist/` folder of static f
 src/my-shoot/photos/*.jpg  →  npm run build  →  dist/my-shoot/  →  your server
 ```
 
-### Hosted mode — web server with admin panel
+### SaaS mode — multi-tenant hosted stack (`saas` branch)
+
+Run the full SaaS stack with Docker Compose. Photographers upload via invite links, you manage galleries from a React admin panel, builds run in a background worker.
+
+```
+git checkout saas
+cp .env.saas.example .env   # edit ADMIN_PASSWORD + SESSION_SECRET
+docker compose -f docker-compose.saas.yml up -d
+# → https://your-domain/admin
+```
+
+See [docs/saas/quick-install.md](docs/saas/quick-install.md) for the full 5-minute guide.
+
+### Hosted mode (v2) — lightweight single-tenant server
 
 You run the GalleryPack server (Docker recommended). Photographers upload from a browser, you manage everything from an admin panel, builds happen automatically.
 
@@ -202,6 +224,14 @@ See [docs/reference.md](docs/reference.md) for all fields.
 | [docs/naming-convention.md](docs/naming-convention.md) | How output files are named |
 | [docs/faq.md](docs/faq.md) | Common questions |
 | [deploy/DEPLOY.md](deploy/DEPLOY.md) | Apache + Docker production deployment |
+
+**SaaS branch (`saas`):**
+
+| Page | Contents |
+|------|----------|
+| [docs/saas/quick-install.md](docs/saas/quick-install.md) | 5-minute install with Docker Compose |
+| [docs/saas/getting-started.md](docs/saas/getting-started.md) | Architecture, env vars, admin panel, access control, email |
+| [docs/saas/api-reference.md](docs/saas/api-reference.md) | All REST API endpoints |
 
 ---
 
