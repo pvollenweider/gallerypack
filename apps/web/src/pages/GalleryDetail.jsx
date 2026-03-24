@@ -72,6 +72,11 @@ export default function GalleryDetail() {
         <Link to="/" style={s.back}>← Galleries</Link>
         <span style={s.title}>{gallery.title || gallery.slug}</span>
         <div style={s.headerActions}>
+          {gallery.buildStatus === 'done' && (
+            <a href={`/${gallery.slug}/`} target="_blank" rel="noreferrer" style={s.viewBtn}>
+              View gallery ↗
+            </a>
+          )}
           <button style={s.outlineBtn} onClick={() => handleBuild(false)}>▶ Build</button>
           <button style={s.outlineBtn} onClick={() => handleBuild(true)}>↺ Force rebuild</button>
         </div>
@@ -218,6 +223,7 @@ const s = {
   input:        { flex:1, padding:'0.4rem 0.6rem', border:'1px solid #ddd', borderRadius:5, fontSize:'0.875rem', outline:'none' },
   primaryBtn:   { marginTop:'0.75rem', padding:'0.55rem 1.5rem', background:'#111', color:'#fff', border:'none', borderRadius:6, fontWeight:600, cursor:'pointer', fontSize:'0.875rem' },
   outlineBtn:   { padding:'0.4rem 0.85rem', background:'none', border:'1px solid #ddd', borderRadius:5, cursor:'pointer', fontSize:'0.8rem' },
+  viewBtn:      { padding:'0.4rem 0.85rem', background:'#16a34a', color:'#fff', border:'none', borderRadius:5, cursor:'pointer', fontSize:'0.8rem', textDecoration:'none', fontWeight:600 },
   dim:          { color:'#888', fontSize:'0.875rem' },
   jobList:      { display:'flex', flexDirection:'column', gap:'0.4rem' },
   jobRow:       { display:'flex', gap:'1rem', alignItems:'center', padding:'0.6rem 0.85rem', background:'#fff', borderRadius:6, textDecoration:'none', color:'#111', fontSize:'0.875rem', boxShadow:'0 1px 3px #0001' },
