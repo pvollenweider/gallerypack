@@ -9,8 +9,9 @@ import {
   listInvitations,
   deleteInvitation,
   getStudio,
+  createSession,
+  audit,
 } from '../db/helpers.js';
-import { createSession } from '../db/helpers.js';
 
 const VALID_ROLES = ['owner', 'admin', 'editor', 'photographer'];
 
@@ -41,6 +42,7 @@ router.post('/', requireAuth, (req, res) => {
     throw err;
   }
 
+  try { audit(req.studioId, req.userId, 'member.invite', 'invitation', invitation.id, { email, role }); } catch {}
   res.status(201).json(invitation);
 });
 

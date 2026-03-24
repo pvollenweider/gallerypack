@@ -505,3 +505,21 @@ export function listViewerTokens(galleryId) {
 export function deleteViewerToken(id) {
   getDb().prepare('DELETE FROM viewer_tokens WHERE id = ?').run(id);
 }
+
+// ── Audit log ─────────────────────────────────────────────────────────────────
+
+/**
+ * Insert an audit log entry.
+ * @param {string|null} studioId
+ * @param {string|null} userId
+ * @param {string} action     - e.g. 'gallery.create', 'photo.upload'
+ * @param {string|null} targetType - e.g. 'gallery', 'invitation'
+ * @param {string|null} targetId
+ * @param {object} [meta]     - extra context serialised as JSON
+ */
+export function audit(studioId, userId, action, targetType, targetId, meta = {}) {
+  getDb().prepare(`
+    INSERT INTO audit_log (id, studio_id, user_id, action, target_type, target_id, meta, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(randomUUID(), studioId, userId, action, targetType, targetId, JSON.stringify(meta), Date.now());
+}

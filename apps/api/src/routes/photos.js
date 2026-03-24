@@ -4,7 +4,7 @@ import multer       from 'multer';
 import path         from 'path';
 import fs           from 'fs';
 import { getDb }    from '../db/database.js';
-import { getGalleryRole } from '../db/helpers.js';
+import { getGalleryRole, audit } from '../db/helpers.js';
 import { requireAuth } from '../middleware/auth.js';
 import { can } from '../authorization/index.js';
 import { ROOT }         from '../../../../packages/engine/src/fs.js';
@@ -176,6 +176,9 @@ router.post('/:id/photos', upload.array('photos', 200), (req, res) => {
   if (uploaded.length > 0) {
     getDb().prepare('UPDATE galleries SET needs_rebuild = 1, updated_at = ? WHERE id = ?')
       .run(Date.now(), req.params.id);
+    for (const f of uploaded) {
+      try { audit(req.studioId, req.userId, 'photo.upload', 'gallery', req.params.id, { filename: f.file }); } catch {}
+    }
   }
   res.status(201).json({ uploaded: uploaded.length, files: uploaded });
 });
@@ -196,6 +199,7 @@ router.delete('/:id/photos/:filename', (req, res) => {
   fs.unlinkSync(filePath);
   getDb().prepare('UPDATE galleries SET needs_rebuild = 1, updated_at = ? WHERE id = ?')
     .run(Date.now(), req.params.id);
+  try { audit(req.studioId, req.userId, 'photo.delete', 'gallery', req.params.id, { filename: safe }); } catch {}
   res.json({ ok: true });
 });
 
