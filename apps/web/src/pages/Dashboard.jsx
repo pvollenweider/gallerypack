@@ -85,6 +85,7 @@ export default function Dashboard() {
         <div style={s.headerRight}>
           <span style={s.userLabel}>{user?.email}</span>
           <a href="/" target="_blank" rel="noreferrer" style={s.outlineBtn}>{t('public_site')}</a>
+          <Link to="/team"     style={s.outlineBtn}>Team</Link>
           <Link to="/settings" style={s.outlineBtn}>{t('settings')}</Link>
           <button style={s.outlineBtn} onClick={logout}>{t('sign_out')}</button>
         </div>
