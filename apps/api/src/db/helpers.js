@@ -141,19 +141,41 @@ export function getEvents(jobId, afterSeq = 0) {
 
 // ── Password hashing (scrypt, no native deps) ─────────────────────────────────
 
-/** Hash a password for storage. Returns `scrypt:<salt>:<hash>` (all hex). */
+/**
+ * Hash a password for storage.
+ * New format: `$scrypt$<salt_hex>$<hash_hex>` (64-char salt, 64-char hash).
+ * Also handles legacy `scrypt:<salt>:<hash>` format for verification.
+ */
 export function hashPassword(plain) {
-  const salt = randomBytes(16).toString('hex');
-  const hash = scryptSync(plain, salt, 64).toString('hex');
-  return `scrypt:${salt}:${hash}`;
+  const salt = randomBytes(32).toString('hex'); // 64 hex chars
+  const hash = scryptSync(plain, salt, 64).toString('hex'); // 128 hex chars
+  return `$scrypt$${salt}$${hash}`;
 }
 
-/** Verify a plain password against a stored hash (timing-safe). */
+/** Verify a plain password against a stored hash (timing-safe).
+ *  Supports both `$scrypt$` (new) and `scrypt:` (old) formats.
+ */
 export function verifyPassword(plain, stored) {
-  if (!stored || !stored.startsWith('scrypt:')) return false;
-  const [, salt, hash] = stored.split(':');
-  const candidate = scryptSync(plain, salt, 64).toString('hex');
+  if (!stored) return false;
+
+  let salt, hash;
+  if (stored.startsWith('$scrypt$')) {
+    // New format: $scrypt$<salt>$<hash>
+    const parts = stored.split('$'); // ['', 'scrypt', salt, hash]
+    if (parts.length !== 4) return false;
+    salt = parts[2];
+    hash = parts[3];
+  } else if (stored.startsWith('scrypt:')) {
+    // Old format: scrypt:<salt>:<hash>
+    const [, s, h] = stored.split(':');
+    salt = s;
+    hash = h;
+  } else {
+    return false;
+  }
+
   try {
+    const candidate = scryptSync(plain, salt, 64).toString('hex');
     return timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(candidate, 'hex'));
   } catch { return false; }
 }
@@ -244,4 +266,62 @@ export function upsertSettings(studioId, fields) {
     getDb().prepare(`UPDATE settings SET ${sets} WHERE studio_id = ?`).run(...vals);
   }
   return getSettings(studioId);
+}
+
+// ── Studio memberships ────────────────────────────────────────────────────────
+
+/**
+ * Role hierarchy: owner > admin > editor > photographer
+ */
+export const ROLE_HIERARCHY = ['photographer', 'editor', 'admin', 'owner'];
+
+/** Returns the membership row for a user in a studio, or null. */
+export function getStudioMembership(userId, studioId) {
+  return getDb()
+    .prepare('SELECT * FROM studio_memberships WHERE user_id = ? AND studio_id = ?')
+    .get(userId, studioId) || null;
+}
+
+/** Returns the role string for a user in a studio, or null if not a member. */
+export function getStudioRole(userId, studioId) {
+  const row = getStudioMembership(userId, studioId);
+  return row ? row.role : null;
+}
+
+/** Insert or update a studio membership. */
+export function upsertStudioMembership(studioId, userId, role) {
+  const id  = genId();
+  const now = Date.now();
+  getDb().prepare(`
+    INSERT INTO studio_memberships (id, studio_id, user_id, role, created_at)
+    VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(studio_id, user_id) DO UPDATE SET role = excluded.role
+  `).run(id, studioId, userId, role, now);
+  return getStudioMembership(userId, studioId);
+}
+
+/** Remove a user from a studio. */
+export function removeStudioMembership(studioId, userId) {
+  getDb()
+    .prepare('DELETE FROM studio_memberships WHERE studio_id = ? AND user_id = ?')
+    .run(studioId, userId);
+}
+
+/**
+ * List all members of a studio.
+ * Returns array of { user: {...}, role } objects.
+ */
+export function listStudioMembers(studioId) {
+  const rows = getDb().prepare(`
+    SELECT sm.role, u.id, u.email, u.name, u.role as user_role, u.created_at
+    FROM studio_memberships sm
+    JOIN users u ON u.id = sm.user_id
+    WHERE sm.studio_id = ?
+    ORDER BY sm.created_at ASC
+  `).all(studioId);
+
+  return rows.map(r => ({
+    role: r.role,
+    user: { id: r.id, email: r.email, name: r.name, role: r.user_role, createdAt: r.created_at },
+  }));
 }
