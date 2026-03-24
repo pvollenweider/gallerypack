@@ -13,11 +13,12 @@ COPY apps/api/package.json          apps/api/
 COPY workers/builder/package.json   workers/builder/
 RUN npm ci --omit=dev && npm rebuild sharp
 
-COPY packages/    packages/
-COPY apps/api/    apps/api/
-COPY workers/     workers/
+COPY packages/          packages/
+COPY apps/api/          apps/api/
+COPY workers/           workers/
+COPY build.config.json  ./
 
-RUN mkdir -p data storage/src storage/dist
+RUN mkdir -p data src dist
 
 ENV NODE_ENV=production
 

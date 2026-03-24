@@ -10,13 +10,12 @@ services:
       - "127.0.0.1:4000:4000"
     volumes:
       - ./data:/app/data               # SQLite database
-      - ./storage:/app/storage         # source photos + built galleries
+      - ./src:/app/src                 # source photos (engine reads/writes here)
+      - ./dist:/app/dist               # built galleries (engine writes here)
     environment:
       PORT:                "4000"
       NODE_ENV:            "production"
       DATA_DIR:            "/app/data"
-      STORAGE_DRIVER:      "local"
-      STORAGE_ROOT:        "/app/storage"
       ADMIN_PASSWORD:      "${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}"
       SESSION_SECRET:      "${SESSION_SECRET:?SESSION_SECRET is required}"
       VIEWER_TOKEN_SECRET: "${VIEWER_TOKEN_SECRET:-change-me-in-production}"
@@ -44,12 +43,11 @@ services:
         condition: service_healthy
     volumes:
       - ./data:/app/data
-      - ./storage:/app/storage
+      - ./src:/app/src
+      - ./dist:/app/dist
     environment:
       NODE_ENV:       "production"
       DATA_DIR:       "/app/data"
-      STORAGE_DRIVER: "local"
-      STORAGE_ROOT:   "/app/storage"
       BASE_URL:       "${BASE_URL:-http://localhost}"
       EMAIL_PROVIDER: "${EMAIL_PROVIDER:-null}"
       SMTP_HOST:      "${SMTP_HOST:-}"
@@ -66,7 +64,7 @@ services:
       - "443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./storage/dist:/srv/galleries:ro   # serve built galleries as static files
+      - ./dist:/srv/galleries:ro       # built galleries served as static files
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
