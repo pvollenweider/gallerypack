@@ -17,6 +17,7 @@ export default function GalleryDetail() {
   const navigate = useNavigate();
   const t = useT();
   const { user } = useAuth();
+  const CAN_BUILD = ['editor', 'admin', 'owner'].includes(user?.studioRole);
 
   const [gallery,      setGallery]      = useState(null);
   const [photos,       setPhotos]       = useState([]);
@@ -240,18 +241,20 @@ export default function GalleryDetail() {
               {t('view_gallery_btn')}
             </a>
           )}
-          <button
-            style={{ ...s.outlineBtn, ...(gallery.buildStatus === 'done' && !needsRebuild ? { opacity: 0.4, cursor: 'default' } : {}) }}
-            onClick={() => handleBuild(false)}
-            disabled={gallery.buildStatus === 'done' && !needsRebuild}
-          >{t('build_btn')}</button>
-          <button style={s.outlineBtn} onClick={() => handleBuild(true)}>{t('force_rebuild_btn')}</button>
+          {CAN_BUILD && <>
+            <button
+              style={{ ...s.outlineBtn, ...(gallery.buildStatus === 'done' && !needsRebuild ? { opacity: 0.4, cursor: 'default' } : {}) }}
+              onClick={() => handleBuild(false)}
+              disabled={gallery.buildStatus === 'done' && !needsRebuild}
+            >{t('build_btn')}</button>
+            <button style={s.outlineBtn} onClick={() => handleBuild(true)}>{t('force_rebuild_btn')}</button>
+          </>}
         </div>
       </header>
 
       {/* Tabs */}
       <div style={s.tabs}>
-        {['photos','settings','jobs', ...(EDITOR_ROLES.includes(user?.role) ? ['access'] : [])].map(tabKey => (
+        {['photos','settings','jobs', ...(EDITOR_ROLES.includes(user?.studioRole) ? ['access'] : [])].map(tabKey => (
           <button key={tabKey} style={{ ...s.tab, ...(tab === tabKey ? s.tabActive : {}) }}
             onClick={() => { setTab(tabKey); if (tabKey === 'access') loadAccess(); }}>
             {t(`tab_${tabKey}`)}
@@ -270,7 +273,7 @@ export default function GalleryDetail() {
             {needsRebuild && (
               <div style={s.rebuildBanner}>
                 <span>{t('photos_changed_banner')}</span>
-                <button style={s.rebuildBtn} onClick={() => handleBuild(false)}>{t('build_now')}</button>
+                {CAN_BUILD && <button style={s.rebuildBtn} onClick={() => handleBuild(false)}>{t('build_now')}</button>}
               </div>
             )}
 

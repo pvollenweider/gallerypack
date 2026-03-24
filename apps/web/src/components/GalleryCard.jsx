@@ -52,7 +52,7 @@ function formatDateRange(dateRange, fallback) {
   return `${shortMonth(from)} – ${shortMonth(to)}`;
 }
 
-export function GalleryCard({ gallery, onBuild, onDelete }) {
+export function GalleryCard({ gallery, onBuild, onDelete, canBuild = true }) {
   const navigate    = useNavigate();
   const t           = useT();
   const badgeStatus = gallery.needsRebuild && gallery.buildStatus === 'done'
@@ -109,12 +109,14 @@ export function GalleryCard({ gallery, onBuild, onDelete }) {
             {gallery.buildStatus === 'done' && (
               <a href={`/${gallery.slug}/`} target="_blank" rel="noreferrer" style={s.viewBtn} title={t('view_gallery')}>↗</a>
             )}
-            <button
-              style={{ ...s.btn, ...(isUpToDate ? s.btnDisabled : {}) }}
-              onClick={() => onBuild(gallery.id)}
-              disabled={isUpToDate}
-              title={isUpToDate ? t('already_published') : t('build_action')}
-            >▶</button>
+            {canBuild && (
+              <button
+                style={{ ...s.btn, ...(isUpToDate ? s.btnDisabled : {}) }}
+                onClick={() => onBuild(gallery.id)}
+                disabled={isUpToDate}
+                title={isUpToDate ? t('already_published') : t('build_action')}
+              >▶</button>
+            )}
             <button style={{ ...s.btn, color: '#dc2626' }} onClick={() => onDelete(gallery.id)} title={t('delete')}>✕</button>
           </div>
         </div>

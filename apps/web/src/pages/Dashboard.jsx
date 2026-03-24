@@ -141,7 +141,7 @@ export default function Dashboard() {
 
         <div style={s.grid}>
           {filteredGalleries.map(g => (
-            <GalleryCard key={g.id} gallery={g} onBuild={handleBuild} onDelete={handleDelete} />
+            <GalleryCard key={g.id} gallery={g} onBuild={handleBuild} onDelete={handleDelete} canBuild={canCreate} />
           ))}
         </div>
       </main>
