@@ -90,7 +90,7 @@ app.use('/api/galleries',           galleriesRoutes);
 app.use('/api/galleries',           accessRoutes);
 app.use('/api/galleries',           uploadRateLimit, photosRoutes);
 app.use('/api/galleries',           jobsRoutes);
-app.use('/api',                     jobsRoutes); // for /api/jobs/:jobId routes
+app.use('/api/jobs',                jobsRoutes); // for /api/jobs/:jobId and /api/jobs/:jobId/stream
 app.use('/api/invites',             invitesRoutes);
 app.use('/api/invitations',         invitationsRouter);
 app.use('/api/studios',             studiosRoutes);
