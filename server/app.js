@@ -217,9 +217,20 @@ app.get('/api/admin/galleries/:jobId/photos', requireAdmin, (req, res) => {
 
   let photos = [], coverPhoto = null;
   try {
-    photos = fs.readdirSync(photosDir)
+    // Read processed name mapping from built manifest (original → processed base name)
+    const manifestPath = path.join(DIST, job.slug, 'photos.json');
+    let nameMap = {};
+    try {
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+      for (const [file, info] of Object.entries(manifest.photos || {})) {
+        nameMap[file] = info.name;
+      }
+    } catch (_) {}
+
+    const srcFiles = fs.readdirSync(photosDir)
       .filter(f => /\.(jpe?g|png|tiff?|heic|heif|avif|webp)$/i.test(f))
       .sort();
+    photos = srcFiles.map(file => ({ file, thumb: nameMap[file] || null }));
   } catch (_) {}
   try {
     const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
@@ -255,7 +266,7 @@ app.get('/api/admin/settings', requireAdmin, (req, res) => {
 });
 
 app.patch('/api/admin/settings', requireAdmin, (req, res) => {
-  const allowed = ['smtpHost','smtpPort','smtpSecure','smtpEnabled','smtpUser','smtpPass','smtpFrom','adminEmail','appName','uiLocale'];
+  const allowed = ['smtpHost','smtpPort','smtpSecure','smtpEnabled','smtpUser','smtpPass','smtpFrom','adminEmail','appName','uiLocale','apachePath'];
   const updates = {};
   for (const key of allowed) {
     if (req.body[key] !== undefined) updates[key] = req.body[key];
@@ -623,9 +634,10 @@ function runBuild(jobId, slug) {
   setBuilding(jobId);
   appendLog(jobId, `▶ Starting build for "${slug}"…`);
 
+  const apachePath = getSetting('apachePath', '');
   const child = spawn('node', ['build/index.js', slug], {
     cwd: ROOT,
-    env: { ...process.env, FORCE_COLOR: '0' },
+    env: { ...process.env, FORCE_COLOR: '0', ...(apachePath ? { GALLERY_APACHE_PATH: apachePath } : {}) },
   });
 
   const clean = line => line.replace(/\x1b\[[0-9;]*m/g, '').trim();

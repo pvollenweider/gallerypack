@@ -438,6 +438,15 @@
           <option value="pt">Português</option>
         </select>
       </div>
+
+      <p class="section-divider" style="margin-top:20px" data-i18n="admin.settings.section.apache">Apache deployment</p>
+      <div class="field">
+        <label for="s-apache-path" data-i18n="admin.settings.apachePath">Document root on Apache server</label>
+        <input type="text" id="s-apache-path" placeholder="/var/www/html/galleries" style="max-width:360px">
+        <p style="font-size:11px;color:var(--muted);margin-top:4px" data-i18n="admin.settings.apachePath.hint">
+          Absolute path where dist/ is deployed. Used to generate correct AuthUserFile in .htaccess for password-protected galleries.
+        </p>
+      </div>
     </div>
 
   </div>
@@ -835,12 +844,13 @@ async function loadCoverPicker(id) {
     defaultBtn.classList.toggle('selected', !editingCover);
     defaultBtn.onclick = () => selectCover(null);
 
-    for (const filename of photos) {
-      const base  = filename.replace(/\.[^.]+$/, '');
+    for (const photo of photos) {
+      const filename  = photo.file;
+      const thumbName = photo.thumb || filename.replace(/\.[^.]+$/, '');
       const thumb = document.createElement('div');
       thumb.className = `cover-thumb${editingCover === filename ? ' selected' : ''}`;
       thumb.dataset.filename = filename;
-      thumb.innerHTML = `<img src="/${esc(slug)}/img/grid/${esc(base)}.webp" loading="lazy" onerror="this.parentElement.style.opacity='.5'">
+      thumb.innerHTML = `<img src="/${esc(slug)}/img/grid/${esc(thumbName)}.webp" loading="lazy" onerror="this.parentElement.style.opacity='.5'">
                          <span class="cover-check">✓</span>`;
       thumb.addEventListener('click', () => selectCover(filename));
       gridEl.appendChild(thumb);
@@ -1043,6 +1053,7 @@ async function loadSettings() {
     document.getElementById('s-smtp-from').value   = s.smtpFrom   || '';
     document.getElementById('s-smtp-secure').checked = !!s.smtpSecure;
     document.getElementById('s-ui-locale').value   = s.uiLocale   || '';
+    document.getElementById('s-apache-path').value = s.apachePath || '';
     if (s.uiLocale) {
       window.GP_LOCALE = gpDetectLocale(s.uiLocale);
       applyI18n();
@@ -1068,7 +1079,8 @@ document.getElementById('settings-save-btn').addEventListener('click', async () 
       smtpPass:     smtpEnabled ? (document.getElementById('s-smtp-pass').value          || undefined) : undefined,
       smtpFrom:     smtpEnabled ? (document.getElementById('s-smtp-from').value.trim()   || undefined) : undefined,
       smtpSecure:   smtpEnabled ? document.getElementById('s-smtp-secure').checked        : false,
-      uiLocale:     document.getElementById('s-ui-locale').value || undefined,
+      uiLocale:     document.getElementById('s-ui-locale').value    || undefined,
+      apachePath:   document.getElementById('s-apache-path').value.trim() || undefined,
     });
     const newLocale = document.getElementById('s-ui-locale').value;
     window.GP_LOCALE = gpDetectLocale(newLocale || null);

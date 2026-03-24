@@ -2,14 +2,12 @@
 
 > Deliver photo galleries fast.
 
-GalleryPack is a command-line build tool that turns a folder of photos into a clean, ready-to-share static gallery.
-
-Drop your photos in a folder, run a single command, and generate a gallery you can publish anywhere, share as a link, or keep as a portable archive.
+GalleryPack turns a folder of photos into a clean, ready-to-share static gallery — from the command line or from a web interface.
 
 No accounts. No platform. Just your files, your hosting, your rules.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Node.js](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D20-brightgreen)](https://nodejs.org/)
 [![Live demo](https://img.shields.io/badge/Live%20demo-%E2%86%92%20View%20gallery-blue)](https://photos.vollenweider.org/gallerypack/)
 
 **Live demo** — [photos.vollenweider.org/gallerypack/](https://photos.vollenweider.org/gallerypack/)
@@ -22,52 +20,27 @@ No accounts. No platform. Just your files, your hosting, your rules.
 
 ---
 
-## ✨ Why GalleryPack
+## Two ways to use GalleryPack
 
-- ⚡ **Fast builds** — generate a full gallery in seconds to minutes
-- 🔗 **Easy to share** — send a simple link to clients or friends
-- 🌍 **Works anywhere** — deploy on Apache, Nginx, GitHub Pages, S3, Netlify…
-- 🔒 **Optional protection** — password (Apache) or private unguessable link
-- 📦 **Self-contained output** — no backend, no runtime dependencies
-- 📴 **Offline-ready** — works without internet once built
+### CLI mode — build locally, deploy anywhere
 
----
+You run the build tool on your machine. It produces a `dist/` folder of static files you can host anywhere.
 
-## 🎯 Use cases
-
-- Send a photo shoot to a client with a clean, shareable link
-- Publish an event gallery in minutes
-- Deliver photos without relying on Google Photos, iCloud, or Pixieset
-- Archive a project with full metadata and download permissions
-- Share photos with full control over files, hosting, and URLs
-
----
-
-## 🖥️ v2 — Web server mode
-
-GalleryPack v2 adds a full web interface on top of the build tool.
-
-```bash
-# With Docker (recommended)
-cp docker-compose.yml.example docker-compose.yml  # or edit docker-compose.yml directly
-# Set ADMIN_PASSWORD and SESSION_SECRET in docker-compose.yml
-docker compose up -d
-# → http://localhost:3000/admin
+```
+src/my-shoot/photos/*.jpg  →  npm run build  →  dist/my-shoot/  →  your server
 ```
 
-| URL | Description |
-|-----|-------------|
-| `/admin` | Admin panel — manage galleries, invite links, SMTP settings |
-| `/new` | Create a gallery directly (admin shortcut) |
-| `/upload/<token>` | Photographer upload page (via invite link) |
-| `/status/<id>` | Build progress page |
-| `/my-gallery/<id>?token=…` | Photographer gallery management |
+### Hosted mode — web server with admin panel
 
-See [docs/INSTALL.md](docs/INSTALL.md) for full installation guide (Docker, native Node.js, Nginx, SSL, systemd).
+You run the GalleryPack server (Docker recommended). Photographers upload from a browser, you manage everything from an admin panel, builds happen automatically.
+
+```
+Photographer → /upload/token → admin panel → build → dist/ → galleries served
+```
 
 ---
 
-## ⚡ Quick start (CLI)
+## Quick start — CLI
 
 ```bash
 # 1. Clone and install
@@ -75,82 +48,102 @@ git clone https://github.com/pvollenweider/gallerypack.git
 cd gallerypack
 npm install
 
-# 2. Create a gallery
+# 2. Create a gallery scaffold
 npm run new-gallery my-shoot
-# → creates src/my-shoot/photos/ and a pre-filled gallery.config.json
+# Drop your photos into src/my-shoot/photos/
 
-# 3. Drop your photos into src/my-shoot/photos/
-
-# 4. Build
+# 3. Build
 npm run build my-shoot
 
-# 5. Preview
+# 4. Preview locally
 npm run serve
-# → open http://localhost:3000/my-shoot/
+# → http://localhost:3000/my-shoot/
 
-# 6. Publish  (requires publish.config.json — see docs/reference.md)
+# 5a. Publish via rsync (requires publish.config.json)
 npm run publish
-# → patches .htaccess, uploads, writes DELIVERY.md with the live URL
 
-# 7. Send to your client
-#    → copy-paste the contents of dist/my-shoot/DELIVERY.md
+# 5b. Or export dist/ for FTP / cPanel upload
+npm run export -- --apache-path=/var/www/html/galleries
+npm run export:zip       # same + creates dist-export.zip
 ```
 
-The output in `dist/my-shoot/` is ready to deploy anywhere.
+The `dist/my-shoot/` folder is self-contained static HTML — deploy on Apache, Nginx, GitHub Pages, S3, Netlify, anywhere.
 
 ---
 
-## 📦 What you get
+## Quick start — Hosted (Docker)
 
-- **Responsive grid** — 3-column layout with big/small tiles, square-cropped
+```bash
+git clone https://github.com/pvollenweider/gallerypack.git
+cd gallerypack
+
+# Development (Node.js serves everything on :3000)
+cp docker-compose.yml  # edit ADMIN_PASSWORD and SESSION_SECRET
+docker compose up -d
+# → http://localhost:3000/admin
+
+# Production (Apache serves dist/ statically, Node.js handles admin/api)
+cp deploy/.env.example deploy/.env   # edit all values
+docker compose -f deploy/docker-compose.prod.yml up -d
+# → configure Apache with deploy/apache-vhost.conf
+```
+
+See [docs/INSTALL.md](docs/INSTALL.md) for the full installation guide.
+
+---
+
+## What you get
+
+- **Responsive grid** — 3-column layout with big/small tiles, square-cropped thumbnails
 - **Full-screen lightbox** — keyboard navigation, touch swipe, fullscreen
-- **Slideshow** — auto-advance with progress bar, configurable interval
+- **Slideshow** — auto-advance with configurable interval
 - **EXIF overlay** — camera, lens, aperture, shutter, ISO, GPS location
-- **Download** — individual photo or full gallery ZIP (configurable)
+- **Download** — individual photo or full gallery ZIP (configurable per gallery)
 - **Legal notice** — auto-generated in your locale (fr / en / de / es / it / pt)
 - **Delivery message** — `DELIVERY.md` ready to copy-paste and send to your client
+- **Multilingual UI** — 6 languages (fr / en / de / es / it / pt), auto-detected
 
 ---
 
-## 🔐 Access & sharing
+## Access modes
 
-Three modes — choose based on your needs:
+| Mode | How | When to use |
+|------|-----|-------------|
+| **Public** | Standard URL, listed in site index | Open portfolio, event photos |
+| **Private link** | Hashed unguessable URL, hidden from index | Draft preview, personal sharing |
+| **Password** | Apache Basic Auth via `.htaccess` | Client delivery, confidential work |
 
-- **Public** — simple, predictable URL, listed in the site index
-- **Private link** — unguessable hashed URL, hidden from index, no password prompt
-- **Password protected** — Apache basic auth, lock icon shown in site index
-
-> Password protection requires Apache. Use `private: true` on GitHub Pages or Netlify.
-
-See [docs/privacy-access.md](docs/privacy-access.md) for the full comparison.
+> Password protection is enforced server-side by Apache (`.htaccess`). It works out of the box with Apache deployments. See [docs/privacy-access.md](docs/privacy-access.md).
 
 ---
 
-## 🧠 How it works
+## Configuration
 
-GalleryPack is a **build tool**, not a hosting service.
-
-- **Input** — your photos in `src/<name>/photos/`
-- **Output** — a static gallery in `dist/<name>/`
-- **Hosting** — your choice (Apache, GitHub Pages, S3, anywhere)
-
-It does not touch your originals, upload anything without your command, or require a running server.
-
----
-
-## ⚙️ Configuration
-
-`gallery.config.json` is optional — smart defaults apply automatically.
-When you need it, the full config looks like this:
+`gallery.config.json` — full example:
 
 ```json
 {
   "project": {
-    "title":  "My Gallery",
-    "author": "Your Name",
-    "date":   "2025-06-01",
-    "locale": "en",
-    "access": "public"
+    "title":                "My Gallery",
+    "subtitle":             "A brief description",
+    "author":               "Jane Smith",
+    "authorEmail":          "jane@example.com",
+    "date":                 "2025-06-01",
+    "location":             "Zürich, Switzerland",
+    "locale":               "en",
+    "access":               "public",
+    "password":             "maple-cloud-42",
+    "private":              false,
+    "standalone":           false,
+    "allowDownloadImage":   true,
+    "allowDownloadGallery": true,
+    "coverPhoto":           "DSC01234.jpg",
+    "autoplay": {
+      "slideshowInterval": 3
+    },
+    "legal": {
+      "copyright": "© Jane Smith — All rights reserved"
+    }
   }
 }
 ```
@@ -158,56 +151,61 @@ When you need it, the full config looks like this:
 Common scenarios:
 
 ```json
-// Client delivery with password
+// Client delivery with password and full download
 { "project": { "access": "password", "allowDownloadGallery": true } }
 
 // Public portfolio, no download
 { "project": { "access": "public", "allowDownloadImage": false, "allowDownloadGallery": false } }
 
-// Private preview link (no password prompt)
+// Private preview link (no password prompt, hidden from index)
 { "project": { "private": true } }
+
+// Set a specific cover photo (shown in gallery list)
+{ "project": { "coverPhoto": "DSC08753.jpg" } }
 ```
 
 See [docs/reference.md](docs/reference.md) for all fields.
 
 ---
 
-## 🚀 Build & publish commands
+## Commands
 
 | Command | Description |
 |---------|-------------|
 | `npm run build <name>` | Incremental build (skips existing WebP) |
 | `npm run build:all` | Build all galleries + site index |
-| `npm run build:clean` | Wipe `dist/` and rebuild from scratch |
 | `npm run build:force` | Force-reconvert all images |
+| `npm run build:clean` | Wipe `dist/` and rebuild from scratch |
 | `npm run new-gallery <slug>` | Create gallery scaffold |
 | `npm run new-gallery:wizard` | Interactive wizard with all options |
 | `npm run serve` | Local preview at http://localhost:3000 |
-| `npm run publish` | Upload one gallery (interactive menu if several) |
-| `npm run publish:all` | Upload all galleries |
+| `npm run export` | Build all + patch `.htaccess` for Apache deployment |
+| `npm run export:zip` | Same + create `dist-export.zip` for FTP upload |
+| `npm run publish` | Upload one gallery via rsync (interactive) |
+| `npm run publish:all` | Upload all galleries via rsync |
 | `npm run deploy` | Deploy `dist/` to GitHub Pages |
 | `npm run test` | Run invariant tests |
-| `npm run clean` | Wipe `dist/` without rebuilding |
+| `npm run clean` | Wipe `dist/` |
+| `npm run dev` | Start hosted server (dev mode, port 3000) |
 
 ---
 
-## 📚 Documentation
+## Documentation
 
 | Page | Contents |
 |------|----------|
-| [docs/reference.md](docs/reference.md) | All configuration fields and options |
-| [docs/what-is-gallerypack.md](docs/what-is-gallerypack.md) | What GalleryPack is, what it is not |
+| [docs/INSTALL.md](docs/INSTALL.md) | Full installation guide — CLI, Docker dev, Apache+Docker prod, Nginx |
+| [docs/USAGE.md](docs/USAGE.md) | Admin panel, invite links, photographer flow, i18n |
+| [docs/reference.md](docs/reference.md) | All `gallery.config.json` fields |
 | [docs/privacy-access.md](docs/privacy-access.md) | Public / private / password modes |
 | [docs/output-structure.md](docs/output-structure.md) | What's in `dist/` and why |
 | [docs/naming-convention.md](docs/naming-convention.md) | How output files are named |
 | [docs/faq.md](docs/faq.md) | Common questions |
-| [docs/roadmap.md](docs/roadmap.md) | v1 scope, known debt, what comes next |
-| [docs/INSTALL.md](docs/INSTALL.md) | v2 installation guide (Docker, VPS, Nginx, SSL) |
-| [docs/USAGE.md](docs/USAGE.md) | v2 usage guide (admin panel, invite links, photographer flow) |
+| [deploy/DEPLOY.md](deploy/DEPLOY.md) | Apache + Docker production deployment |
 
 ---
 
-## 💡 Philosophy
+## Philosophy
 
 > Your photos, your server, your rules.
 
@@ -216,6 +214,6 @@ Smart enough that you never have to think. Transparent enough that you always un
 
 ---
 
-## 📄 License
+## License
 
 MIT — [Philippe Vollenweider](https://github.com/pvollenweider)
