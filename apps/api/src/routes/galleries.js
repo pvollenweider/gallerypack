@@ -3,8 +3,9 @@ import { Router } from 'express';
 import fs   from 'fs';
 import path from 'path';
 import { getDb }  from '../db/database.js';
-import { genId, hashPassword, getSettings, listGalleryMembers, upsertGalleryMembership, removeGalleryMembership, GALLERY_ROLE_HIERARCHY, getUserById } from '../db/helpers.js';
+import { genId, hashPassword, getSettings, listGalleryMembers, upsertGalleryMembership, removeGalleryMembership, GALLERY_ROLE_HIERARCHY, getUserById, getGalleryRole } from '../db/helpers.js';
 import { requireAdmin, requireStudioRole, requireAuth } from '../middleware/auth.js';
+import { can } from '../authorization/index.js';
 import { ROOT } from '../../../../packages/engine/src/fs.js';
 
 const IMG_EXTS = new Set(['.jpg','.jpeg','.png','.tiff','.tif','.heic','.heif','.avif']);
@@ -64,7 +65,7 @@ function getDateRange(slug) {
 }
 
 const router = Router();
-router.use(requireAdmin);
+router.use(requireAuth);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -118,11 +119,18 @@ router.get('/:id', (req, res) => {
     .prepare('SELECT * FROM galleries WHERE id = ? AND studio_id = ?')
     .get(req.params.id, req.studioId);
   if (!row) return res.status(404).json({ error: 'Gallery not found' });
+  const galleryRole = getGalleryRole(req.userId, row.id);
+  if (!can(req.user, 'read', 'gallery', { gallery: row, studioRole: req.studioRole, galleryRole })) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
   res.json(rowToGallery(row));
 });
 
 // POST /api/galleries
 router.post('/', (req, res) => {
+  if (!can(req.user, 'publish', 'gallery', { studioRole: req.studioRole })) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
   const st = getSettings(req.studioId) || {};
   const defLocale  = st.default_locale                || 'fr';
   const defAccess  = st.default_access                || 'public';
@@ -176,6 +184,10 @@ router.patch('/:id', (req, res) => {
     .prepare('SELECT * FROM galleries WHERE id = ? AND studio_id = ?')
     .get(req.params.id, req.studioId);
   if (!row) return res.status(404).json({ error: 'Gallery not found' });
+  const galleryRole = getGalleryRole(req.userId, row.id);
+  if (!can(req.user, 'write', 'gallery', { studioRole: req.studioRole, galleryRole })) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
 
   const allowed = [
     'title','description','subtitle','author','author_email','date','location',
@@ -226,6 +238,10 @@ router.post('/:id/rename', (req, res) => {
     .prepare('SELECT * FROM galleries WHERE id = ? AND studio_id = ?')
     .get(req.params.id, req.studioId);
   if (!row) return res.status(404).json({ error: 'Gallery not found' });
+  const galleryRole = getGalleryRole(req.userId, row.id);
+  if (!can(req.user, 'write', 'gallery', { studioRole: req.studioRole, galleryRole })) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
 
   const { slug } = req.body || {};
   if (!slug || !/^[a-z0-9-]+$/.test(slug)) {
@@ -258,6 +274,9 @@ router.delete('/:id', (req, res) => {
     .prepare('SELECT * FROM galleries WHERE id = ? AND studio_id = ?')
     .get(req.params.id, req.studioId);
   if (!row) return res.status(404).json({ error: 'Gallery not found' });
+  if (!can(req.user, 'delete', 'gallery', { studioRole: req.studioRole })) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
 
   getDb().prepare('DELETE FROM galleries WHERE id = ?').run(req.params.id);
   res.json({ ok: true });
