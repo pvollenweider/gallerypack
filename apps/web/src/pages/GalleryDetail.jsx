@@ -3,16 +3,20 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api }          from '../lib/api.js';
 import { useT }         from '../lib/I18nContext.jsx';
 import { slugify }      from '../lib/i18n.js';
+import { useAuth }      from '../lib/auth.jsx';
 import { UploadZone }   from '../components/UploadZone.jsx';
 import { Toast }        from '../components/Toast.jsx';
 
 const LOCALES  = ['fr','en','de','es','it','pt'];
 const ACCESS   = ['public','private','password'];
 
+const EDITOR_ROLES = ['editor', 'admin', 'owner'];
+
 export default function GalleryDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const t = useT();
+  const { user } = useAuth();
 
   const [gallery,      setGallery]      = useState(null);
   const [photos,       setPhotos]       = useState([]);
@@ -29,6 +33,19 @@ export default function GalleryDetail() {
   const [newSlug,      setNewSlug]      = useState('');
   const [renamingSlug, setRenamingSlug] = useState(false);
   const [toast,        setToast]        = useState('');
+
+  // Access panel state
+  const [accessOpen,      setAccessOpen]      = useState(false);
+  const [members,         setMembers]         = useState([]);
+  const [viewerTokens,    setViewerTokens]    = useState([]);
+  const [invitations,     setInvitations]     = useState([]);
+  const [newTokenLabel,   setNewTokenLabel]   = useState('');
+  const [newTokenExpiry,  setNewTokenExpiry]  = useState('');
+  const [creatingToken,   setCreatingToken]   = useState(false);
+  const [inviteEmail,     setInviteEmail]     = useState('');
+  const [inviteRole,      setInviteRole]      = useState('photographer');
+  const [sendingInvite,   setSendingInvite]   = useState(false);
+  const [inviteLink,      setInviteLink]      = useState('');
 
   useEffect(() => { load(); }, [id]);
 
@@ -112,6 +129,74 @@ export default function GalleryDetail() {
     finally { setRenamingSlug(false); }
   }
 
+  async function loadAccess() {
+    try {
+      const [m, vt, inv] = await Promise.all([
+        api.getGalleryMembers(id),
+        api.getViewerTokens(id),
+        api.getInvitations(),
+      ]);
+      setMembers(m);
+      setViewerTokens(vt);
+      setInvitations(inv);
+    } catch {}
+  }
+
+  async function handleMemberRoleChange(userId, role) {
+    try {
+      await api.putGalleryMember(id, userId, role);
+      setMembers(ms => ms.map(m => m.user_id === userId ? { ...m, role } : m));
+    } catch (e) { setToast(`${t('error')}: ${e.message}`); }
+  }
+
+  async function handleRemoveMember(userId) {
+    try {
+      await api.deleteGalleryMember(id, userId);
+      setMembers(ms => ms.filter(m => m.user_id !== userId));
+    } catch (e) { setToast(`${t('error')}: ${e.message}`); }
+  }
+
+  async function handleCreateToken(e) {
+    e.preventDefault();
+    setCreatingToken(true);
+    try {
+      const data = {};
+      if (newTokenLabel.trim()) data.label = newTokenLabel.trim();
+      if (newTokenExpiry) data.expiresAt = new Date(newTokenExpiry).getTime();
+      const token = await api.createViewerToken(id, data);
+      setViewerTokens(ts => [token, ...ts]);
+      setNewTokenLabel('');
+      setNewTokenExpiry('');
+    } catch (e) { setToast(`${t('error')}: ${e.message}`); }
+    finally { setCreatingToken(false); }
+  }
+
+  async function handleRevokeToken(tokenId) {
+    try {
+      await api.deleteViewerToken(id, tokenId);
+      setViewerTokens(ts => ts.filter(t => t.id !== tokenId));
+    } catch (e) { setToast(`${t('error')}: ${e.message}`); }
+  }
+
+  function copyTokenLink(token) {
+    const url = `${window.location.origin}/${gallery.slug}/?vt=${token}`;
+    navigator.clipboard.writeText(url).then(() => setToast(t('access_copied')));
+  }
+
+  async function handleSendInvite(e) {
+    e.preventDefault();
+    if (!inviteEmail.trim()) return;
+    setSendingInvite(true);
+    try {
+      const inv = await api.createInvitation({ email: inviteEmail.trim(), role: inviteRole });
+      setInvitations(is => [inv, ...is]);
+      setInviteLink(`${window.location.origin}/accept/${inv.token}`);
+      setInviteEmail('');
+      setToast(t('access_invite_sent'));
+    } catch (e) { setToast(`${t('error')}: ${e.message}`); }
+    finally { setSendingInvite(false); }
+  }
+
   async function sortPhotos(dir) {
     const sorted = [...photos].sort((a, b) =>
       dir === 'asc' ? a.file.localeCompare(b.file) : b.file.localeCompare(a.file));
@@ -166,8 +251,9 @@ export default function GalleryDetail() {
 
       {/* Tabs */}
       <div style={s.tabs}>
-        {['photos','settings','jobs'].map(tabKey => (
-          <button key={tabKey} style={{ ...s.tab, ...(tab === tabKey ? s.tabActive : {}) }} onClick={() => setTab(tabKey)}>
+        {['photos','settings','jobs', ...(EDITOR_ROLES.includes(user?.role) ? ['access'] : [])].map(tabKey => (
+          <button key={tabKey} style={{ ...s.tab, ...(tab === tabKey ? s.tabActive : {}) }}
+            onClick={() => { setTab(tabKey); if (tabKey === 'access') loadAccess(); }}>
             {t(`tab_${tabKey}`)}
           </button>
         ))}
@@ -373,6 +459,113 @@ export default function GalleryDetail() {
             </div>
           </div>
         )}
+        {/* ── ACCESS ── */}
+        {tab === 'access' && EDITOR_ROLES.includes(user?.role) && (
+          <div style={{ maxWidth: 620 }}>
+
+            {/* A. Gallery members */}
+            <h3 style={s.sectionTitle}>{t('access_members_title')}</h3>
+            {members.length === 0
+              ? <p style={s.dim}>{t('access_no_members')}</p>
+              : <div style={s.accessList}>
+                  {members.map(m => (
+                    <div key={m.user_id} style={s.accessRow}>
+                      <span style={s.accessEmail}>{m.email}</span>
+                      <select
+                        style={{ ...s.input, flex: 'none', width: 140 }}
+                        value={m.role}
+                        onChange={e => handleMemberRoleChange(m.user_id, e.target.value)}
+                      >
+                        {['viewer','contributor','editor'].map(r => (
+                          <option key={r} value={r}>{t(`access_role_${r}`)}</option>
+                        ))}
+                      </select>
+                      <button style={s.accessDangerBtn} onClick={() => handleRemoveMember(m.user_id)}>
+                        {t('access_remove')}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+            }
+
+            {/* B. Viewer tokens */}
+            <h3 style={{ ...s.sectionTitle, marginTop: '1.5rem' }}>{t('access_tokens_title')}</h3>
+            {viewerTokens.length === 0
+              ? <p style={s.dim}>{t('access_no_tokens')}</p>
+              : <div style={s.accessList}>
+                  {viewerTokens.map(vt => (
+                    <div key={vt.id} style={s.accessRow}>
+                      <span style={s.accessEmail}>{vt.label || t('access_unnamed_token')}</span>
+                      {vt.expires_at && (
+                        <span style={s.accessMeta}>{t('access_expires', { date: new Date(vt.expires_at).toLocaleDateString() })}</span>
+                      )}
+                      <button style={s.accessBtn} onClick={() => copyTokenLink(vt.token)}>
+                        {t('access_copy_link')}
+                      </button>
+                      <button style={s.accessDangerBtn} onClick={() => handleRevokeToken(vt.id)}>
+                        {t('access_revoke')}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+            }
+            <form onSubmit={handleCreateToken} style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <input
+                style={{ ...s.input, flex: '1 1 160px' }}
+                placeholder={t('access_token_label_placeholder')}
+                value={newTokenLabel}
+                onChange={e => setNewTokenLabel(e.target.value)}
+              />
+              <input
+                style={{ ...s.input, flex: '1 1 160px' }}
+                type="date"
+                title={t('access_token_expiry_label')}
+                value={newTokenExpiry}
+                onChange={e => setNewTokenExpiry(e.target.value)}
+              />
+              <button style={s.primaryBtn} type="submit" disabled={creatingToken}>
+                {t('access_create_token')}
+              </button>
+            </form>
+
+            {/* C. Invite to studio */}
+            <h3 style={{ ...s.sectionTitle, marginTop: '1.5rem' }}>{t('access_invite_title')}</h3>
+            <form onSubmit={handleSendInvite} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <input
+                style={{ ...s.input, flex: '1 1 200px' }}
+                type="email"
+                placeholder={t('access_invite_email_placeholder')}
+                value={inviteEmail}
+                onChange={e => setInviteEmail(e.target.value)}
+                required
+              />
+              <select
+                style={{ ...s.input, flex: 'none', width: 150 }}
+                value={inviteRole}
+                onChange={e => setInviteRole(e.target.value)}
+              >
+                {['photographer','editor','admin'].map(r => (
+                  <option key={r} value={r}>{t(`access_role_${r}`)}</option>
+                ))}
+              </select>
+              <button style={s.primaryBtn} type="submit" disabled={sendingInvite}>
+                {t('access_send_invite')}
+              </button>
+            </form>
+            {inviteLink && (
+              <div style={s.inviteLinkBox}>
+                <p style={{ margin: '0 0 0.4rem', fontSize: '0.8rem', color: '#555' }}>{t('access_invite_link_hint')}</p>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <code style={s.inviteLinkCode}>{inviteLink}</code>
+                  <button style={s.accessBtn} onClick={() => { navigator.clipboard.writeText(inviteLink); setToast(t('access_copied')); }}>
+                    {t('access_copy_link')}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
       </main>
       <Toast message={toast} onDone={() => setToast('')} />
     </div>
@@ -441,4 +634,12 @@ const s = {
   jobStatus:    { fontWeight:600, width:70 },
   jobId:        { fontFamily:'monospace', color:'#888', fontSize:'0.8rem' },
   jobDate:      { color:'#888', fontSize:'0.8rem', marginLeft:'auto' },
+  accessList:   { display:'flex', flexDirection:'column', gap:'0.4rem', marginBottom:'0.5rem' },
+  accessRow:    { display:'flex', gap:'0.5rem', alignItems:'center', padding:'0.45rem 0.75rem', background:'#fff', borderRadius:6, boxShadow:'0 1px 3px #0001', flexWrap:'wrap' },
+  accessEmail:  { flex:1, fontSize:'0.875rem', color:'#333', minWidth:120, fontWeight:500 },
+  accessMeta:   { fontSize:'0.75rem', color:'#aaa', whiteSpace:'nowrap' },
+  accessBtn:    { padding:'0.3rem 0.7rem', background:'none', border:'1px solid #ddd', borderRadius:4, cursor:'pointer', fontSize:'0.78rem', whiteSpace:'nowrap' },
+  accessDangerBtn: { padding:'0.3rem 0.7rem', background:'none', border:'1px solid #fca5a5', color:'#dc2626', borderRadius:4, cursor:'pointer', fontSize:'0.78rem', whiteSpace:'nowrap' },
+  inviteLinkBox:{ marginTop:'0.75rem', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:6, padding:'0.75rem 1rem' },
+  inviteLinkCode:{ flex:1, fontSize:'0.78rem', fontFamily:'monospace', wordBreak:'break-all', color:'#15803d' },
 };

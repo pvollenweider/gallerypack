@@ -44,6 +44,20 @@ export const api = {
   listJobs:     (galleryId)               => req('GET',  `/galleries/${galleryId}/jobs`),
   getJob:       (jobId)                   => req('GET',  `/jobs/${jobId}`),
 
+  // Gallery members
+  getGalleryMembers:  (id)                      => req('GET',    `/galleries/${id}/members`),
+  putGalleryMember:   (galleryId, userId, role)  => req('PUT',    `/galleries/${galleryId}/members/${userId}`, { role }),
+  deleteGalleryMember:(galleryId, userId)        => req('DELETE', `/galleries/${galleryId}/members/${userId}`),
+
+  // Viewer tokens
+  getViewerTokens:   (id)         => req('GET',    `/galleries/${id}/viewer-tokens`),
+  createViewerToken: (id, data)   => req('POST',   `/galleries/${id}/viewer-tokens`, data),
+  deleteViewerToken: (galleryId, tokenId) => req('DELETE', `/galleries/${galleryId}/viewer-tokens/${tokenId}`),
+
+  // Invitations
+  createInvitation: (data) => req('POST', `/invitations`, data),
+  getInvitations:   ()     => req('GET',  `/invitations`),
+
   // Upload (multipart — handled separately)
   uploadPhotos(galleryId, files, onProgress) {
     return new Promise((resolve, reject) => {

@@ -1,6 +1,7 @@
 // apps/api/src/routes/studios.js — studio membership management
 import { Router } from 'express';
 import { requireAuth, requireStudioRole } from '../middleware/auth.js';
+import { getDb } from '../db/database.js';
 import {
   getStudio,
   listStudioMembers,
@@ -79,6 +80,19 @@ router.patch('/:id/members/:userId', requireStudioRole('admin'), (req, res) => {
 
   const membership = upsertStudioMembership(studio.id, userId, role);
   res.json(membership);
+});
+
+// GET /api/studios/audit — last 100 audit log entries for the user's studio (admin+)
+router.get('/audit', requireStudioRole('admin'), (req, res) => {
+  const entries = getDb().prepare(
+    `SELECT al.*, u.email as user_email
+     FROM audit_log al
+     LEFT JOIN users u ON al.user_id = u.id
+     WHERE al.studio_id = ?
+     ORDER BY al.created_at DESC
+     LIMIT 100`
+  ).all(req.studioId);
+  res.json(entries);
 });
 
 // DELETE /api/studios/:id/members/:userId — remove member (owner only)

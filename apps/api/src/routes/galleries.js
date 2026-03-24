@@ -3,7 +3,7 @@ import { Router } from 'express';
 import fs   from 'fs';
 import path from 'path';
 import { getDb }  from '../db/database.js';
-import { genId, hashPassword, getSettings, listGalleryMembers, upsertGalleryMembership, removeGalleryMembership, GALLERY_ROLE_HIERARCHY, getUserById, getGalleryRole, createViewerTokenDb, listViewerTokens, deleteViewerToken } from '../db/helpers.js';
+import { genId, hashPassword, getSettings, listGalleryMembers, upsertGalleryMembership, removeGalleryMembership, GALLERY_ROLE_HIERARCHY, getUserById, getGalleryRole, createViewerTokenDb, listViewerTokens, deleteViewerToken, audit } from '../db/helpers.js';
 import { requireAdmin, requireStudioRole, requireAuth } from '../middleware/auth.js';
 import { can } from '../authorization/index.js';
 import { ROOT } from '../../../../packages/engine/src/fs.js';
@@ -175,6 +175,7 @@ router.post('/', (req, res) => {
   );
 
   const row = getDb().prepare('SELECT * FROM galleries WHERE id = ?').get(id);
+  try { audit(req.studioId, req.userId, 'gallery.create', 'gallery', id, { slug }); } catch {}
   res.status(201).json(rowToGallery(row));
 });
 
@@ -284,6 +285,7 @@ router.delete('/:id', (req, res) => {
   }
 
   getDb().prepare('DELETE FROM galleries WHERE id = ?').run(req.params.id);
+  try { audit(req.studioId, req.userId, 'gallery.delete', 'gallery', req.params.id, { slug: row.slug }); } catch {}
   res.json({ ok: true });
 });
 
