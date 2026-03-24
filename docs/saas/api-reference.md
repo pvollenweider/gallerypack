@@ -65,7 +65,15 @@ Required: `slug`. Returns `409` if slug already exists in the studio.
 
 ### `GET /api/galleries/:id`
 
-Get a single gallery.
+Get a single gallery. Response includes:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `description` | string | Gallery description |
+| `photoCount` | number | Number of source photos |
+| `diskSize` | number | Total disk usage in bytes (source + built) |
+| `needsRebuild` | boolean | True if photos have changed since the last build |
+| `dateRange` | object \| null | `{ from: "YYYY-MM-DD", to: "YYYY-MM-DD" }` — resolved from EXIF |
 
 ---
 
@@ -88,6 +96,18 @@ Update gallery fields. Accepts any subset of:
 | `allowDownloadImage` | boolean | |
 | `allowDownloadGallery` | boolean | |
 | `private` | boolean | |
+
+---
+
+### `POST /api/galleries/:id/rename`
+
+Rename a gallery's slug. Moves the source photo folder and built output folder on disk to match the new slug.
+
+```json
+{ "slug": "new-slug" }
+```
+
+Returns `409` if the new slug is already taken. Returns `{ "ok": true, "slug": "new-slug" }` on success.
 
 ---
 
@@ -286,6 +306,42 @@ For single-use invites, the invite is marked as used on this request.
 ### `POST /api/invites/:id/revoke`
 
 Revoke an invite. Requires authentication. Returns `{ "ok": true }`.
+
+---
+
+## Settings
+
+### `PATCH /api/settings`
+
+Update global studio settings. Requires authentication. Accepts any subset of:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `defaultAuthor` | string | Default author name for new galleries |
+| `defaultAuthorEmail` | string | Default author email for new galleries |
+| `defaultLocale` | string | Default locale for new galleries (`fr` \| `en` \| `de`) |
+| `defaultAccess` | string | Default access mode for new galleries (`public` \| `private` \| `password`) |
+| `defaultAllowDownloadImage` | boolean | Default per-photo download setting for new galleries |
+| `defaultAllowDownloadGallery` | boolean | Default ZIP download setting for new galleries |
+| `defaultPrivate` | boolean | Default private flag for new galleries |
+
+Returns the updated settings object.
+
+---
+
+## Public routes
+
+### `GET /api/public/galleries`
+
+Return all galleries visible on the public landing page (non-private galleries). No authentication required.
+
+Each gallery in the response includes:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `photoCount` | number | Number of photos in the gallery |
+| `description` | string | Gallery description |
+| `dateRange` | object \| null | `{ from: "YYYY-MM-DD", to: "YYYY-MM-DD" }` |
 
 ---
 

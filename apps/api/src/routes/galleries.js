@@ -3,7 +3,7 @@ import { Router } from 'express';
 import fs   from 'fs';
 import path from 'path';
 import { getDb }  from '../db/database.js';
-import { genId, hashPassword } from '../db/helpers.js';
+import { genId, hashPassword, getSettings } from '../db/helpers.js';
 import { requireAdmin } from '../middleware/auth.js';
 import { ROOT } from '../../../../packages/engine/src/fs.js';
 
@@ -16,6 +16,41 @@ function getFirstPhoto(slug) {
     const files = fs.readdirSync(dir).filter(f => IMG_EXTS.has(path.extname(f).toLowerCase())).sort();
     return files[0] || null;
   } catch { return null; }
+}
+
+function getNeedsRebuild(row) {
+  if (!row.built_at) return false;
+  try {
+    const dir = path.join(ROOT, 'src', row.slug, 'photos');
+    if (!fs.existsSync(dir)) return false;
+    return fs.readdirSync(dir)
+      .filter(f => IMG_EXTS.has(path.extname(f).toLowerCase()))
+      .some(f => fs.statSync(path.join(dir, f)).mtimeMs > row.built_at);
+  } catch { return false; }
+}
+
+function getPhotoCount(slug) {
+  try {
+    const dir = path.join(ROOT, 'src', slug, 'photos');
+    if (!fs.existsSync(dir)) return 0;
+    return fs.readdirSync(dir).filter(f => IMG_EXTS.has(path.extname(f).toLowerCase())).length;
+  } catch { return 0; }
+}
+
+function getDiskSize(slug) {
+  let total = 0;
+  function walk(dir) {
+    try {
+      for (const f of fs.readdirSync(dir, { withFileTypes: true })) {
+        const p = path.join(dir, f.name);
+        if (f.isDirectory()) walk(p);
+        else try { total += fs.statSync(p).size; } catch {}
+      }
+    } catch {}
+  }
+  walk(path.join(ROOT, 'src', slug));
+  walk(path.join(ROOT, 'dist', slug));
+  return total;
 }
 
 function getDateRange(slug) {
@@ -58,8 +93,12 @@ function rowToGallery(row) {
     builtAt:              row.built_at,
     createdAt:            row.created_at,
     updatedAt:            row.updated_at,
+    description:          row.description,
     firstPhoto:           row.cover_photo || getFirstPhoto(row.slug),
     dateRange:            row.build_status === 'done' ? getDateRange(row.slug) : null,
+    needsRebuild:         getNeedsRebuild(row),
+    photoCount:           getPhotoCount(row.slug),
+    diskSize:             getDiskSize(row.slug),
   };
 }
 
@@ -84,10 +123,20 @@ router.get('/:id', (req, res) => {
 
 // POST /api/galleries
 router.post('/', (req, res) => {
+  const st = getSettings(req.studioId) || {};
+  const defLocale  = st.default_locale                || 'fr';
+  const defAccess  = st.default_access                || 'public';
+  const defDlImg   = st.default_allow_download_image  !== 0;
+  const defDlGal   = st.default_allow_download_gallery === 1;
+  const defPrivate = st.default_private               === 1;
+
   const {
-    slug, title, subtitle, author, authorEmail, date, location,
-    locale = 'fr', access = 'public', password, private: priv = false,
-    standalone = false, allowDownloadImage = true, allowDownloadGallery = true,
+    slug, title, description, subtitle,
+    author      = st.default_author       || null,
+    authorEmail = st.default_author_email || null,
+    date, location,
+    locale = defLocale, access = defAccess, password, private: priv = defPrivate,
+    standalone = false, allowDownloadImage = defDlImg, allowDownloadGallery = defDlGal,
     coverPhoto, slideshowInterval, copyright,
   } = req.body || {};
 
@@ -103,13 +152,13 @@ router.post('/', (req, res) => {
   const now = Date.now();
   getDb().prepare(`
     INSERT INTO galleries
-      (id, studio_id, slug, title, subtitle, author, author_email, date, location,
+      (id, studio_id, slug, title, description, subtitle, author, author_email, date, location,
        locale, access, password, private, standalone,
        allow_download_image, allow_download_gallery, cover_photo,
        slideshow_interval, copyright, build_status, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
   `).run(
-    id, req.studioId, slug, title ?? slug, subtitle ?? null, author ?? null,
+    id, req.studioId, slug, title ?? slug, description ?? null, subtitle ?? null, author ?? null,
     authorEmail ?? null, date ?? null, location ?? null,
     locale, access, password ?? null, priv ? 1 : 0, standalone ? 1 : 0,
     allowDownloadImage ? 1 : 0, allowDownloadGallery ? 1 : 0,
@@ -129,7 +178,7 @@ router.patch('/:id', (req, res) => {
   if (!row) return res.status(404).json({ error: 'Gallery not found' });
 
   const allowed = [
-    'title','subtitle','author','author_email','date','location',
+    'title','description','subtitle','author','author_email','date','location',
     'locale','access','password','password_hash','private','standalone',
     'allow_download_image','allow_download_gallery','cover_photo',
     'slideshow_interval','copyright',
@@ -170,7 +219,39 @@ router.patch('/:id', (req, res) => {
   res.json(rowToGallery(updated));
 });
 
-// DELETE /api/galleries/:id
+// POST /api/galleries/:id/rename — rename slug (renames folder on disk)
+router.post('/:id/rename', (req, res) => {
+  const row = getDb()
+    .prepare('SELECT * FROM galleries WHERE id = ? AND studio_id = ?')
+    .get(req.params.id, req.studioId);
+  if (!row) return res.status(404).json({ error: 'Gallery not found' });
+
+  const { slug } = req.body || {};
+  if (!slug || !/^[a-z0-9-]+$/.test(slug)) {
+    return res.status(400).json({ error: 'slug must be lowercase letters, numbers and hyphens only' });
+  }
+  const conflict = getDb()
+    .prepare('SELECT id FROM galleries WHERE studio_id = ? AND slug = ? AND id != ?')
+    .get(req.studioId, slug, req.params.id);
+  if (conflict) return res.status(409).json({ error: 'A gallery with this slug already exists' });
+
+  // Rename directories on disk
+  for (const base of ['src', 'dist']) {
+    const oldDir = path.join(ROOT, base, row.slug);
+    const newDir = path.join(ROOT, base, slug);
+    if (fs.existsSync(oldDir) && !fs.existsSync(newDir)) {
+      fs.renameSync(oldDir, newDir);
+    }
+  }
+
+  getDb().prepare('UPDATE galleries SET slug = ?, updated_at = ? WHERE id = ?')
+    .run(slug, Date.now(), req.params.id);
+
+  const updated = getDb().prepare('SELECT * FROM galleries WHERE id = ?').get(req.params.id);
+  res.json(rowToGallery(updated));
+});
+
+// DELETE /api/galleries/:id — removes from DB only, keeps built files on disk
 router.delete('/:id', (req, res) => {
   const row = getDb()
     .prepare('SELECT * FROM galleries WHERE id = ? AND studio_id = ?')

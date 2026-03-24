@@ -260,10 +260,11 @@ export function collectBuiltGalleries() {
 
         // Resolve date: if 'auto' or missing, derive from earliest EXIF date across photos.
         let resolvedDate = (project.date && project.date !== 'auto') ? project.date : null;
+        const exifDates = photos.map(p => p.exif?.date).filter(Boolean).sort();
         if (!resolvedDate) {
-          const dates = photos.map(p => p.exif?.date).filter(Boolean).sort();
-          resolvedDate = dates[0] ? dates[0].slice(0, 10) : null;
+          resolvedDate = exifDates[0] ? exifDates[0].slice(0, 10) : null;
         }
+        const resolvedDateEnd = exifDates.length > 1 ? exifDates[exifDates.length - 1].slice(0, 10) : null;
 
         // Resolve location: if missing, derive from reverse-geocoded EXIF locations.
         let resolvedLocation = (project.location && project.location !== 'auto') ? project.location : null;
@@ -281,7 +282,7 @@ export function collectBuiltGalleries() {
 
         return {
           distName:  entry,
-          project:   { ...project, date: resolvedDate, location: resolvedLocation },
+          project:   { ...project, date: resolvedDate, dateEnd: resolvedDateEnd, location: resolvedLocation },
           photoCount,
           firstPhoto,
           buildMtime,
@@ -565,6 +566,7 @@ body.glightbox-open #gl-info-btn{display:flex}
 }
 #gl-fs-btn:hover{background:rgba(255,255,255,.15);color:#fff}
 body.glightbox-open #gl-fs-btn{display:inline-flex}
+body.sw-playing #gl-fs-btn{display:none!important}
 
 /* Slideshow interval selector */
 #sw-interval{
@@ -604,7 +606,7 @@ body.glightbox-open #gl-fs-btn{display:inline-flex}
 /* Slideshow pause/resume button inside the lightbox overlay */
 #gl-sw-btn{
   position:fixed;z-index:1000000;
-  top:70px;right:60px;
+  top:14px;right:60px;
   width:36px;height:36px;
   display:none;align-items:center;justify-content:center;
   background:rgba(0,0,0,.5);
@@ -959,9 +961,22 @@ const PROJECT = ${projectJson};
 
   // gallery.js — browser-side UI logic; uses PHOTOS and PROJECT from data.js.
   const galleryJs = `/* ── Initialise toolbar (title, metadata, photo count) ── */
-const dateFmt = PROJECT.date
-  ? new Date(PROJECT.date).toLocaleDateString('fr-FR',{year:'numeric',month:'long',day:'numeric'})
-  : '';
+function fmtDateRange(from, to) {
+  if (!from) return '';
+  const a = new Date(from + 'T12:00:00'), b = to ? new Date(to + 'T12:00:00') : a;
+  const sameDay   = from === (to || from);
+  const sameMonth = a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
+  const sameYear  = a.getFullYear() === b.getFullYear();
+  const loc = PROJECT.locale || 'fr';
+  const mY  = d => d.toLocaleDateString(loc, {month:'long', year:'numeric'});
+  const dMY = d => d.toLocaleDateString(loc, {day:'numeric', month:'long', year:'numeric'});
+  const sM  = d => d.toLocaleDateString(loc, {month:'short', year:'numeric'});
+  if (sameDay)   return dMY(a);
+  if (sameMonth) return mY(a);
+  if (sameYear)  return a.toLocaleDateString(loc, {month:'long'}) + ' \u2013 ' + mY(b);
+  return sM(a) + ' \u2013 ' + sM(b);
+}
+const dateFmt = fmtDateRange(PROJECT.date, PROJECT.dateEnd);
 document.getElementById('bTitle').textContent = PROJECT.title || '';
 document.getElementById('bMeta').textContent  = [PROJECT.location, dateFmt].filter(Boolean).join(' \u00b7 ');
 document.getElementById('bCount').textContent = PHOTOS.length + ' photo' + (PHOTOS.length>1?'s':'');

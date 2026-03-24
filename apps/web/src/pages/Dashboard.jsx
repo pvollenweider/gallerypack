@@ -2,17 +2,21 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link }    from 'react-router-dom';
 import { api }                  from '../lib/api.js';
 import { useAuth }              from '../lib/auth.jsx';
+import { useT }                 from '../lib/I18nContext.jsx';
+import { slugify }              from '../lib/i18n.js';
 import { GalleryCard }          from '../components/GalleryCard.jsx';
 
 export default function Dashboard() {
   const { user, logout }       = useAuth();
+  const t                      = useT();
   const navigate               = useNavigate();
   const [galleries,  setGalleries]  = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState('');
   const [creating,   setCreating]   = useState(false);
-  const [newSlug,    setNewSlug]    = useState('');
+  const [newTitle,   setNewTitle]   = useState('');
   const [siteTitle,  setSiteTitle]  = useState('GalleryPack');
+  const [filter,     setFilter]     = useState('all');
 
   useEffect(() => { load(); }, []);
 
@@ -30,14 +34,16 @@ export default function Dashboard() {
 
   async function handleCreate(e) {
     e.preventDefault();
-    if (!newSlug.trim()) return;
+    const title = newTitle.trim();
+    if (!title) return;
+    const slug = slugify(title);
     try {
-      const g = await api.createGallery({ slug: newSlug.trim(), title: newSlug.trim() });
+      const g = await api.createGallery({ slug, title });
       setCreating(false);
-      setNewSlug('');
+      setNewTitle('');
       navigate(`/galleries/${g.id}`);
-    } catch (e) {
-      alert(e.message);
+    } catch (err) {
+      alert(err.message);
     }
   }
 
@@ -49,12 +55,22 @@ export default function Dashboard() {
   }
 
   async function handleDelete(id) {
-    if (!confirm('Delete this gallery?')) return;
+    if (!confirm(t('confirm_delete'))) return;
     try {
       await api.deleteGallery(id);
       setGalleries(g => g.filter(x => x.id !== id));
     } catch (e) { alert(e.message); }
   }
+
+  const previewSlug = newTitle.trim() ? slugify(newTitle.trim()) : '';
+
+  const FILTERS = ['all','private','password','rebuild'];
+  const filteredGalleries = galleries.filter(g => {
+    if (filter === 'private')  return g.private;
+    if (filter === 'password') return g.access === 'password';
+    if (filter === 'rebuild')  return g.needsRebuild || g.buildStatus === 'pending';
+    return true;
+  });
 
   return (
     <div style={s.page}>
@@ -62,43 +78,59 @@ export default function Dashboard() {
         <span style={s.logo}>{siteTitle}</span>
         <div style={s.headerRight}>
           <span style={s.userLabel}>{user?.email}</span>
-          <Link to="/settings" style={s.outlineBtn}>Settings</Link>
-          <button style={s.outlineBtn} onClick={logout}>Sign out</button>
+          <a href="/" target="_blank" rel="noreferrer" style={s.outlineBtn}>{t('public_site')}</a>
+          <Link to="/settings" style={s.outlineBtn}>{t('settings')}</Link>
+          <button style={s.outlineBtn} onClick={logout}>{t('sign_out')}</button>
         </div>
       </header>
 
       <main style={s.main}>
         <div style={s.toolbar}>
-          <h2 style={s.heading}>Galleries</h2>
-          <button style={s.primaryBtn} onClick={() => setCreating(v => !v)}>+ New gallery</button>
+          <h2 style={s.heading}>{t('galleries')}</h2>
+          <div style={{ display:'flex', gap:'0.5rem', alignItems:'center' }}>
+            <div style={s.filterBar}>
+              {FILTERS.map(f => (
+                <button key={f} style={{ ...s.filterBtn, ...(filter === f ? s.filterBtnActive : {}) }}
+                  onClick={() => setFilter(f)}>
+                  {t(`filter_${f}`)}
+                </button>
+              ))}
+            </div>
+            <button style={s.primaryBtn} onClick={() => setCreating(v => !v)}>{t('new_gallery')}</button>
+          </div>
         </div>
 
         {creating && (
           <form style={s.newForm} onSubmit={handleCreate}>
-            <input
-              style={s.input}
-              placeholder="gallery-slug"
-              value={newSlug}
-              onChange={e => setNewSlug(e.target.value)}
-              autoFocus
-            />
-            <button style={s.primaryBtn} type="submit">Create</button>
-            <button style={s.outlineBtn} type="button" onClick={() => setCreating(false)}>Cancel</button>
+            <div style={s.newInputWrap}>
+              <input
+                style={s.input}
+                placeholder={t('gallery_title_placeholder')}
+                value={newTitle}
+                onChange={e => setNewTitle(e.target.value)}
+                autoFocus
+              />
+              {previewSlug && (
+                <span style={s.slugPreview}>/{previewSlug}/</span>
+              )}
+            </div>
+            <button style={s.primaryBtn} type="submit">{t('create')}</button>
+            <button style={s.outlineBtn} type="button" onClick={() => { setCreating(false); setNewTitle(''); }}>{t('cancel')}</button>
           </form>
         )}
 
-        {loading && <p style={s.dim}>Loading…</p>}
+        {loading && <p style={s.dim}>{t('loading')}</p>}
         {error   && <p style={s.err}>{error}</p>}
 
         {!loading && galleries.length === 0 && (
           <div style={s.empty}>
-            <p>No galleries yet.</p>
-            <button style={s.primaryBtn} onClick={() => setCreating(true)}>Create your first gallery</button>
+            <p>{t('no_galleries')}</p>
+            <button style={s.primaryBtn} onClick={() => setCreating(true)}>{t('create_first_gallery')}</button>
           </div>
         )}
 
         <div style={s.grid}>
-          {galleries.map(g => (
+          {filteredGalleries.map(g => (
             <GalleryCard key={g.id} gallery={g} onBuild={handleBuild} onDelete={handleDelete} />
           ))}
         </div>
@@ -108,20 +140,25 @@ export default function Dashboard() {
 }
 
 const s = {
-  page:       { minHeight:'100vh', background:'#f8f8f8' },
-  header:     { background:'#fff', borderBottom:'1px solid #eee', padding:'0 1.5rem', height:52, display:'flex', alignItems:'center', justifyContent:'space-between' },
-  logo:       { fontWeight:700, letterSpacing:'-0.02em' },
-  headerRight:{ display:'flex', alignItems:'center', gap:'0.75rem' },
-  userLabel:  { fontSize:'0.85rem', color:'#888' },
-  main:       { maxWidth:1100, margin:'0 auto', padding:'1.5rem 1.5rem' },
-  toolbar:    { display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1rem' },
-  heading:    { margin:0, fontSize:'1.2rem', fontWeight:700 },
-  newForm:    { display:'flex', gap:'0.5rem', marginBottom:'1.25rem', alignItems:'center' },
-  input:      { padding:'0.5rem 0.75rem', border:'1px solid #ddd', borderRadius:6, fontSize:'0.9rem', outline:'none' },
-  grid:       { display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(240px, 1fr))', gap:'1rem' },
-  empty:      { textAlign:'center', padding:'3rem', color:'#888' },
-  dim:        { color:'#888', fontSize:'0.9rem' },
-  err:        { color:'#c00', fontSize:'0.9rem' },
-  primaryBtn: { padding:'0.5rem 1rem', background:'#111', color:'#fff', border:'none', borderRadius:6, fontWeight:600, cursor:'pointer', fontSize:'0.875rem' },
-  outlineBtn: { padding:'0.5rem 1rem', background:'none', color:'#111', border:'1px solid #ddd', borderRadius:6, fontWeight:500, cursor:'pointer', fontSize:'0.875rem', textDecoration:'none', display:'inline-flex', alignItems:'center' },
+  page:         { background: '#f8f8f8' },
+  header:       { background: '#fff', borderBottom: '1px solid #eee', padding: '0 1.5rem', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+  logo:         { fontWeight: 700, letterSpacing: '-0.02em' },
+  headerRight:  { display: 'flex', alignItems: 'center', gap: '0.75rem' },
+  userLabel:    { fontSize: '0.85rem', color: '#888' },
+  main:         { maxWidth: 1100, margin: '0 auto', padding: '1.5rem' },
+  toolbar:      { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' },
+  heading:      { margin: 0, fontSize: '1.2rem', fontWeight: 700 },
+  newForm:      { display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', alignItems: 'center' },
+  newInputWrap: { display: 'flex', flexDirection: 'column', gap: '0.2rem' },
+  input:        { padding: '0.5rem 0.75rem', border: '1px solid #ddd', borderRadius: 6, fontSize: '0.9rem', outline: 'none', minWidth: 260 },
+  slugPreview:  { fontSize: '0.75rem', color: '#aaa', paddingLeft: '0.25rem' },
+  grid:         { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1rem' },
+  empty:        { textAlign: 'center', padding: '3rem', color: '#888' },
+  dim:          { color: '#888', fontSize: '0.9rem' },
+  err:          { color: '#c00', fontSize: '0.9rem' },
+  primaryBtn:   { padding: '0.5rem 1rem', background: '#111', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem' },
+  outlineBtn:   { padding: '0.5rem 1rem', background: 'none', color: '#111', border: '1px solid #ddd', borderRadius: 6, fontWeight: 500, cursor: 'pointer', fontSize: '0.875rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center' },
+  filterBar:    { display: 'flex', gap: '0.25rem', background: '#f0f0f0', borderRadius: 6, padding: '2px' },
+  filterBtn:    { padding: '0.25rem 0.65rem', background: 'none', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: '0.8rem', color: '#666', fontWeight: 500 },
+  filterBtnActive: { background: '#fff', color: '#111', fontWeight: 600, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
 };

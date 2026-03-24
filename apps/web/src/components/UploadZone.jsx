@@ -1,21 +1,68 @@
 import { useState, useRef } from 'react';
 import { api } from '../lib/api.js';
 
+const IMG_EXTS = new Set(['jpg','jpeg','png','tiff','tif','heic','heif','avif','webp']);
+
+function isImage(filename) {
+  return IMG_EXTS.has(filename.split('.').pop().toLowerCase());
+}
+
+/** Recursively collect all image File objects from a DataTransferItem (may be a directory). */
+function collectEntry(entry) {
+  return new Promise(resolve => {
+    if (entry.isFile) {
+      entry.file(f => resolve(isImage(f.name) ? [f] : []), () => resolve([]));
+    } else if (entry.isDirectory) {
+      const reader = entry.createReader();
+      const all = [];
+      const read = () => {
+        reader.readEntries(async entries => {
+          if (!entries.length) { resolve(all); return; }
+          for (const e of entries) {
+            const files = await collectEntry(e);
+            all.push(...files);
+          }
+          read();
+        }, () => resolve(all));
+      };
+      read();
+    } else {
+      resolve([]);
+    }
+  });
+}
+
 export function UploadZone({ galleryId, onDone }) {
   const [dragging,  setDragging]  = useState(false);
-  const [files,     setFiles]     = useState([]);   // { file, progress, status }
+  const [files,     setFiles]     = useState([]);
   const [uploading, setUploading] = useState(false);
-  const inputRef = useRef();
+  const fileRef   = useRef();
+  const folderRef = useRef();
 
   function addFiles(newFiles) {
-    const items = Array.from(newFiles).map(f => ({ file: f, progress: 0, status: 'pending' }));
-    setFiles(prev => [...prev, ...items]);
+    const images = Array.from(newFiles).filter(f => isImage(f.name));
+    const items  = images.map(f => ({ file: f, progress: 0, status: 'pending' }));
+    setFiles(prev => {
+      const existing = new Set(prev.map(x => x.file.name));
+      return [...prev, ...items.filter(x => !existing.has(x.file.name))];
+    });
   }
 
-  function onDrop(e) {
+  async function onDrop(e) {
     e.preventDefault();
     setDragging(false);
-    addFiles(e.dataTransfer.files);
+    // Support folders via DataTransferItem API
+    const items = Array.from(e.dataTransfer.items || []);
+    if (items.length && items[0].webkitGetAsEntry) {
+      const all = [];
+      for (const item of items) {
+        const entry = item.webkitGetAsEntry();
+        if (entry) all.push(...(await collectEntry(entry)));
+      }
+      addFiles(all);
+    } else {
+      addFiles(e.dataTransfer.files);
+    }
   }
 
   async function upload() {
@@ -48,13 +95,27 @@ export function UploadZone({ galleryId, onDone }) {
         onDragOver={e => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
-        onClick={() => inputRef.current?.click()}
       >
-        <input ref={inputRef} type="file" multiple accept="image/*" style={s.hidden}
+        <input ref={fileRef} type="file" multiple accept="image/*" style={s.hidden}
           onChange={e => addFiles(e.target.files)} />
-        <span style={s.zoneText}>
-          {dragging ? 'Drop photos here' : 'Drag & drop photos — or click to browse'}
-        </span>
+        <input ref={folderRef} type="file" multiple style={s.hidden}
+          webkitdirectory="true" mozdirectory="true"
+          onChange={e => addFiles(e.target.files)} />
+        {dragging ? (
+          <span style={s.zoneText}>Drop here</span>
+        ) : (
+          <div style={s.zoneActions}>
+            <span style={s.zoneText}>Drag photos or folders here</span>
+            <div style={s.zoneBtns}>
+              <button type="button" style={s.zoneBtn} onClick={() => fileRef.current?.click()}>
+                + Photos
+              </button>
+              <button type="button" style={s.zoneBtn} onClick={() => folderRef.current?.click()}>
+                + Folder
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {files.length > 0 && (
@@ -88,9 +149,12 @@ const STATUS_COLOR = { pending: '#888', uploading: '#2563eb', done: '#16a34a', e
 
 const s = {
   root:       { display:'flex', flexDirection:'column', gap:'0.75rem' },
-  zone:       { border:'2px dashed #ccc', borderRadius:8, padding:'2rem', textAlign:'center', cursor:'pointer', background:'#fafafa', transition:'border-color 0.15s, background 0.15s' },
+  zone:       { border:'2px dashed #ccc', borderRadius:8, padding:'1.5rem', textAlign:'center', background:'#fafafa', transition:'border-color 0.15s, background 0.15s' },
   zoneActive: { borderColor:'#2563eb', background:'#eff6ff' },
-  zoneText:   { color:'#888', fontSize:'0.9rem', userSelect:'none' },
+  zoneActions:{ display:'flex', flexDirection:'column', alignItems:'center', gap:'0.75rem' },
+  zoneText:   { color:'#888', fontSize:'0.875rem', userSelect:'none' },
+  zoneBtns:   { display:'flex', gap:'0.5rem' },
+  zoneBtn:    { padding:'0.35rem 0.85rem', background:'none', border:'1px solid #ddd', borderRadius:5, cursor:'pointer', fontSize:'0.82rem', color:'#555', fontWeight:500 },
   hidden:     { display:'none' },
   list:       { display:'flex', flexDirection:'column', gap:'0.3rem', maxHeight:200, overflowY:'auto' },
   row:        { display:'flex', justifyContent:'space-between', fontSize:'0.82rem', padding:'0.2rem 0', borderBottom:'1px solid #f0f0f0' },
