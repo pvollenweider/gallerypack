@@ -17,6 +17,8 @@ import accessRoutes    from './routes/access.js';
 import photosRoutes    from './routes/photos.js';
 import jobsRoutes      from './routes/jobs.js';
 import invitesRoutes   from './routes/invites.js';
+import publicRoutes, { getPublicGalleries } from './routes/public.js';
+import { renderLanding } from './views/landing.js';
 
 const __DIR     = path.dirname(fileURLToPath(import.meta.url));
 const PORT      = process.env.PORT || 4000;
@@ -84,6 +86,13 @@ app.use('/api/galleries',           uploadRateLimit, photosRoutes);
 app.use('/api/galleries',           jobsRoutes);
 app.use('/api',                     jobsRoutes); // for /api/jobs/:jobId routes
 app.use('/api/invites',             invitesRoutes);
+app.use('/api/public',              publicRoutes);
+
+// ── Public gallery listing (served when Caddy falls back for missing /index.html) ──
+app.get('/', (req, res) => {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(renderLanding(getPublicGalleries()));
+});
 
 // ── Error handler ─────────────────────────────────────────────────────────────
 app.use(errorHandler);

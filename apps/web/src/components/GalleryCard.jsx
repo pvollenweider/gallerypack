@@ -25,6 +25,9 @@ export function GalleryCard({ gallery, onBuild, onDelete }) {
         <div style={s.footer}>
           <span style={{ ...s.badge, background: color }}>{gallery.buildStatus}</span>
           <div style={s.actions} onClick={e => e.stopPropagation()}>
+            {gallery.buildStatus === 'done' && (
+              <a href={`/${gallery.slug}/`} target="_blank" rel="noreferrer" style={s.viewBtn} title="View gallery">↗</a>
+            )}
             <button style={s.btn} onClick={() => onBuild(gallery.id)} title="Build">▶</button>
             <button style={{ ...s.btn, color: '#dc2626' }} onClick={() => onDelete(gallery.id)} title="Delete">✕</button>
           </div>
@@ -46,4 +49,5 @@ const s = {
   badge:       { fontSize:'0.72rem', fontWeight:600, color:'#fff', padding:'2px 8px', borderRadius:99 },
   actions:     { display:'flex', gap:'0.35rem' },
   btn:         { background:'none', border:'1px solid #ddd', borderRadius:5, padding:'2px 8px', cursor:'pointer', fontSize:'0.8rem' },
+  viewBtn:     { background:'#16a34a', color:'#fff', border:'none', borderRadius:5, padding:'2px 8px', fontSize:'0.8rem', textDecoration:'none', fontWeight:600 },
 };
