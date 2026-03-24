@@ -3,7 +3,10 @@ import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import {
   createInvite, getInviteById, getInviteByToken, listInvites, useInvite, revokeInvite,
+  getStudio,
 } from '../db/helpers.js';
+import { getDb } from '../db/database.js';
+import { sendInviteEmail } from '../services/email.js';
 
 const router = Router();
 
@@ -19,6 +22,22 @@ router.post('/', requireAuth, (req, res) => {
     expiresIn: expiresIn != null ? Number(expiresIn) : undefined,
     singleUse: !!singleUse,
   });
+
+  // Send invite email if an address was provided
+  if (invite.email) {
+    const studio = getStudio(req.user.studioId);
+    const gallery = invite.gallery_id
+      ? getDb().prepare('SELECT title, slug FROM galleries WHERE id = ?').get(invite.gallery_id)
+      : null;
+    const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 4000}`;
+    sendInviteEmail({
+      studioId:     req.user.studioId,
+      to:           invite.email,
+      studioName:   studio?.name || 'GalleryPack',
+      galleryTitle: gallery?.title || null,
+      inviteUrl:    `${baseUrl}/invite/${invite.token}`,
+    });
+  }
 
   // Never return raw token hash to client; return the opaque URL token
   res.status(201).json(sanitize(invite));

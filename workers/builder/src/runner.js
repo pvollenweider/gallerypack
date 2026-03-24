@@ -4,6 +4,7 @@
 import path from 'path';
 import { getDb }                       from '../../../apps/api/src/db/database.js';
 import { getJob, updateJobStatus, appendEvent, getSettings } from '../../../apps/api/src/db/helpers.js';
+import { sendGalleryReadyEmail } from '../../../apps/api/src/services/email.js';
 import { buildGallery }                from '../../../packages/engine/src/gallery.js';
 import { downloadVendors, downloadFonts } from '../../../packages/engine/src/network.js';
 import { ROOT }        from '../../../packages/engine/src/fs.js';
@@ -96,6 +97,17 @@ export async function runJob(jobId) {
       distName:   result?.distName,
       durationMs: result?.durationMs,
     }));
+
+    // Send gallery-ready email to the author if configured
+    if (gallery.author_email) {
+      const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 4000}`;
+      sendGalleryReadyEmail({
+        studioId:    gallery.studio_id,
+        to:          gallery.author_email,
+        galleryTitle: gallery.title || gallery.slug,
+        galleryUrl:  `${baseUrl}/${gallery.slug}/`,
+      });
+    }
   } catch (err) {
     getDb().prepare(
       'UPDATE galleries SET build_status = ?, updated_at = ? WHERE id = ?'
