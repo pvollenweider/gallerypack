@@ -64,6 +64,12 @@ export default function Dashboard() {
 
   const previewSlug = newTitle.trim() ? slugify(newTitle.trim()) : '';
 
+  const FILTER_ICONS = {
+    all:      <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="5.5" height="5.5" rx="1"/><rect x="9.5" y="1" width="5.5" height="5.5" rx="1"/><rect x="1" y="9.5" width="5.5" height="5.5" rx="1"/><rect x="9.5" y="9.5" width="5.5" height="5.5" rx="1"/></svg>,
+    private:  <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="7" width="10" height="8" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 015 0v2"/></svg>,
+    password: <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="5.5" cy="8" r="3.5"/><path d="M9 8h5.5M12.5 8v2M11 8v1.5"/></svg>,
+    rebuild:  <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 8A6 6 0 102 8M2 4v4h4"/></svg>,
+  };
   const FILTERS = ['all','private','password','rebuild'];
   const filteredGalleries = galleries.filter(g => {
     if (filter === 'private')  return g.private;
@@ -91,8 +97,9 @@ export default function Dashboard() {
             <div style={s.filterBar}>
               {FILTERS.map(f => (
                 <button key={f} style={{ ...s.filterBtn, ...(filter === f ? s.filterBtnActive : {}) }}
-                  onClick={() => setFilter(f)}>
-                  {t(`filter_${f}`)}
+                  onClick={() => setFilter(f)}
+                  title={t(`filter_${f}`)}>
+                  {FILTER_ICONS[f]}
                 </button>
               ))}
             </div>
@@ -159,6 +166,6 @@ const s = {
   primaryBtn:   { padding: '0.5rem 1rem', background: '#111', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem' },
   outlineBtn:   { padding: '0.5rem 1rem', background: 'none', color: '#111', border: '1px solid #ddd', borderRadius: 6, fontWeight: 500, cursor: 'pointer', fontSize: '0.875rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center' },
   filterBar:    { display: 'flex', gap: '0.25rem', background: '#f0f0f0', borderRadius: 6, padding: '2px' },
-  filterBtn:    { padding: '0.25rem 0.65rem', background: 'none', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: '0.8rem', color: '#666', fontWeight: 500 },
-  filterBtnActive: { background: '#fff', color: '#111', fontWeight: 600, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
+  filterBtn:    { padding: '0.3rem', width: 30, height: 30, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', borderRadius: 4, cursor: 'pointer', color: '#888' },
+  filterBtnActive: { background: '#fff', color: '#111', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
 };

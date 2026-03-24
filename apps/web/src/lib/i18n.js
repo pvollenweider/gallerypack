@@ -38,6 +38,7 @@ export const translations = {
     // Gallery card actions
     view_gallery: 'View ↗',
     build_action: 'Build',
+    already_published: 'Already up to date',
 
     // Gallery indicators
     private_indicator: 'Private',
@@ -148,6 +149,7 @@ export const translations = {
 
     view_gallery: 'Voir ↗',
     build_action: 'Compiler',
+    already_published: 'Déjà à jour',
 
     private_indicator: 'Privée',
     password_indicator: 'Mdp',
@@ -246,6 +248,7 @@ export const translations = {
     status_pending: 'ausstehend',
     view_gallery: 'Ansehen ↗',
     build_action: 'Erstellen',
+    already_published: 'Bereits aktuell',
     private_indicator: 'Privat',
     password_indicator: 'Passwort',
     view_gallery_btn: 'Galerie ansehen ↗',

@@ -96,7 +96,7 @@ function rowToGallery(row) {
     description:          row.description,
     firstPhoto:           row.cover_photo || getFirstPhoto(row.slug),
     dateRange:            row.build_status === 'done' ? getDateRange(row.slug) : null,
-    needsRebuild:         getNeedsRebuild(row),
+    needsRebuild:         row.needs_rebuild === 1 || getNeedsRebuild(row),
     photoCount:           getPhotoCount(row.slug),
     diskSize:             getDiskSize(row.slug),
   };
@@ -211,6 +211,7 @@ router.patch('/:id', (req, res) => {
   if (!Object.keys(updates).length) return res.json(rowToGallery(row));
 
   updates.updated_at = Date.now();
+  updates.needs_rebuild = 1;
   const sets = Object.keys(updates).map(c => `${c} = ?`).join(', ');
   const vals = [...Object.values(updates), req.params.id];
   getDb().prepare(`UPDATE galleries SET ${sets} WHERE id = ?`).run(...vals);

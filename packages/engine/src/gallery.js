@@ -108,7 +108,7 @@ export function buildDeliveryMessage(project, summary, authInfo) {
  * @param {import('@gallerypack/shared').BuildOptions} [options]
  * @returns {Promise<import('@gallerypack/shared').BuildOutput|null>}
  */
-export async function buildGallery(srcName, { build }, fontCss, options = {}) {
+export async function buildGallery(srcName, { build, project: projectOverride }, fontCss, options = {}) {
   const {
     force             = FORCE,
     generateApacheAuth = false,
@@ -117,6 +117,10 @@ export async function buildGallery(srcName, { build }, fontCss, options = {}) {
   const buildStart = Date.now();
   const cfgPath = path.join(SRC_ROOT, srcName, 'gallery.config.json');
   const galCfg  = readConfig(cfgPath, srcName);
+  // Merge project config passed from caller (e.g. from DB via runner.js) — overrides file defaults
+  if (projectOverride && typeof projectOverride === 'object') {
+    Object.assign(galCfg.project, projectOverride);
+  }
   galCfg.build  = build;
 
   const distName = galleryDistName(galCfg.project, srcName);

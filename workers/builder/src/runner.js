@@ -23,6 +23,32 @@ function makeEventWriter(jobId) {
   };
 }
 
+/**
+ * Map a gallery DB row to the engine's project config format.
+ * This ensures all admin settings (title, author, download options, etc.)
+ * are passed to the engine at build time — even if no gallery.config.json exists on disk.
+ */
+function galleryToProjectConfig(g) {
+  const proj = {};
+  if (g.title)              proj.title              = g.title;
+  if (g.subtitle)           proj.subtitle           = g.subtitle;
+  if (g.author)             proj.author             = g.author;
+  if (g.author_email)       proj.authorEmail        = g.author_email;
+  if (g.date)               proj.date               = g.date;
+  if (g.location)           proj.location           = g.location;
+  if (g.locale)             proj.locale             = g.locale;
+  if (g.access)             proj.access             = g.access;
+  if (g.description)        proj.description        = g.description;
+  if (g.cover_photo)        proj.coverPhoto         = g.cover_photo;
+  if (g.slideshow_interval) proj.autoplay           = { slideshowInterval: g.slideshow_interval };
+  proj.private              = !!g.private;
+  proj.standalone           = !!g.standalone;
+  // Explicit false only when column is 0 (disabled); NULL = use engine default (enabled)
+  if (g.allow_download_image   !== null) proj.allowDownloadImage   = g.allow_download_image   !== 0;
+  if (g.allow_download_gallery !== null) proj.allowDownloadGallery = g.allow_download_gallery !== 0;
+  return proj;
+}
+
 export async function runJob(jobId) {
   const job = getJob(jobId);
   if (!job) throw new Error(`Job ${jobId} not found`);
@@ -72,7 +98,7 @@ export async function runJob(jobId) {
 
     const result = await buildGallery(
       gallery.slug,
-      { build: buildCfg },
+      { build: buildCfg, project: galleryToProjectConfig(gallery) },
       fontCss,
       {
         force:             !!job.force,
@@ -88,7 +114,7 @@ export async function runJob(jobId) {
 
     // Persist artifact metadata back to the gallery row
     getDb().prepare(
-      'UPDATE galleries SET build_status = ?, built_at = ?, updated_at = ? WHERE id = ?'
+      'UPDATE galleries SET build_status = ?, built_at = ?, needs_rebuild = 0, updated_at = ? WHERE id = ?'
     ).run('done', Date.now(), Date.now(), gallery.id);
 
     updateJobStatus(jobId, 'done', { finished_at: Date.now() });

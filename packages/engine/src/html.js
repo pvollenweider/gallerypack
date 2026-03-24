@@ -337,7 +337,7 @@ export function buildHTML(cfg, photos, fontCss = '', standalone = false, customL
   if (customLegal.html) projectWithLegal.legalHtml = customLegal.html;
   if (customLegal.txt)  projectWithLegal.legalTxt  = customLegal.txt;
 
-  const photosJson  = JSON.stringify(photos.map((p, i) => ({ name: p.name, role: BIG_POSITIONS.has(i % 12) ? 'big' : 'small', isDark: p.isDark, exif: p.exif })));
+  const photosJson  = JSON.stringify(photos.map((p, i) => ({ name: p.name, dlName: p.dlName || p.name, role: BIG_POSITIONS.has(i % 12) ? 'big' : 'small', isDark: p.isDark, exif: p.exif })));
   const projectJson = JSON.stringify(projectWithLegal);
 
   // Preload links for the first N grid thumbnails — browser fetches them
@@ -1289,7 +1289,7 @@ if (fsBtn) {
 function syncOverlays(idx) {
   const p = PHOTOS[idx];
   dlCurrentPath = 'originals/' + p.name + '.jpg';
-  dlCurrentName = p.name + '.jpg';
+  dlCurrentName = (p.dlName || p.name) + '.jpg';
   if (exifOpen) exifInner.innerHTML = exifHTML(p.exif || {});
 }
 
@@ -1712,7 +1712,7 @@ document.addEventListener('keydown', e => {
       label.textContent = \`\${i + 1} / \${PHOTOS.length}…\`;
       try {
         const res  = await fetch('originals/' + PHOTOS[i].name + '.jpg');
-        if (res.ok) { zip.file(PHOTOS[i].name + '.jpg', await res.blob()); ok++; }
+        if (res.ok) { zip.file((PHOTOS[i].dlName || PHOTOS[i].name) + '.jpg', await res.blob()); ok++; }
       } catch (_) {}
     }
 

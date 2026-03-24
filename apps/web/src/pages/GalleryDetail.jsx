@@ -68,6 +68,7 @@ export default function GalleryDetail() {
     try {
       const updated = await api.updateGallery(id, form);
       setGallery(updated);
+      setNeedsRebuild(true);
       setToast(t('settings_saved'));
     } catch (err) { setToast(`${t('error')}: ${err.message}`); }
     finally { setSaving(false); }
@@ -146,9 +147,7 @@ export default function GalleryDetail() {
   return (
     <div style={s.page}>
       <header style={s.header}>
-        {!gallery.private && (
-          <Link to="/" style={s.back}>← {t('galleries')}</Link>
-        )}
+        <Link to="/" style={s.back}>← {t('galleries')}</Link>
         <span style={s.title}>{gallery.title || gallery.slug}</span>
         <div style={s.headerActions}>
           {gallery.buildStatus === 'done' && (
@@ -156,7 +155,11 @@ export default function GalleryDetail() {
               {t('view_gallery_btn')}
             </a>
           )}
-          <button style={s.outlineBtn} onClick={() => handleBuild(false)}>{t('build_btn')}</button>
+          <button
+            style={{ ...s.outlineBtn, ...(gallery.buildStatus === 'done' && !needsRebuild ? { opacity: 0.4, cursor: 'default' } : {}) }}
+            onClick={() => handleBuild(false)}
+            disabled={gallery.buildStatus === 'done' && !needsRebuild}
+          >{t('build_btn')}</button>
           <button style={s.outlineBtn} onClick={() => handleBuild(true)}>{t('force_rebuild_btn')}</button>
         </div>
       </header>
@@ -321,21 +324,27 @@ export default function GalleryDetail() {
             </button>
             {dangerOpen && (
               <div style={{ ...s.advSection, borderColor:'#fca5a5' }}>
-                <form onSubmit={handleRenameSlug} style={{ display:'flex', flexDirection:'column', gap:'0.4rem', marginBottom:'1rem' }}>
+                <div style={{ display:'flex', flexDirection:'column', gap:'0.4rem', marginBottom:'1rem' }}>
                   <Row label={t('rename_slug')}>
                     <input
                       style={s.input}
                       value={newSlug}
                       onChange={e => setNewSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleRenameSlug(e); } }}
                     />
                   </Row>
                   <p style={{ ...s.fieldHint, marginLeft: 216 }}>{t('rename_slug_hint')}</p>
                   <div style={{ marginLeft: 216 }}>
-                    <button style={{ ...s.primaryBtn, background:'#dc2626' }} type="submit" disabled={renamingSlug || newSlug === gallery.slug}>
+                    <button
+                      type="button"
+                      style={{ ...s.primaryBtn, background:'#dc2626' }}
+                      disabled={renamingSlug || !newSlug || newSlug === gallery.slug}
+                      onClick={handleRenameSlug}
+                    >
                       {renamingSlug ? t('saving') : t('rename_slug_btn')}
                     </button>
                   </div>
-                </form>
+                </div>
                 <div>
                   <Row label={t('delete_gallery_btn')}>
                     <button type="button" style={{ ...s.primaryBtn, background:'#dc2626' }} onClick={handleDeleteGallery}>

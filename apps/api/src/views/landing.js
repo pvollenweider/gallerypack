@@ -1,5 +1,8 @@
 // apps/api/src/views/landing.js — server-rendered public gallery listing HTML
 
+const LOCK_SVG = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="10" height="8" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 015 0v2"/></svg>`;
+const KEY_SVG  = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="8" r="3.5"/><path d="M9 8h5.5M12.5 8v2M11 8v1.5"/></svg>`;
+
 function fmtDateRange(dateRange, fallback) {
   const src = dateRange || (fallback ? { from: fallback, to: fallback } : null);
   if (!src?.from) return fallback || null;
@@ -23,7 +26,7 @@ function fmtDateRange(dateRange, fallback) {
   return `${shM(from)} – ${shM(to)}`;
 }
 
-export function renderLanding(galleries, siteTitle = 'GalleryPack') {
+export function renderLanding(galleries, siteTitle = 'GalleryPack', isLoggedIn = false) {
   const cards = galleries.length === 0
     ? '<p style="color:#666;text-align:center;padding:3rem 0;grid-column:1/-1">No galleries published yet.</p>'
     : galleries.map(g => {
@@ -31,16 +34,23 @@ export function renderLanding(galleries, siteTitle = 'GalleryPack') {
         const thumb = g.coverName
           ? `<img src="/${g.slug}/img/grid/${g.coverName}.webp" style="width:100%;height:100%;object-fit:cover;display:block" alt="" onerror="this.style.display='none'">`
           : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2.5rem;color:#555">&#128247;</div>`;
-        const lock = g.access === 'password'
-          ? `<span style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.6);color:#fff;border-radius:99px;padding:3px 8px;font-size:0.75rem">&#128274;</span>`
-          : '';
+
+        // SVG badges overlaid on the image
+        const badgeStyle = 'display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);border-radius:50%';
+        const lockBadge  = g.access === 'password'
+          ? `<span style="${badgeStyle}" title="Password protected">${KEY_SVG}</span>` : '';
         const notBuilt = !g.built
           ? `<span style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,0.5);color:#fff;border-radius:4px;padding:2px 8px;font-size:0.72rem">Not published</span>`
           : '';
+        // Badges top-right: stack lock + key if needed
+        const cornerBadges = lockBadge
+          ? `<span style="position:absolute;top:8px;right:8px;display:flex;gap:4px">${lockBadge}</span>`
+          : '';
+
         const photoLabel = g.photoCount === 1 ? '1 photo' : `${g.photoCount || 0} photos`;
         const dateLabel  = fmtDateRange(g.dateRange, g.date);
         const inner = `
-          <div style="position:relative;height:180px;background:#2a2a2a;overflow:hidden">${thumb}${lock}${notBuilt}</div>
+          <div style="position:relative;height:180px;background:#2a2a2a;overflow:hidden">${thumb}${cornerBadges}${notBuilt}</div>
           <div style="padding:0.75rem 1rem 0.85rem">
             <h3 style="margin:0 0 0.15rem;font-size:0.95rem;font-weight:600;color:#eee">${esc(g.title)}</h3>
             ${dateLabel ? `<p style="margin:0 0 0.15rem;font-size:0.78rem;color:#aaa">${esc(dateLabel)}</p>` : ''}
@@ -52,6 +62,10 @@ export function renderLanding(galleries, siteTitle = 'GalleryPack') {
           ? `<a href="${href}" style="background:#272727;border-radius:10px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,0.3);text-decoration:none;display:block;transition:box-shadow 0.15s" onmouseover="this.style.boxShadow='0 4px 20px rgba(0,0,0,0.5)'" onmouseout="this.style.boxShadow='0 1px 6px rgba(0,0,0,0.3)'">${inner}</a>`
           : `<div style="background:#272727;border-radius:10px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,0.3);opacity:0.5">${inner}</div>`;
       }).join('');
+
+  const adminHeaderBtn = isLoggedIn
+    ? `<a class="admin-link" href="/admin/">Admin</a>`
+    : '';
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -65,8 +79,7 @@ export function renderLanding(galleries, siteTitle = 'GalleryPack') {
     header{background:#222;border-bottom:1px solid #333;padding:0 1.5rem;height:52px;display:flex;align-items:center;justify-content:space-between}
     .logo{font-weight:700;letter-spacing:-0.02em;font-size:1rem;color:#fff;text-decoration:none}
     .admin-link{font-size:0.82rem;color:#aaa;text-decoration:none;padding:0.3rem 0.75rem;border:1px solid #444;border-radius:5px}
-    main{max-width:1100px;margin:0 auto;padding:1.5rem}
-    h2{font-size:1.2rem;font-weight:700;margin-bottom:1rem;color:#fff}
+    main{max-width:1100px;width:100%;margin:0 auto;padding:1.5rem}
     .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem}
     footer{border-top:1px solid #333;padding:0.75rem 1.5rem;display:flex;align-items:center;gap:0.5rem;font-size:0.78rem;color:#555}
     footer a{color:#555;text-decoration:none}
@@ -77,16 +90,17 @@ export function renderLanding(galleries, siteTitle = 'GalleryPack') {
 <body style="display:flex;flex-direction:column;min-height:100vh">
   <header>
     <a class="logo" href="/">${esc(siteTitle)}</a>
-    <a class="admin-link" href="/admin/">Admin</a>
+    ${adminHeaderBtn}
   </header>
   <main style="flex:1">
-    <h2>${esc(siteTitle)}</h2>
     <div class="grid">${cards}</div>
   </main>
   <footer>
     <span class="brand">GalleryPack</span>
     <span class="sep">·</span>
     <a href="https://github.com/pvollenweider/gallerypack" target="_blank" rel="noreferrer">GitHub</a>
+    <span class="sep">·</span>
+    <a href="/admin/">Admin</a>
   </footer>
 </body>
 </html>`;

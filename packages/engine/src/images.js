@@ -6,8 +6,21 @@ import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const piexif  = require('piexifjs');
 
+import crypto from 'crypto';
 import { extractExif } from './exif.js';
 import { buildName, MANIFEST_SCHEMA_VERSION } from './utils.js';
+
+/**
+ * Compute a stable 16-char hex ID for a photo based on filename + size + mtime.
+ * Content-addressed: changes only when the file is replaced/modified.
+ * Does NOT change on gallery rename or photo reorder.
+ */
+function photoHash(photo) {
+  const stat = fs.statSync(photo.full);
+  return crypto.createHash('sha256')
+    .update(`${photo.file}:${stat.size}:${stat.mtimeMs}`)
+    .digest('hex').slice(0, 16);
+}
 
 // Inline logging helpers (copied to avoid circular-dependency risk).
 const info = (m) => process.stdout.write(`  \x1b[36m→\x1b[0m  ${m}\n`);
@@ -23,16 +36,35 @@ export const BIG_POSITIONS = new Set([0, 8]);
 // ── Photo listing ─────────────────────────────────────────────────────────────
 
 /**
- * Return a sorted list of all supported image files found in srcDir.
+ * Return an ordered list of all supported image files found in srcDir.
+ * Respects photo_order.json if present in the parent gallery directory.
  *
  * @returns {{ file: string, full: string }[]}
  */
 export function listPhotos(srcDir) {
   if (!fs.existsSync(srcDir)) { fail(`Dossier introuvable : ${srcDir}`); process.exit(1); }
-  return fs.readdirSync(srcDir)
-    .filter(f => EXTS.has(path.extname(f).toLowerCase()))
-    .sort()
-    .map(f => ({ file: f, full: path.join(srcDir, f) }));
+
+  const allFiles = fs.readdirSync(srcDir)
+    .filter(f => EXTS.has(path.extname(f).toLowerCase()));
+
+  // Load explicit ordering saved by the admin UI (photo_order.json sits next to photos/)
+  const orderFile = path.join(path.dirname(srcDir), 'photo_order.json');
+  let savedOrder = null;
+  if (fs.existsSync(orderFile)) {
+    try { savedOrder = JSON.parse(fs.readFileSync(orderFile, 'utf8')); } catch {}
+  }
+
+  let ordered;
+  if (savedOrder && Array.isArray(savedOrder)) {
+    const available = new Set(allFiles);
+    const knownSet  = new Set(savedOrder);
+    const extra     = allFiles.filter(f => !knownSet.has(f)).sort();
+    ordered = [...savedOrder.filter(f => available.has(f)), ...extra];
+  } else {
+    ordered = allFiles.sort();
+  }
+
+  return ordered.map(f => ({ file: f, full: path.join(srcDir, f) }));
 }
 
 // ── Brightness analysis ───────────────────────────────────────────────────────
@@ -72,8 +104,9 @@ export async function computeIsDark(gridPath, gridSize) {
  * @returns {Promise<{name: string, width: number, height: number, isDark: boolean}>}
  */
 export async function convertOne(photo, cfg, idx, cachedIsDark = null, paths, cachedName = null, FORCE = false) {
-  const name     = buildName(cfg.project, idx);
-  const isBig    = BIG_POSITIONS.has(idx % 12);
+  const name   = photoHash(photo);          // stable content-based ID (never changes on reorder)
+  const dlName = buildName(cfg.project, idx); // human-readable download name (author_title_date_NNN)
+  const isBig  = BIG_POSITIONS.has(idx % 12);
   const gridOut   = path.join(paths.distImg, 'grid',    `${name}.webp`);
   const gridSmOut = path.join(paths.distImg, 'grid-sm', `${name}.webp`);
   const fullOut   = path.join(paths.distImg, 'full',    `${name}.webp`);
@@ -87,14 +120,14 @@ export async function convertOne(photo, cfg, idx, cachedIsDark = null, paths, ca
                      && cfg.project.allowDownloadGallery === false;
 
   const origReady = skipOriginals || fs.existsSync(origOut);
-  const positionUnchanged = cachedName === null || cachedName === name;
+  const positionUnchanged = cachedName === null || cachedName === name; // hash matches → skip reprocessing
   if (!FORCE && positionUnchanged && fs.existsSync(gridOut) && fs.existsSync(gridSmOut) && fs.existsSync(fullOut) && origReady) {
     ok(`${name} (skip)`);
     const [meta, isDark] = await Promise.all([
       sharp(photo.full).metadata(),
       cachedIsDark !== null ? Promise.resolve(cachedIsDark) : computeIsDark(gridOut, gridSize),
     ]);
-    return { name, width: meta.width, height: meta.height, isDark };
+    return { name, dlName, width: meta.width, height: meta.height, isDark };
   }
 
   info(`${photo.file}  →  ${name}  [${isBig ? 'big' : 'small'}]`);
@@ -144,7 +177,7 @@ export async function convertOne(photo, cfg, idx, cachedIsDark = null, paths, ca
     sharp(photo.full).rotate().metadata(),
     computeIsDark(gridOut, gridSize),
   ]);
-  return { name, width: meta.width, height: meta.height, isDark };
+  return { name, dlName, width: meta.width, height: meta.height, isDark };
 }
 
 // ── Manifest (photos.json) ────────────────────────────────────────────────────
@@ -194,7 +227,8 @@ export async function processPhotos(photos, cfg, paths, FORCE = false) {
         : Math.round(srcBytes / 1024) + ' KB';
       const exifFull = { ...(exif || {}), originalFile: photo.file, fileSize: fileSizeStr };
       manifest.photos[photo.file] = {
-        name:   dims.name,
+        name:   dims.name,    // stable hash ID (used for img/grid, img/full, originals paths)
+        dlName: dims.dlName,  // human-readable download name (author_title_date_NNN)
         index:  i + 1,
         role:   BIG_POSITIONS.has(i % 12) ? 'big' : 'small',
         isDark: dims.isDark,

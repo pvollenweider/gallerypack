@@ -94,13 +94,30 @@ router.get('/:id/photos', async (req, res) => {
   if (!fs.existsSync(dir)) return res.json([]);
 
   const EXTS = new Set(['.jpg','.jpeg','.png','.tiff','.tif','.heic','.heif','.avif']);
-  const files = fs.readdirSync(dir)
-    .filter(f => EXTS.has(path.extname(f).toLowerCase()))
-    .sort()
-    .map(f => {
-      const stat = fs.statSync(path.join(dir, f));
-      return { file: f, size: stat.size, mtime: stat.mtimeMs };
-    });
+  const allFiles = fs.readdirSync(dir)
+    .filter(f => EXTS.has(path.extname(f).toLowerCase()));
+
+  // Apply saved order from photo_order.json
+  const orderFile = path.join(ROOT, 'src', gallery.slug, 'photo_order.json');
+  let savedOrder = null;
+  try {
+    if (fs.existsSync(orderFile)) savedOrder = JSON.parse(fs.readFileSync(orderFile, 'utf8'));
+  } catch {}
+
+  let sortedNames;
+  if (savedOrder && Array.isArray(savedOrder)) {
+    const set = new Set(allFiles);
+    const orderedSet = new Set(savedOrder);
+    const unordered = allFiles.filter(f => !orderedSet.has(f)).sort();
+    sortedNames = [...savedOrder.filter(f => set.has(f)), ...unordered];
+  } else {
+    sortedNames = [...allFiles].sort();
+  }
+
+  const files = sortedNames.map(f => {
+    const stat = fs.statSync(path.join(dir, f));
+    return { file: f, size: stat.size, mtime: stat.mtimeMs };
+  });
 
   // Attach processed thumbnail name from photos.json manifest if available
   // Use storage adapter so this works for both local and S3 deployments.
@@ -140,6 +157,10 @@ router.post('/:id/photos', upload.array('photos', 200), (req, res) => {
   }
 
   const uploaded = (req.files || []).map(f => ({ file: f.filename, size: f.size }));
+  if (uploaded.length > 0) {
+    getDb().prepare('UPDATE galleries SET needs_rebuild = 1, updated_at = ? WHERE id = ?')
+      .run(Date.now(), req.params.id);
+  }
   res.status(201).json({ uploaded: uploaded.length, files: uploaded });
 });
 
@@ -153,10 +174,12 @@ router.delete('/:id/photos/:filename', (req, res) => {
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found' });
 
   fs.unlinkSync(filePath);
+  getDb().prepare('UPDATE galleries SET needs_rebuild = 1, updated_at = ? WHERE id = ?')
+    .run(Date.now(), req.params.id);
   res.json({ ok: true });
 });
 
-// PUT /api/galleries/:id/photos/order — reorder photos by providing an ordered filename array
+// PUT /api/galleries/:id/photos/order — save explicit photo order
 router.put('/:id/photos/order', (req, res) => {
   const gallery = ensureGalleryBelongsToStudio(req, res);
   if (!gallery) return;
@@ -164,32 +187,14 @@ router.put('/:id/photos/order', (req, res) => {
   const { order } = req.body || {};
   if (!Array.isArray(order)) return res.status(400).json({ error: 'order must be an array of filenames' });
 
-  const dir = photosDir(gallery.slug);
-  if (!fs.existsSync(dir)) return res.status(404).json({ error: 'Photos directory not found' });
+  // Persist the order as photo_order.json in the gallery source directory
+  const galleryDir = path.join(ROOT, 'src', gallery.slug);
+  fs.mkdirSync(galleryDir, { recursive: true });
+  const orderFile = path.join(galleryDir, 'photo_order.json');
+  fs.writeFileSync(orderFile, JSON.stringify(order.map(f => path.basename(f))));
 
-  // Rename files with a temporary numeric prefix so order is encoded in filename sort
-  const tmp = path.join(dir, '.reorder-tmp');
-  fs.mkdirSync(tmp, { recursive: true });
-
-  try {
-    for (let i = 0; i < order.length; i++) {
-      const safe = path.basename(order[i]);
-      const src  = path.join(dir, safe);
-      if (!fs.existsSync(src)) continue;
-      const tmpName = String(i + 1).padStart(6, '0') + '_' + safe;
-      fs.renameSync(src, path.join(tmp, tmpName));
-    }
-    for (const f of fs.readdirSync(tmp)) {
-      const originalName = f.replace(/^\d+_/, '');
-      fs.renameSync(path.join(tmp, f), path.join(dir, originalName));
-    }
-    fs.rmdirSync(tmp);
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
-  }
-
-  // Update cover_photo to first in new order if it was position 0
-  getDb().prepare('UPDATE galleries SET cover_photo = ?, updated_at = ? WHERE id = ?')
+  // Mark gallery as needing rebuild and update cover_photo to first photo
+  getDb().prepare('UPDATE galleries SET cover_photo = ?, needs_rebuild = 1, updated_at = ? WHERE id = ?')
     .run(order[0] ? path.basename(order[0]) : null, Date.now(), req.params.id);
 
   res.json({ ok: true });

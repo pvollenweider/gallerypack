@@ -20,7 +20,7 @@ import invitesRoutes   from './routes/invites.js';
 import publicRoutes, { getPublicGalleries } from './routes/public.js';
 import { renderLanding } from './views/landing.js';
 import settingsRoutes from './routes/settings.js';
-import { getSettings } from './db/helpers.js';
+import { getSettings, getSession } from './db/helpers.js';
 
 const __DIR     = path.dirname(fileURLToPath(import.meta.url));
 const PORT      = process.env.PORT || 4000;
@@ -97,8 +97,10 @@ app.get('/', (req, res) => {
   const studioRow  = getDb().prepare('SELECT id FROM studios LIMIT 1').get();
   const settings   = studioRow ? getSettings(studioRow.id) : null;
   const siteTitle  = settings?.site_title || 'GalleryPack';
+  const token      = req.cookies?.session;
+  const isLoggedIn = token ? !!getSession(token) : false;
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.send(renderLanding(galleries, siteTitle));
+  res.send(renderLanding(galleries, siteTitle, isLoggedIn));
 });
 
 // ── Error handler ─────────────────────────────────────────────────────────────
