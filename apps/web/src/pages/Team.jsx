@@ -45,8 +45,8 @@ export default function Team() {
     if (!confirm('Remove this member from the studio?')) return;
     try {
       await api.removeStudioMember(userId);
-      setMembers(ms => ms.filter(m => m.user_id !== userId));
       setToast('Member removed');
+      await load();
     } catch (e) { setToast(e.message); }
   }
 
