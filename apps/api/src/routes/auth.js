@@ -3,7 +3,7 @@ import { Router } from 'express';
 import { createHash } from 'crypto';
 import {
   getUserByEmail, createSession, deleteSession,
-  getSession, getUserById, hashPassword, verifyPassword,
+  getSession, getUserById, hashPassword, verifyPassword, getStudioRole,
 } from '../db/helpers.js';
 import { getDb } from '../db/database.js';
 
@@ -72,7 +72,8 @@ router.get('/me', (req, res) => {
   if (!session) return res.status(401).json({ error: 'Session expired' });
   const user = getUserById(session.user_id);
   if (!user) return res.status(401).json({ error: 'User not found' });
-  res.json({ id: user.id, email: user.email, role: user.role, name: user.name, studioId: user.studio_id });
+  const studioRole = user.studio_id ? getStudioRole(user.id, user.studio_id) : null;
+  res.json({ id: user.id, email: user.email, role: user.role, name: user.name, studioId: user.studio_id, studioRole });
 });
 
 export default router;

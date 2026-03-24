@@ -105,20 +105,20 @@ export default function Team() {
               </thead>
               <tbody>
                 {members.map(m => (
-                  <tr key={m.user_id} style={s.tr}>
-                    <td style={s.td}>{m.email}</td>
+                  <tr key={m.user.id} style={s.tr}>
+                    <td style={s.td}>{m.user.email || m.user.name || m.user.id}</td>
                     <td style={s.td}>
                       <select
                         style={{ ...s.roleSelect, borderColor: ROLE_COLORS[m.role] || '#ddd', color: ROLE_COLORS[m.role] || '#555' }}
                         value={m.role}
-                        onChange={e => handleRoleChange(m.user_id, e.target.value)}
+                        onChange={e => handleRoleChange(m.user.id, e.target.value)}
                       >
                         {STUDIO_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                       </select>
                     </td>
-                    <td style={{ ...s.td, color: '#999', fontSize: '0.8rem' }}>{formatDate(m.created_at)}</td>
+                    <td style={{ ...s.td, color: '#999', fontSize: '0.8rem' }}>{formatDate(m.user.createdAt)}</td>
                     <td style={s.td}>
-                      <button style={s.removeBtn} onClick={() => handleRemoveMember(m.user_id)}>Remove</button>
+                      <button style={s.removeBtn} onClick={() => handleRemoveMember(m.user.id)}>Remove</button>
                     </td>
                   </tr>
                 ))}

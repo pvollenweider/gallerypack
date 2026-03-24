@@ -63,6 +63,8 @@ export default function Dashboard() {
   }
 
   const previewSlug = newTitle.trim() ? slugify(newTitle.trim()) : '';
+  const CAN_CREATE_ROLES = ['editor', 'admin', 'owner'];
+  const canCreate = CAN_CREATE_ROLES.includes(user?.studioRole);
 
   const FILTER_ICONS = {
     all:      <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="5.5" height="5.5" rx="1"/><rect x="9.5" y="1" width="5.5" height="5.5" rx="1"/><rect x="1" y="9.5" width="5.5" height="5.5" rx="1"/><rect x="9.5" y="9.5" width="5.5" height="5.5" rx="1"/></svg>,
@@ -104,7 +106,7 @@ export default function Dashboard() {
                 </button>
               ))}
             </div>
-            <button style={s.primaryBtn} onClick={() => setCreating(v => !v)}>{t('new_gallery')}</button>
+            {canCreate && <button style={s.primaryBtn} onClick={() => setCreating(v => !v)}>{t('new_gallery')}</button>}
           </div>
         </div>
 
@@ -133,7 +135,7 @@ export default function Dashboard() {
         {!loading && galleries.length === 0 && (
           <div style={s.empty}>
             <p>{t('no_galleries')}</p>
-            <button style={s.primaryBtn} onClick={() => setCreating(true)}>{t('create_first_gallery')}</button>
+            {canCreate && <button style={s.primaryBtn} onClick={() => setCreating(true)}>{t('create_first_gallery')}</button>}
           </div>
         )}
 
