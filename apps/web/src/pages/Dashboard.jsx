@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate }          from 'react-router-dom';
+import { useNavigate, Link }    from 'react-router-dom';
 import { api }                  from '../lib/api.js';
 import { useAuth }              from '../lib/auth.jsx';
 import { GalleryCard }          from '../components/GalleryCard.jsx';
@@ -7,17 +7,20 @@ import { GalleryCard }          from '../components/GalleryCard.jsx';
 export default function Dashboard() {
   const { user, logout }       = useAuth();
   const navigate               = useNavigate();
-  const [galleries, setGalleries] = useState([]);
-  const [loading,   setLoading]   = useState(true);
-  const [error,     setError]     = useState('');
-  const [creating,  setCreating]  = useState(false);
-  const [newSlug,   setNewSlug]   = useState('');
+  const [galleries,  setGalleries]  = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState('');
+  const [creating,   setCreating]   = useState(false);
+  const [newSlug,    setNewSlug]    = useState('');
+  const [siteTitle,  setSiteTitle]  = useState('GalleryPack');
 
   useEffect(() => { load(); }, []);
 
   async function load() {
     try {
-      setGalleries(await api.listGalleries());
+      const [g, s] = await Promise.all([api.listGalleries(), api.getSettings().catch(() => ({}))]);
+      setGalleries(g);
+      if (s.siteTitle) setSiteTitle(s.siteTitle);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -56,9 +59,10 @@ export default function Dashboard() {
   return (
     <div style={s.page}>
       <header style={s.header}>
-        <span style={s.logo}>GalleryPack</span>
+        <span style={s.logo}>{siteTitle}</span>
         <div style={s.headerRight}>
           <span style={s.userLabel}>{user?.email}</span>
+          <Link to="/settings" style={s.outlineBtn}>Settings</Link>
           <button style={s.outlineBtn} onClick={logout}>Sign out</button>
         </div>
       </header>
@@ -119,5 +123,5 @@ const s = {
   dim:        { color:'#888', fontSize:'0.9rem' },
   err:        { color:'#c00', fontSize:'0.9rem' },
   primaryBtn: { padding:'0.5rem 1rem', background:'#111', color:'#fff', border:'none', borderRadius:6, fontWeight:600, cursor:'pointer', fontSize:'0.875rem' },
-  outlineBtn: { padding:'0.5rem 1rem', background:'none', color:'#111', border:'1px solid #ddd', borderRadius:6, fontWeight:500, cursor:'pointer', fontSize:'0.875rem' },
+  outlineBtn: { padding:'0.5rem 1rem', background:'none', color:'#111', border:'1px solid #ddd', borderRadius:6, fontWeight:500, cursor:'pointer', fontSize:'0.875rem', textDecoration:'none', display:'inline-flex', alignItems:'center' },
 };
