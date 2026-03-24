@@ -16,6 +16,36 @@ const router = Router();
 // All routes require authentication
 router.use(requireAuth);
 
+// ── Convenience routes for the logged-in user's own studio ───────────────────
+// These use req.studioId directly — no studio ID needed in the URL.
+
+// GET /api/studios/members
+router.get('/members', requireStudioRole('admin'), (req, res) => {
+  res.json(listStudioMembers(req.studioId));
+});
+
+// PUT /api/studios/members/:userId — update role
+router.put('/members/:userId', requireStudioRole('admin'), (req, res) => {
+  const { userId } = req.params;
+  const { role } = req.body || {};
+  if (!role || !ROLE_HIERARCHY.includes(role))
+    return res.status(400).json({ error: `role must be one of: ${ROLE_HIERARCHY.join(', ')}` });
+  if (role === 'owner' && req.studioRole !== 'owner')
+    return res.status(403).json({ error: 'Only owners can assign the owner role' });
+  const existing = getStudioMembership(userId, req.studioId);
+  if (!existing) return res.status(404).json({ error: 'Membership not found' });
+  res.json(upsertStudioMembership(req.studioId, userId, role));
+});
+
+// DELETE /api/studios/members/:userId
+router.delete('/members/:userId', requireStudioRole('owner'), (req, res) => {
+  const { userId } = req.params;
+  const existing = getStudioMembership(userId, req.studioId);
+  if (!existing) return res.status(404).json({ error: 'Membership not found' });
+  removeStudioMembership(req.studioId, userId);
+  res.json({ ok: true });
+});
+
 // Helper: resolve studioId from param and verify caller has access
 function resolveStudio(req, res) {
   const studio = getStudio(req.params.id);

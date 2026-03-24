@@ -6,6 +6,7 @@ import Dashboard    from './pages/Dashboard.jsx';
 import GalleryDetail from './pages/GalleryDetail.jsx';
 import BuildStatus  from './pages/BuildStatus.jsx';
 import Settings     from './pages/Settings.jsx';
+import Team         from './pages/Team.jsx';
 import { Footer }   from './components/Footer.jsx';
 
 function RequireAuth({ children }) {
@@ -36,6 +37,7 @@ export default function App() {
       <Route path="/galleries/:id" element={<AuthLayout><GalleryDetail /></AuthLayout>} />
       <Route path="/jobs/:jobId"   element={<AuthLayout><BuildStatus /></AuthLayout>} />
       <Route path="/settings"      element={<AuthLayout><Settings /></AuthLayout>} />
+      <Route path="/team"          element={<AuthLayout><Team /></AuthLayout>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
     </I18nProvider>

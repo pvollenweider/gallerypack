@@ -54,9 +54,15 @@ export const api = {
   createViewerToken: (id, data)   => req('POST',   `/galleries/${id}/viewer-tokens`, data),
   deleteViewerToken: (galleryId, tokenId) => req('DELETE', `/galleries/${galleryId}/viewer-tokens/${tokenId}`),
 
+  // Studio members
+  listStudioMembers:   ()              => req('GET',    `/studios/members`),
+  updateStudioMember:  (userId, role)  => req('PUT',    `/studios/members/${userId}`, { role }),
+  removeStudioMember:  (userId)        => req('DELETE', `/studios/members/${userId}`),
+
   // Invitations
-  createInvitation: (data) => req('POST', `/invitations`, data),
-  getInvitations:   ()     => req('GET',  `/invitations`),
+  createInvitation: (data) => req('POST',   `/invitations`, data),
+  getInvitations:   ()     => req('GET',    `/invitations`),
+  deleteInvitation: (id)   => req('DELETE', `/invitations/${id}`),
 
   // Upload (multipart — handled separately)
   uploadPhotos(galleryId, files, onProgress) {
