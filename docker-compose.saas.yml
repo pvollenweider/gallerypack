@@ -14,7 +14,7 @@ services:
     environment:
       PORT:                "4000"
       NODE_ENV:            "production"
-      DB_PATH:             "/app/data/gallerypack.db"
+      DATA_DIR:            "/app/data"
       STORAGE_DRIVER:      "local"
       STORAGE_ROOT:        "/app/storage"
       ADMIN_PASSWORD:      "${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}"
