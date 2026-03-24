@@ -56,7 +56,8 @@ export default function Team() {
     setInviteLink('');
     try {
       const inv = await api.createInvitation({ email: invEmail, role: invRole });
-      const link = `${window.location.origin}/admin#/invite/${inv.token}`;
+      const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+      const link = `${window.location.origin}${base}/invite/${inv.token}`;
       setInviteLink(link);
       setInvEmail('');
       await load(); // refresh invitation list

@@ -60,9 +60,11 @@ export const api = {
   removeStudioMember:  (userId)        => req('DELETE', `/studios/members/${userId}`),
 
   // Invitations
-  createInvitation: (data) => req('POST',   `/invitations`, data),
-  getInvitations:   ()     => req('GET',    `/invitations`),
-  deleteInvitation: (id)   => req('DELETE', `/invitations/${id}`),
+  createInvitation: (data)            => req('POST',   `/invitations`, data),
+  getInvitations:   ()                => req('GET',    `/invitations`),
+  deleteInvitation: (id)              => req('DELETE', `/invitations/${id}`),
+  getInviteInfo:    (token)           => req('GET',    `/invitations/accept/${token}`),
+  acceptInvite:     (token, password) => req('POST',   `/invitations/accept/${token}`, { password }),
 
   // Upload (multipart — handled separately)
   uploadPhotos(galleryId, files, onProgress) {
