@@ -34,6 +34,10 @@ export const api = {
   deletePhoto: (galleryId, filename) => req('DELETE', `/galleries/${galleryId}/photos/${encodeURIComponent(filename)}`),
   reorderPhotos: (galleryId, order)  => req('PUT',    `/galleries/${galleryId}/photos/order`, { order }),
 
+  // Settings
+  getSettings:  ()     => req('GET',   '/settings'),
+  saveSettings: (data) => req('PATCH', '/settings', data),
+
   // Jobs
   triggerBuild: (galleryId, force = false) => req('POST', `/galleries/${galleryId}/build`, { force }),
   listJobs:     (galleryId)               => req('GET',  `/galleries/${galleryId}/jobs`),

@@ -1,5 +1,5 @@
 // apps/api/src/views/landing.js — server-rendered public gallery listing HTML
-export function renderLanding(galleries) {
+export function renderLanding(galleries, siteTitle = 'GalleryPack') {
   const cards = galleries.length === 0
     ? '<p style="color:#999;text-align:center;padding:3rem 0;grid-column:1/-1">No galleries published yet.</p>'
     : galleries.map(g => {
@@ -30,7 +30,7 @@ export function renderLanding(galleries) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Galleries</title>
+  <title>${esc(siteTitle)}</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f8f8f8;min-height:100vh}
@@ -44,11 +44,11 @@ export function renderLanding(galleries) {
 </head>
 <body>
   <header>
-    <a class="logo" href="/">GalleryPack</a>
+    <a class="logo" href="/">${esc(siteTitle)}</a>
     <a class="admin-link" href="/admin">Admin</a>
   </header>
   <main>
-    <h2>Galleries</h2>
+    <h2>${esc(siteTitle)}</h2>
     <div class="grid">${cards}</div>
   </main>
 </body>
