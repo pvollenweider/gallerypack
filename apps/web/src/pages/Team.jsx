@@ -145,7 +145,7 @@ export default function Team() {
                 {members.map(m => (
                   <tr key={m.user.id} style={s.tr}>
                     <td style={s.td}>
-                      <div style={{ fontWeight: 500 }}>{m.user.name || m.user.email}</div>
+                      <Link to={`/team/${m.user.id}`} style={{ fontWeight: 500, color: '#111', textDecoration: 'none' }}>{m.user.name || m.user.email}</Link>
                       {m.user.name && <div style={{ fontSize: '0.78rem', color: '#aaa' }}>{m.user.email}</div>}
                     </td>
                     <td style={s.td}>

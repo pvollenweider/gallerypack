@@ -200,6 +200,16 @@ export const translations = {
     team_error_last_owner_remove: 'Cannot remove the last owner',
     team_reset_link_title: 'Generate a password reset link',
 
+    // Member profile page
+    member_back: '← Team',
+    member_joined: 'Member since',
+    member_studio_role: 'Studio role',
+    member_gallery_access: 'Gallery accesses',
+    member_no_gallery_access: 'No gallery access.',
+    member_remove_rights: 'Remove all rights',
+    member_remove_rights_confirm: 'Remove all rights for {name}? The account is preserved but they will lose all access.',
+    member_rights_removed: 'Rights removed',
+
     // GalleryDetail access
     access_members_hint: 'Only photographers can be assigned to a gallery — collaborators, admins and owners have access to all galleries.',
     access_add_member_btn: 'Add',
@@ -463,6 +473,16 @@ export const translations = {
     team_error_last_owner_demote: 'Impossible : désignez d\'abord un autre propriétaire avant de rétrograder celui-ci',
     team_error_last_owner_remove: 'Impossible : vous ne pouvez pas retirer le dernier propriétaire',
     team_reset_link_title: 'Générer un lien de réinitialisation du mot de passe',
+
+    // Member profile page
+    member_back: '← Équipe',
+    member_joined: 'Membre depuis',
+    member_studio_role: 'Rôle dans le studio',
+    member_gallery_access: 'Accès aux galeries',
+    member_no_gallery_access: 'Aucun accès aux galeries.',
+    member_remove_rights: 'Retirer tous les droits',
+    member_remove_rights_confirm: 'Retirer tous les droits de {name} ? Le compte est conservé mais la personne perdra tous ses accès.',
+    member_rights_removed: 'Droits retirés',
 
     access_members_hint: 'Seuls les photographes peuvent être assignés à une galerie — les collaborateurs, admins et propriétaires ont accès à toutes les galeries.',
     access_add_member_btn: 'Ajouter',

@@ -1,14 +1,11 @@
-# ── Build output ─────────────────────────────────────────
-dist/
+# ── Runtime data (Docker volume mounts) ─────────────────
+/src/
+/dist/
+/data/
+apps/api/data/
 
 # ── Dependencies ──────────────────────────────────────────
 node_modules/
-
-# ── Generated example gallery (recreated by npm run setup:example) ─
-src/example-gallery/
-
-# ── User galleries (real photos — do not commit) ──────────
-src/*/photos/
 
 # ── IDE / OS ──────────────────────────────────────────────
 .DS_Store
@@ -16,21 +13,15 @@ src/*/photos/
 .vscode/
 *.swp
 
-# Publish config (contains server credentials)
+# ── Secrets ───────────────────────────────────────────────
+.env
 publish.config.json
 photos.json
 
-# v2 server — transient upload temp files and job state
-server/uploads/
-server/jobs.json
-server/invites.json
-server/settings.json
-
-# Claude Code memory
-.claude/
-apps/api/data/
-data/
-.env
+# ── SQLite ────────────────────────────────────────────────
 *.db
 *.db-shm
 *.db-wal
+
+# ── Claude Code ───────────────────────────────────────────
+.claude/

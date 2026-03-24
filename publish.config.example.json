@@ -1,6 +1,0 @@
-{
-  "remote":     "user@yourserver.com",
-  "remotePath": "/var/www/html/galleries",
-  "baseUrl":    "https://yourdomain.com/galleries",
-  "rsyncFlags": "-az --delete --progress"
-}

@@ -70,6 +70,7 @@ export const api = {
 
   // Studio members
   listStudioMembers:   ()              => req('GET',    `/studios/members`),
+  getStudioMember:     (userId)        => req('GET',    `/studios/members/${userId}`),
   updateStudioMember:  (userId, role)  => req('PUT',    `/studios/members/${userId}`, { role }),
   removeStudioMember:  (userId)        => req('DELETE', `/studios/members/${userId}`),
 
