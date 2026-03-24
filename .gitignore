@@ -28,3 +28,4 @@ server/settings.json
 
 # Claude Code memory
 .claude/
+apps/api/data/
