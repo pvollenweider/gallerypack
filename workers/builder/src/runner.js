@@ -6,9 +6,12 @@ import { getDb }                       from '../../../apps/api/src/db/database.j
 import { getJob, updateJobStatus, appendEvent, getSettings } from '../../../apps/api/src/db/helpers.js';
 import { buildGallery }                from '../../../packages/engine/src/gallery.js';
 import { downloadVendors, downloadFonts } from '../../../packages/engine/src/network.js';
-import { readConfig }  from '../../../packages/engine/src/config.js';
 import { ROOT }        from '../../../packages/engine/src/fs.js';
+import { createStorage } from '../../../packages/shared/src/storage/index.js';
 import fs from 'fs';
+
+// Storage adapter — used for reading/writing build artifacts
+const storage = createStorage();
 
 // Redirect stdout writes to build_events during a build
 function makeEventWriter(jobId) {
@@ -76,6 +79,11 @@ export async function runJob(jobId) {
         geocoder:          undefined, // use default Nominatim
       }
     );
+
+    // Verify artifact exists via storage adapter (works for both local and S3)
+    const manifestKey = `dist/${result?.distName || gallery.slug}/photos.json`;
+    const artifactOk  = await storage.exists(manifestKey);
+    if (!artifactOk) throw new Error(`Build completed but manifest not found: ${manifestKey}`);
 
     // Persist artifact metadata back to the gallery row
     getDb().prepare(
