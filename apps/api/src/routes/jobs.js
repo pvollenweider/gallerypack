@@ -66,7 +66,7 @@ router.get('/:id/jobs', (req, res) => {
 });
 
 // ── GET /api/jobs/:jobId — single job ────────────────────────────────────────
-router.get('/jobs/:jobId', (req, res) => {
+router.get('/:jobId', (req, res) => {
   const job = getJob(req.params.jobId);
   if (!job || job.studio_id !== req.studioId) return res.status(404).json({ error: 'Job not found' });
   res.json(jobToJson(job));
@@ -75,7 +75,7 @@ router.get('/jobs/:jobId', (req, res) => {
 // ── GET /api/jobs/:jobId/stream — SSE live build log ─────────────────────────
 // Polls build_events table every 500ms and pushes new events to the client.
 // Closes the stream when the job reaches done/error status.
-router.get('/jobs/:jobId/stream', (req, res) => {
+router.get('/:jobId/stream', (req, res) => {
   const job = getJob(req.params.jobId);
   if (!job || job.studio_id !== req.studioId) return res.status(404).json({ error: 'Job not found' });
 
