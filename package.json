@@ -1,6 +1,6 @@
 {
   "name": "gallerypack",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Turn a folder of photos into a polished, self-contained static gallery — in one command.",
   "workspaces": [
     "packages/*",
