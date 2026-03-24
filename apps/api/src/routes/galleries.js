@@ -3,8 +3,8 @@ import { Router } from 'express';
 import fs   from 'fs';
 import path from 'path';
 import { getDb }  from '../db/database.js';
-import { genId, hashPassword, getSettings } from '../db/helpers.js';
-import { requireAdmin } from '../middleware/auth.js';
+import { genId, hashPassword, getSettings, listGalleryMembers, upsertGalleryMembership, removeGalleryMembership, GALLERY_ROLE_HIERARCHY, getUserById } from '../db/helpers.js';
+import { requireAdmin, requireStudioRole, requireAuth } from '../middleware/auth.js';
 import { ROOT } from '../../../../packages/engine/src/fs.js';
 
 const IMG_EXTS = new Set(['.jpg','.jpeg','.png','.tiff','.tif','.heic','.heif','.avif']);
@@ -260,6 +260,49 @@ router.delete('/:id', (req, res) => {
   if (!row) return res.status(404).json({ error: 'Gallery not found' });
 
   getDb().prepare('DELETE FROM galleries WHERE id = ?').run(req.params.id);
+  res.json({ ok: true });
+});
+
+// ── Gallery membership routes ─────────────────────────────────────────────────
+
+// GET /api/galleries/:id/members — list gallery members (requires admin+ studio role)
+router.get('/:id/members', requireStudioRole('admin'), (req, res) => {
+  const row = getDb()
+    .prepare('SELECT * FROM galleries WHERE id = ? AND studio_id = ?')
+    .get(req.params.id, req.studioId);
+  if (!row) return res.status(404).json({ error: 'Gallery not found' });
+
+  const members = listGalleryMembers(req.params.id);
+  res.json(members);
+});
+
+// PUT /api/galleries/:id/members/:userId — grant/update membership (requires admin+ studio role)
+router.put('/:id/members/:userId', requireStudioRole('admin'), (req, res) => {
+  const row = getDb()
+    .prepare('SELECT * FROM galleries WHERE id = ? AND studio_id = ?')
+    .get(req.params.id, req.studioId);
+  if (!row) return res.status(404).json({ error: 'Gallery not found' });
+
+  const { role } = req.body || {};
+  if (!role || !GALLERY_ROLE_HIERARCHY.includes(role)) {
+    return res.status(400).json({ error: `role must be one of: ${GALLERY_ROLE_HIERARCHY.join(', ')}` });
+  }
+
+  const targetUser = getUserById(req.params.userId);
+  if (!targetUser) return res.status(404).json({ error: 'User not found' });
+
+  const membership = upsertGalleryMembership(req.params.id, req.params.userId, role);
+  res.json(membership);
+});
+
+// DELETE /api/galleries/:id/members/:userId — remove membership (requires admin+ studio role)
+router.delete('/:id/members/:userId', requireStudioRole('admin'), (req, res) => {
+  const row = getDb()
+    .prepare('SELECT * FROM galleries WHERE id = ? AND studio_id = ?')
+    .get(req.params.id, req.studioId);
+  if (!row) return res.status(404).json({ error: 'Gallery not found' });
+
+  removeGalleryMembership(req.params.id, req.params.userId);
   res.json({ ok: true });
 });
 

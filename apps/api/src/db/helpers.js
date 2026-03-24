@@ -325,3 +325,56 @@ export function listStudioMembers(studioId) {
     user: { id: r.id, email: r.email, name: r.name, role: r.user_role, createdAt: r.created_at },
   }));
 }
+
+// ── Gallery memberships ───────────────────────────────────────────────────────
+
+/**
+ * Gallery role hierarchy: viewer < contributor < editor
+ */
+export const GALLERY_ROLE_HIERARCHY = ['viewer', 'contributor', 'editor'];
+
+/** Returns the gallery membership row for a user in a gallery, or null. */
+export function getGalleryMembership(userId, galleryId) {
+  return getDb()
+    .prepare('SELECT * FROM gallery_memberships WHERE user_id = ? AND gallery_id = ?')
+    .get(userId, galleryId) || null;
+}
+
+/** Returns the role string for a user in a gallery, or null if not a member. */
+export function getGalleryRole(userId, galleryId) {
+  const row = getGalleryMembership(userId, galleryId);
+  return row ? row.role : null;
+}
+
+/** Insert or update a gallery membership. */
+export function upsertGalleryMembership(galleryId, userId, role) {
+  const id  = genId();
+  const now = Date.now();
+  getDb().prepare(`
+    INSERT INTO gallery_memberships (id, gallery_id, user_id, role, created_at)
+    VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(gallery_id, user_id) DO UPDATE SET role = excluded.role
+  `).run(id, galleryId, userId, role, now);
+  return getGalleryMembership(userId, galleryId);
+}
+
+/** Remove a user from a gallery. */
+export function removeGalleryMembership(galleryId, userId) {
+  getDb()
+    .prepare('DELETE FROM gallery_memberships WHERE gallery_id = ? AND user_id = ?')
+    .run(galleryId, userId);
+}
+
+/**
+ * List all members of a gallery.
+ * Returns array of { user_id, email, role, created_at } objects.
+ */
+export function listGalleryMembers(galleryId) {
+  return getDb().prepare(`
+    SELECT gm.user_id, u.email, gm.role, gm.created_at
+    FROM gallery_memberships gm
+    JOIN users u ON u.id = gm.user_id
+    WHERE gm.gallery_id = ?
+    ORDER BY gm.created_at ASC
+  `).all(galleryId);
+}
