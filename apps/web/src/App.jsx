@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './lib/auth.jsx';
+import { I18nProvider } from './lib/I18nContext.jsx';
 import Login        from './pages/Login.jsx';
 import Dashboard    from './pages/Dashboard.jsx';
 import GalleryDetail from './pages/GalleryDetail.jsx';
@@ -28,6 +29,7 @@ function AuthLayout({ children }) {
 
 export default function App() {
   return (
+    <I18nProvider>
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/" element={<AuthLayout><Dashboard /></AuthLayout>} />
@@ -36,6 +38,7 @@ export default function App() {
       <Route path="/settings"      element={<AuthLayout><Settings /></AuthLayout>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </I18nProvider>
   );
 }
 

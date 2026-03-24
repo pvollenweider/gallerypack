@@ -28,6 +28,7 @@ export const api = {
   createGallery:   (data)      => req('POST',   '/galleries', data),
   updateGallery:   (id, data)  => req('PATCH',  `/galleries/${id}`, data),
   deleteGallery:   (id)        => req('DELETE', `/galleries/${id}`),
+  renameSlug:      (id, slug)  => req('POST',   `/galleries/${id}/rename`, { slug }),
 
   // Photos
   listPhotos:  (galleryId)           => req('GET',    `/galleries/${galleryId}/photos`),

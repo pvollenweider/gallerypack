@@ -228,7 +228,7 @@ export function revokeInvite(id) {
 
 export function upsertSettings(studioId, fields) {
   const now = Date.now();
-  const allowed = ['smtp_host','smtp_port','smtp_user','smtp_pass','smtp_from','smtp_secure','apache_path','base_url','site_title'];
+  const allowed = ['smtp_host','smtp_port','smtp_user','smtp_pass','smtp_from','smtp_secure','apache_path','base_url','site_title','default_author','default_author_email','default_locale','default_access','default_allow_download_image','default_allow_download_gallery','default_private'];
   const cols = Object.keys(fields).filter(k => allowed.includes(k));
   if (!cols.length) return;
   const existing = getSettings(studioId);
