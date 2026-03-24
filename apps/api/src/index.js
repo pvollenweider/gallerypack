@@ -18,8 +18,9 @@ import photosRoutes    from './routes/photos.js';
 import jobsRoutes      from './routes/jobs.js';
 import invitesRoutes   from './routes/invites.js';
 
-const __DIR = path.dirname(fileURLToPath(import.meta.url));
-const PORT  = process.env.PORT || 4000;
+const __DIR     = path.dirname(fileURLToPath(import.meta.url));
+const PORT      = process.env.PORT || 4000;
+const ADMIN_DIST = process.env.ADMIN_DIST || path.join(__DIR, '../../../../apps/web/dist');
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 runMigrations();
@@ -70,6 +71,10 @@ app.get('/api/health', async (req, res) => {
 
   res.status(checks.ok ? 200 : 503).json(checks);
 });
+
+// ── Admin SPA (served before API routes) ─────────────────────────────────────
+app.use('/admin', express.static(ADMIN_DIST));
+app.get(/^\/admin(\/.*)?$/, (req, res) => res.sendFile(path.join(ADMIN_DIST, 'index.html')));
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.use('/api/auth',                authRoutes);
