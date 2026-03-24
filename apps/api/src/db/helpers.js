@@ -442,3 +442,66 @@ export function listInvitations(studioId) {
 export function deleteInvitation(id) {
   getDb().prepare('DELETE FROM invitations WHERE id = ?').run(id);
 }
+
+// ── Viewer tokens (DB-backed, per-gallery share links) ────────────────────────
+
+/**
+ * Create a viewer token for a gallery.
+ * @param {string} galleryId
+ * @param {string} createdBy  - user ID of the creator
+ * @param {{ label?: string, expiresAt?: number }} [opts]
+ * @returns {object} new viewer_tokens row
+ */
+export function createViewerTokenDb(galleryId, createdBy, { label = null, expiresAt = null } = {}) {
+  const id    = randomUUID();
+  const token = randomBytes(32).toString('hex');
+  const now   = Date.now();
+  getDb().prepare(`
+    INSERT INTO viewer_tokens (id, gallery_id, token, label, created_by, created_at, expires_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(id, galleryId, token, label, createdBy, now, expiresAt ?? null);
+  return getDb().prepare('SELECT * FROM viewer_tokens WHERE id = ?').get(id);
+}
+
+/**
+ * Look up a viewer token by its token string.
+ * Returns the row or null. Deletes and returns null if expired.
+ * @param {string} token
+ * @returns {object|null}
+ */
+export function getViewerToken(token) {
+  const row = getDb().prepare('SELECT * FROM viewer_tokens WHERE token = ?').get(token);
+  if (!row) return null;
+  if (row.expires_at !== null && row.expires_at < Date.now()) {
+    getDb().prepare('DELETE FROM viewer_tokens WHERE id = ?').run(row.id);
+    return null;
+  }
+  return row;
+}
+
+/**
+ * Update last_used_at for a viewer token (fire-and-forget).
+ * @param {string} id  - viewer_tokens.id
+ */
+export function touchViewerToken(id) {
+  getDb().prepare('UPDATE viewer_tokens SET last_used_at = ? WHERE id = ?').run(Date.now(), id);
+}
+
+/**
+ * List all viewer tokens for a gallery.
+ * @param {string} galleryId
+ * @returns {object[]}
+ */
+export function listViewerTokens(galleryId) {
+  return getDb()
+    .prepare('SELECT * FROM viewer_tokens WHERE gallery_id = ? ORDER BY created_at DESC')
+    .all(galleryId);
+}
+
+/**
+ * Delete a viewer token by its id.
+ * @param {string} id
+ */
+export function deleteViewerToken(id) {
+  getDb().prepare('DELETE FROM viewer_tokens WHERE id = ?').run(id);
+}
