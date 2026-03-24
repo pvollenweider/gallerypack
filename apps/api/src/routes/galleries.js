@@ -1,7 +1,7 @@
 // apps/api/src/routes/galleries.js — Gallery CRUD
 import { Router } from 'express';
 import { getDb }  from '../db/database.js';
-import { genId }  from '../db/helpers.js';
+import { genId, hashPassword } from '../db/helpers.js';
 import { requireAdmin } from '../middleware/auth.js';
 
 const router = Router();
@@ -104,7 +104,7 @@ router.patch('/:id', (req, res) => {
 
   const allowed = [
     'title','subtitle','author','author_email','date','location',
-    'locale','access','password','private','standalone',
+    'locale','access','password','password_hash','private','standalone',
     'allow_download_image','allow_download_gallery','cover_photo',
     'slideshow_interval','copyright',
   ];
@@ -120,6 +120,12 @@ router.patch('/:id', (req, res) => {
   for (const [key, val] of Object.entries(req.body || {})) {
     const col = camelToSnake[key] || key;
     if (allowed.includes(col)) updates[col] = val;
+  }
+
+  // Hash password when provided (for password-protected galleries)
+  if (updates.password) {
+    updates.password_hash = hashPassword(updates.password);
+    delete updates.password; // don't store plain text
   }
 
   if (!Object.keys(updates).length) return res.json(rowToGallery(row));
