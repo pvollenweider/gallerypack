@@ -126,12 +126,30 @@ These are not bugs but structural improvements that will reduce future risk.
 
 ## Not planned (unless real usage changes the picture)
 
-- Web frontend / SaaS layer
 - Video support
 - Comment system
-- Multi-user upload interface
-- Expiration / time-limited access
+- Expiration / time-limited access beyond invite TTL
 
 ---
 
-*Last updated: 2026-03-23 — v1.1.2*
+## SaaS branch (`saas`) — shipped phases
+
+The `saas` branch adds a full multi-tenant hosted layer on top of the v1 engine. All phases are complete and pushed.
+
+| Phase | What | Issues |
+|-------|------|--------|
+| **1 — Monorepo** | npm workspaces scaffold: `packages/engine`, `packages/shared`, `apps/api`, `apps/web`, `workers/builder` | #1–5 |
+| **2 — Engine extraction** | Move build pipeline to `packages/engine`; re-export shims for backward compat | #6–10 |
+| **3 — API scaffold** | Express 5 API, SQLite migrations, auth (sessions, scrypt), gallery CRUD, photos, jobs | #11–15 |
+| **4 — Job queue** | Builder worker (poll loop, SSE streaming, watchdog for stuck jobs) | #16–20 |
+| **5 — Storage adapter** | `LocalStorage` / `S3Storage` abstraction; injectable into engine and API | #21–23 |
+| **6 — Web UI** | React 19 + Vite 5 + React Router v7 admin SPA (dashboard, gallery detail, live build log) | #24–28 |
+| **7 — Access & invites** | Gallery password hashing, viewer tokens, invite CRUD (expiry, single-use, revocation) | #29–30 |
+| **8 — Email** | Nodemailer SMTP provider + null (dev) provider; invite / gallery-ready / access-resend templates | #31 |
+| **9 — Production hardening** | Dockerfile×2, docker-compose.saas.yml + Caddy, CI pipeline, upload quotas, healthcheck | #32–35 |
+
+See [docs/saas/quick-install.md](saas/quick-install.md) to get running in 5 minutes.
+
+---
+
+*Last updated: 2026-03-24 — v1.1.2 / saas branch complete*
