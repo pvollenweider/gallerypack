@@ -10,12 +10,14 @@ export default function GalleryDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const [gallery, setGallery] = useState(null);
-  const [photos,  setPhotos]  = useState([]);
-  const [jobs,    setJobs]    = useState([]);
-  const [tab,     setTab]     = useState('photos'); // photos | settings | jobs
-  const [saving,  setSaving]  = useState(false);
-  const [form,    setForm]    = useState({});
+  const [gallery,   setGallery]   = useState(null);
+  const [photos,    setPhotos]    = useState([]);
+  const [jobs,      setJobs]      = useState([]);
+  const [tab,       setTab]       = useState('photos'); // photos | settings | jobs
+  const [saving,    setSaving]    = useState(false);
+  const [form,      setForm]      = useState({});
+  const [dragIdx,   setDragIdx]   = useState(null);
+  const [reordering,setReordering]= useState(false);
 
   useEffect(() => { load(); }, [id]);
 
@@ -64,6 +66,30 @@ export default function GalleryDetail() {
     } catch (e) { alert(e.message); }
   }
 
+  async function sortPhotos(dir) {
+    const sorted = [...photos].sort((a, b) =>
+      dir === 'asc' ? a.file.localeCompare(b.file) : b.file.localeCompare(a.file));
+    setPhotos(sorted);
+    try { await api.reorderPhotos(id, sorted.map(p => p.file)); } catch (e) { alert(e.message); }
+  }
+
+  function onDragStart(i) { setDragIdx(i); }
+  function onDragOver(e, i) {
+    e.preventDefault();
+    if (dragIdx === null || dragIdx === i) return;
+    const next = [...photos];
+    const [moved] = next.splice(dragIdx, 1);
+    next.splice(i, 0, moved);
+    setPhotos(next);
+    setDragIdx(i);
+  }
+  async function onDragEnd() {
+    setDragIdx(null);
+    setReordering(true);
+    try { await api.reorderPhotos(id, photos.map(p => p.file)); } catch (e) { alert(e.message); }
+    finally { setReordering(false); }
+  }
+
   if (!gallery) return <div style={s.center}>Loading…</div>;
 
   return (
@@ -99,11 +125,25 @@ export default function GalleryDetail() {
             <h3 style={s.sectionTitle}>Upload photos</h3>
             <UploadZone galleryId={id} onDone={() => api.listPhotos(id).then(setPhotos)} />
 
-            <h3 style={{ ...s.sectionTitle, marginTop:'1.5rem' }}>Photos ({photos.length})</h3>
+            <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', marginTop:'1.5rem', marginBottom:'0.75rem' }}>
+              <h3 style={{ ...s.sectionTitle, margin:0 }}>Photos ({photos.length})</h3>
+              <div style={{ marginLeft:'auto', display:'flex', gap:'0.35rem', alignItems:'center' }}>
+                {reordering && <span style={{ fontSize:'0.75rem', color:'#888' }}>Saving…</span>}
+                <button style={s.sortBtn} onClick={() => sortPhotos('asc')} title="Sort A→Z">A→Z</button>
+                <button style={s.sortBtn} onClick={() => sortPhotos('desc')} title="Sort Z→A">Z→A</button>
+              </div>
+            </div>
             {photos.length === 0 && <p style={s.dim}>No photos yet.</p>}
             <div style={s.photoGrid}>
-              {photos.map(p => (
-                <div key={p.file} style={s.photoCard}>
+              {photos.map((p, i) => (
+                <div
+                  key={p.file}
+                  style={{ ...s.photoCard, opacity: dragIdx === i ? 0.5 : 1, cursor:'grab' }}
+                  draggable
+                  onDragStart={() => onDragStart(i)}
+                  onDragOver={e => onDragOver(e, i)}
+                  onDragEnd={onDragEnd}
+                >
                   <img
                     src={p.thumb
                       ? `/${gallery.slug}/img/grid/${p.thumb}.webp`
@@ -252,6 +292,7 @@ const s = {
   coverThumbSelected: { border:'2px solid #111' },
   coverThumbImg:{ width:'100%', aspectRatio:'1', objectFit:'cover', display:'block' },
   coverCheck:   { position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.45)', color:'#fff', fontWeight:700, fontSize:'1.1rem' },
+  sortBtn:      { padding:'2px 8px', background:'none', border:'1px solid #ddd', borderRadius:4, cursor:'pointer', fontSize:'0.75rem' },
   dim:          { color:'#888', fontSize:'0.875rem' },
   jobList:      { display:'flex', flexDirection:'column', gap:'0.4rem' },
   jobRow:       { display:'flex', gap:'1rem', alignItems:'center', padding:'0.6rem 0.85rem', background:'#fff', borderRadius:6, textDecoration:'none', color:'#111', fontSize:'0.875rem', boxShadow:'0 1px 3px #0001' },
