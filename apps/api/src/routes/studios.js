@@ -30,6 +30,15 @@ router.get('/members', requireStudioRole('admin'), (req, res) => {
   res.json(listStudioMembers(req.studioId));
 });
 
+// GET /api/studios/members/:userId — single member profile
+router.get('/members/:userId', requireStudioRole('admin'), (req, res) => {
+  const { userId } = req.params;
+  const members = listStudioMembers(req.studioId);
+  const member = members.find(m => m.user.id === userId);
+  if (!member) return res.status(404).json({ error: 'Member not found' });
+  res.json(member);
+});
+
 // PUT /api/studios/members/:userId — update role
 router.put('/members/:userId', requireStudioRole('admin'), (req, res) => {
   const { userId } = req.params;
