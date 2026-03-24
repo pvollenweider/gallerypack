@@ -31,7 +31,7 @@ export function getPublicGalleries() {
   const rows = getDb()
     .prepare(`SELECT slug, title, subtitle, description, date, location, access, build_status, cover_photo
               FROM galleries
-              WHERE access != 'private' AND private = 0
+              WHERE access = 'public'
               ORDER BY date DESC, created_at DESC`)
     .all();
   return rows.map(row => ({

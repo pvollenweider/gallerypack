@@ -6,8 +6,6 @@ services:
       context: .
       dockerfile: Dockerfile.api
     restart: "no"
-    ports:
-      - "4001:4000"
     volumes:
       - /tmp/gallerypack-test/data:/app/data
       - /tmp/gallerypack-test/src:/app/src
@@ -42,16 +40,18 @@ services:
     environment:
       NODE_ENV: "production"
       DATA_DIR: "/app/data"
-      BASE_URL: "http://localhost:8081"
+      BASE_URL: "http://localhost:4001"
 
   proxy:
     image: caddy:2-alpine
     restart: "no"
     ports:
-      - "8081:80"
+      - "4001:80"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - /tmp/gallerypack-test/dist:/srv/galleries:ro
       - /tmp/gallerypack-test-caddy:/data
+    environment:
+      DOMAIN: "http://localhost"
     depends_on:
       - api

@@ -30,6 +30,9 @@ function makeEventWriter(jobId) {
  */
 function galleryToProjectConfig(g) {
   const proj = {};
+  // Force distName = slug so the built folder always matches the gallery URL.
+  // (The engine derives distName from project.name ?? project.title, which can differ from the slug.)
+  proj.name                 = g.slug;
   if (g.title)              proj.title              = g.title;
   if (g.subtitle)           proj.subtitle           = g.subtitle;
   if (g.author)             proj.author             = g.author;

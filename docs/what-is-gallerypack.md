@@ -42,8 +42,6 @@
 
 **Not a video gallery.** GalleryPack handles still images only.
 
-**Not multi-user.** There is no role management, no upload interface for third parties, no admin panel.
-
 ---
 
 ## When to use GalleryPack
@@ -53,10 +51,10 @@
 - You want to archive a series with full metadata alongside the images
 - You host your own server (Apache, Nginx) or use a static hosting service
 - You want full control of the output — file names, structure, legal notice, download permissions
+- You need multiple users to upload and manage galleries through a web interface (use the v2 SaaS stack)
 
 ## When not to use GalleryPack
 
-- You need multiple users to upload and manage galleries through a web interface
 - You need strong access control beyond basic auth
 - You want a comment system, analytics, or client proofing workflow
 - You need to share videos
