@@ -17,8 +17,10 @@ export default function Settings() {
     smtpHost: '', smtpPort: 587, smtpUser: '', smtpPass: '', smtpFrom: '', smtpSecure: false,
   });
   const [smtpPassSet, setSmtpPassSet] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [toast,  setToast]  = useState('');
+  const [saving,       setSaving]       = useState(false);
+  const [toast,        setToast]        = useState('');
+  const [smtpTesting,  setSmtpTesting]  = useState(false);
+  const [smtpResult,   setSmtpResult]   = useState(null); // { ok, message }
 
   useEffect(() => {
     api.getSettings().then(s => {
@@ -41,6 +43,19 @@ export default function Settings() {
       setSmtpPassSet(!!s.smtpPassSet);
     }).catch(() => {});
   }, []);
+
+  async function handleSmtpTest() {
+    setSmtpTesting(true);
+    setSmtpResult(null);
+    try {
+      const r = await api.smtpTest();
+      setSmtpResult({ ok: true, message: `Test email sent to ${r.to}` });
+    } catch (err) {
+      setSmtpResult({ ok: false, message: err.message });
+    } finally {
+      setSmtpTesting(false);
+    }
+  }
 
   async function handleSave(e) {
     e.preventDefault();
@@ -137,6 +152,16 @@ export default function Settings() {
                 onChange={set('smtpSecure')} />
               <span style={{ fontSize: '0.8rem', color: '#888' }}>Enable for port 465</span>
             </Row>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem', marginLeft: 216 }}>
+              <button type="button" style={s.testBtn} onClick={handleSmtpTest} disabled={smtpTesting}>
+                {smtpTesting ? 'Sending…' : 'Send test email'}
+              </button>
+              {smtpResult && (
+                <span style={{ fontSize: '0.82rem', color: smtpResult.ok ? '#059669' : '#dc2626' }}>
+                  {smtpResult.ok ? '✓ ' : '✗ '}{smtpResult.message}
+                </span>
+              )}
+            </div>
           </Section>
 
           <button style={s.btn} type="submit" disabled={saving}>
@@ -179,4 +204,5 @@ const s = {
   input:        { flex: 1, padding: '0.4rem 0.6rem', border: '1px solid #ddd', borderRadius: 5, fontSize: '0.875rem', outline: 'none' },
   hint:         { fontSize: '0.8rem', color: '#999', marginBottom: '0.5rem', marginLeft: 216 },
   btn:          { marginTop: '0.25rem', padding: '0.55rem 1.5rem', background: '#111', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem', alignSelf: 'flex-start' },
+  testBtn:      { padding: '0.35rem 0.9rem', background: '#fff', border: '1px solid #ddd', borderRadius: 5, fontSize: '0.82rem', cursor: 'pointer', color: '#555' },
 };
