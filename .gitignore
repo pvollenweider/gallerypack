@@ -29,3 +29,8 @@ server/settings.json
 # Claude Code memory
 .claude/
 apps/api/data/
+data/
+.env
+*.db
+*.db-shm
+*.db-wal
