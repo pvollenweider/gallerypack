@@ -1,4 +1,10 @@
-// @gallerypack/engine — re-exports (populated as modules are migrated from build/)
-// Phase 2: build/, infra/, core/ modules will move here
+// @gallerypack/engine — public API
 
-export {};
+export * from './fs.js';
+export * from './utils.js';
+export * from './config.js';
+export * from './exif.js';
+export * from './images.js';
+export * from './html.js';
+export * from './network.js';
+export * from './gallery.js';
