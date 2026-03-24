@@ -173,6 +173,9 @@ const _T = {
     'admin.settings.testSent':        'Test email sent to admin address',
     'admin.settings.section.ui':      'Interface',
     'admin.settings.uiLocale':        'Interface language',
+    'admin.settings.section.apache':  'Apache deployment',
+    'admin.settings.apachePath':      'Document root on Apache server',
+    'admin.settings.apachePath.hint': 'Absolute path where dist/ is deployed. Used to generate correct AuthUserFile in .htaccess for password-protected galleries.',
   },
 
   fr: {
@@ -326,6 +329,9 @@ const _T = {
     'admin.settings.testSent':        'E-mail de test envoyé à l\'adresse administrateur',
     'admin.settings.section.ui':      'Interface',
     'admin.settings.uiLocale':        'Langue de l\'interface',
+    'admin.settings.section.apache':  'Déploiement Apache',
+    'admin.settings.apachePath':      'Racine du document sur le serveur Apache',
+    'admin.settings.apachePath.hint': 'Chemin absolu où dist/ est déployé. Utilisé pour générer AuthUserFile dans .htaccess pour les galeries protégées par mot de passe.',
   },
 
   de: {
@@ -479,6 +485,9 @@ const _T = {
     'admin.settings.testSent':        'Test-E-Mail an Admin-Adresse gesendet',
     'admin.settings.section.ui':      'Oberfläche',
     'admin.settings.uiLocale':        'Oberflächensprache',
+    'admin.settings.section.apache':  'Apache-Bereitstellung',
+    'admin.settings.apachePath':      'Dokumentwurzel auf dem Apache-Server',
+    'admin.settings.apachePath.hint': 'Absoluter Pfad, wo dist/ bereitgestellt ist. Wird verwendet, um AuthUserFile in .htaccess für passwortgeschützte Galerien zu generieren.',
   },
 
   it: {
@@ -632,6 +641,9 @@ const _T = {
     'admin.settings.testSent':        'Email di prova inviata all\'indirizzo admin',
     'admin.settings.section.ui':      'Interfaccia',
     'admin.settings.uiLocale':        'Lingua dell\'interfaccia',
+    'admin.settings.section.apache':  'Distribuzione Apache',
+    'admin.settings.apachePath':      'Radice del documento sul server Apache',
+    'admin.settings.apachePath.hint': 'Percorso assoluto dove dist/ è distribuito. Usato per generare AuthUserFile in .htaccess per le gallerie protette da password.',
   },
 
   es: {
@@ -785,6 +797,9 @@ const _T = {
     'admin.settings.testSent':        'Correo de prueba enviado a la dirección admin',
     'admin.settings.section.ui':      'Interfaz',
     'admin.settings.uiLocale':        'Idioma de la interfaz',
+    'admin.settings.section.apache':  'Despliegue Apache',
+    'admin.settings.apachePath':      'Raíz de documento en el servidor Apache',
+    'admin.settings.apachePath.hint': 'Ruta absoluta donde dist/ está desplegado. Se usa para generar AuthUserFile en .htaccess para galerías protegidas por contraseña.',
   },
 
   pt: {
@@ -938,6 +953,9 @@ const _T = {
     'admin.settings.testSent':        'E-mail de teste enviado para o endereço admin',
     'admin.settings.section.ui':      'Interface',
     'admin.settings.uiLocale':        'Idioma da interface',
+    'admin.settings.section.apache':  'Implantação Apache',
+    'admin.settings.apachePath':      'Raiz do documento no servidor Apache',
+    'admin.settings.apachePath.hint': 'Caminho absoluto onde dist/ está implantado. Usado para gerar AuthUserFile em .htaccess para galerias protegidas por senha.',
   },
 };
 

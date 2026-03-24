@@ -90,12 +90,19 @@ function buildBasicAuth(project, distPath) {
   const sha1     = crypto.createHash('sha1').update(password, 'binary').digest('base64');
   const htpasswd = `${username}:{SHA}${sha1}\n`;
 
-  // AuthUserFile needs the absolute server path.
-  // __HTPASSWD_PATH__ is replaced by the publish script when remotePath is known.
+  // AuthUserFile needs the absolute server path on the Apache host.
+  // GALLERY_APACHE_PATH env var (e.g. /var/www/html/galleries) is set by the
+  // server when it knows the deployment root; otherwise fall back to the
+  // placeholder so the deployer can replace it manually.
+  const apacheBase = (process.env.GALLERY_APACHE_PATH || '').replace(/\/$/, '');
+  const htpasswdPath = apacheBase
+    ? `${apacheBase}/${path.basename(distPath)}/.htpasswd`
+    : '__HTPASSWD_PATH__';
+
   const htaccess = [
     'AuthType Basic',
     `AuthName "${project.title || 'Gallery'}"`,
-    'AuthUserFile __HTPASSWD_PATH__',
+    `AuthUserFile ${htpasswdPath}`,
     'Require valid-user',
     '',
     '# Protect all assets (images, JS, JSON)',
@@ -467,7 +474,7 @@ async function computeIsDark(gridPath, gridSize) {
  * @param {boolean|null} cachedIsDark - Brightness flag from the manifest, or null to compute fresh.
  * @returns {Promise<{name: string, width: number, height: number, isDark: boolean}>}
  */
-async function convertOne(photo, cfg, idx, cachedIsDark = null, paths) {
+async function convertOne(photo, cfg, idx, cachedIsDark = null, paths, cachedName = null) {
   const name     = buildName(cfg, idx);
   const isBig    = BIG_POSITIONS.has(idx % 12);   // big tile → larger thumbnail
   const gridOut   = path.join(paths.distImg, 'grid',    `${name}.webp`);
@@ -483,9 +490,11 @@ async function convertOne(photo, cfg, idx, cachedIsDark = null, paths) {
   const skipOriginals = cfg.project.allowDownloadImage === false
                      && cfg.project.allowDownloadGallery === false;
 
-  // Skip conversion if all outputs exist and --force was not requested.
+  // Skip conversion if all outputs exist, --force was not requested,
+  // AND this photo hasn't moved to a different position (cover change reorders photos).
   const origReady = skipOriginals || fs.existsSync(origOut);
-  if (!FORCE && fs.existsSync(gridOut) && fs.existsSync(gridSmOut) && fs.existsSync(fullOut) && origReady) {
+  const positionUnchanged = cachedName === null || cachedName === name;
+  if (!FORCE && positionUnchanged && fs.existsSync(gridOut) && fs.existsSync(gridSmOut) && fs.existsSync(fullOut) && origReady) {
     ok(`${name} (skip)`);
     // Reuse cached isDark when available; fall back to computing it from disk.
     const [meta, isDark] = await Promise.all([
@@ -687,10 +696,11 @@ async function processPhotos(photos, cfg, paths) {
       const cached     = manifest.photos[photo.file];
       const cachedExif = cached?.exif;
       const cachedDark = cached?.isDark ?? null;
+      const cachedName = cached?.name   ?? null;
 
       // Run image conversion and EXIF extraction in parallel when EXIF is cached.
       const [dims, exif] = await Promise.all([
-        convertOne(photo, cfg, i, cachedDark, paths),
+        convertOne(photo, cfg, i, cachedDark, paths, cachedName),
         cachedExif ? Promise.resolve(cachedExif) : extractExif(photo.full),
       ]);
       // Attach source filename and file size (human-readable) to the EXIF record.
@@ -2373,13 +2383,15 @@ function collectBuiltGalleries() {
     })
     .map(entry => {
       try {
-        const manifest = JSON.parse(fs.readFileSync(path.join(DIST_ROOT, entry, 'photos.json'), 'utf8'));
+        const manifestPath = path.join(DIST_ROOT, entry, 'photos.json');
+        const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
         const project  = manifest.project || {};
         if (project.private) return null;   // skip private galleries
 
         const photos     = Object.values(manifest.photos || {});
         const photoCount = photos.length;
         const firstPhoto = photos.find(p => p.name)?.name || null;
+        const buildMtime = Math.floor(fs.statSync(manifestPath).mtimeMs / 1000);
 
         // Resolve date: if 'auto' or missing, derive from earliest EXIF date across photos.
         let resolvedDate = (project.date && project.date !== 'auto') ? project.date : null;
@@ -2407,6 +2419,7 @@ function collectBuiltGalleries() {
           project:   { ...project, date: resolvedDate, location: resolvedLocation },
           photoCount,
           firstPhoto,
+          buildMtime,
         };
       } catch (_) { return null; }
     })
@@ -2437,10 +2450,11 @@ function buildIndexHTML(fontCss) {
     const meta   = [p.location, yr].filter(Boolean).join(' \u00b7 ');
     // Password-protected galleries serve their cover from dist/covers/ (outside
     // the .htaccess zone) so the site index can display it without a 401 error.
+    const v      = g.buildMtime || '';
     const bgImg  = g.firstPhoto
       ? (g.project.access === 'password'
-        ? `<img class="card-bg" src="covers/${escHtml(g.distName)}.webp" alt="" loading="lazy">`
-        : `<img class="card-bg" src="${escHtml(g.distName)}/img/grid/${escHtml(g.firstPhoto)}.webp" alt="" loading="lazy">`)
+        ? `<img class="card-bg" src="covers/${escHtml(g.distName)}.webp?v=${v}" alt="" loading="lazy">`
+        : `<img class="card-bg" src="${escHtml(g.distName)}/img/grid/${escHtml(g.firstPhoto)}.webp?v=${v}" alt="" loading="lazy">`)
       : `<div class="card-bg card-bg-empty"></div>`;
     const subtitleHtml  = p.subtitle    ? `<div class="card-sub">${escHtml(p.subtitle)}</div>`   : '';
     const authorHtml    = p.author      ? `<div class="card-author">\u00a9\u00a0${escHtml(p.author)}</div>` : '';

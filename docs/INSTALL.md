@@ -1,136 +1,305 @@
-# GalleryPack v2 — Installation Guide
+# GalleryPack — Installation Guide
 
 ## Overview
 
-GalleryPack is a self-hosted photo gallery platform. It converts folders of photos into polished static galleries, served by a lightweight Node.js server.
+GalleryPack has two usage modes:
 
-**Features:**
-- Web upload interface for photographers
-- Invite link system (send a link, photographer uploads)
-- Admin panel (gallery management, invite links, SMTP settings)
-- Photographer management interface (add/remove photos, edit metadata)
-- Email notifications via SMTP
-- Password-protected galleries
-- Mobile-friendly upload (including iPhone Photos library)
+| Mode | Description | Install option |
+|------|-------------|----------------|
+| **CLI** | Build locally, deploy static files anywhere | [Option A — CLI](#option-a--cli-local-build) |
+| **Hosted** | Web server with admin panel + photographer upload | [Option B — Docker dev](#option-b--docker-development) · [Option C — Apache+Docker prod](#option-c--apachedocker-production-recommended) · [Option D — Nginx](#option-d--nginx-reverse-proxy) · [Option E — Native Node.js](#option-e--native-nodejs) |
 
 ---
 
 ## Requirements
 
-- **Node.js 20+** (or Docker — recommended)
-- **~500 MB RAM** (sharp image processing is memory-intensive)
-- **Storage:** depends on photo volume (allow 3× raw photo size for thumbnails)
+- **Node.js 20+** (or Docker — hides all dependencies)
+- **RAM:** ~500 MB minimum (Sharp image processing is memory-intensive)
+- **Disk:** allow 3× raw photo size for WebP thumbnails + originals
 
 ---
 
-## Option A — Docker (recommended)
+## Option A — CLI (local build)
 
-Docker is the easiest way to run GalleryPack with no dependency issues.
+No server needed. Run the build tool on your machine, copy `dist/` to any web host.
 
-### 1. Clone the repository
+### 1. Install
 
 ```bash
-git clone https://github.com/your-repo/gallerypack.git
+git clone https://github.com/pvollenweider/gallerypack.git
 cd gallerypack
+npm install
+```
+
+### 2. Create a gallery
+
+```bash
+npm run new-gallery my-shoot
+# Drop photos into src/my-shoot/photos/
+# Edit src/my-shoot/gallery.config.json if needed
+```
+
+### 3. Build
+
+```bash
+npm run build my-shoot        # incremental
+npm run build:force my-shoot  # force re-encode all images
+npm run build:all             # build every gallery + site index
+```
+
+### 4. Preview
+
+```bash
+npm run serve
+# → http://localhost:3000/my-shoot/
+```
+
+### 5. Deploy
+
+**Option 5a — rsync** (requires `publish.config.json`):
+
+```bash
+# publish.config.json
+{
+  "remote":     "user@yourserver.com",
+  "remotePath": "/var/www/html/galleries",
+  "baseUrl":    "https://photos.example.com"
+}
+
+npm run publish        # one gallery (interactive)
+npm run publish:all    # all galleries
+```
+
+**Option 5b — FTP / cPanel** (Apache hosting):
+
+```bash
+# Patch .htaccess files and create a zip
+npm run export -- --apache-path=/var/www/html/galleries
+npm run export:zip   # also creates dist-export.zip
+
+# Upload dist-export.zip via cPanel File Manager or FTP, then extract
+```
+
+**Option 5c — GitHub Pages / Netlify / S3**:
+
+```bash
+npm run deploy        # GitHub Pages (gh-pages branch)
+# Or just copy dist/ to any static host
+```
+
+---
+
+## Option B — Docker (development)
+
+The simplest way to run the hosted server locally or on a VPS where Node.js handles all routes.
+
+### 1. Configure
+
+Edit `docker-compose.yml`:
+
+```yaml
+environment:
+  BASE_URL:       "http://localhost:3000"   # or https://your-domain.com
+  ADMIN_PASSWORD: "your-secure-password"
+  SESSION_SECRET: "$(openssl rand -hex 32)"
+```
+
+### 2. Start
+
+```bash
+docker compose up -d
+docker compose logs -f
+```
+
+### 3. Access
+
+| URL | Description |
+|-----|-------------|
+| `http://localhost:3000/admin` | Admin panel |
+| `http://localhost:3000/upload/<token>` | Photographer upload |
+| `http://localhost:3000/my-gallery/<id>?token=…` | Photographer management |
+| `http://localhost:3000/status/<id>` | Build progress |
+
+---
+
+## Option C — Apache + Docker (production, recommended)
+
+Best for production: Apache serves static galleries directly (fast, HTTP/2, brotli, `.htaccess` auth), Docker handles admin/upload/api.
+
+```
+Internet → Apache :443
+  ├── /                dist/ statique  (Apache direct — rapide)
+  ├── /admin           ┐
+  ├── /api/            │ ProxyPass → Docker Node.js :3000
+  ├── /upload/         │ (127.0.0.1 only, not public)
+  ├── /my-gallery/     │
+  ├── /status/         ┘
+  └── /js/
+```
+
+### 1. Prerequisites
+
+```bash
+apt install apache2 docker.io docker-compose-plugin certbot python3-certbot-apache
+a2enmod proxy proxy_http rewrite headers ssl expires brotli http2
 ```
 
 ### 2. Configure environment
 
-Edit `docker-compose.yml` and set your values:
-
-```yaml
-environment:
-  PORT:           "3000"
-  BASE_URL:       "https://your-domain.com"   # no trailing slash
-  ADMIN_PASSWORD: "your-secure-password"
-  SESSION_SECRET: "a-long-random-string-32-chars-min"
-```
-
-Generate a good SESSION_SECRET:
 ```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+cp deploy/.env.example deploy/.env
+nano deploy/.env
 ```
+
+| Variable | Example | Description |
+|----------|---------|-------------|
+| `ADMIN_PASSWORD` | `my-password` | Admin panel password |
+| `SESSION_SECRET` | _(openssl rand -hex 32)_ | Random 32-char secret |
+| `BASE_URL` | `https://photos.example.com` | Public HTTPS URL |
+| `GALLERY_APACHE_PATH` | `/var/www/galleries/dist` | Apache DocumentRoot — used to generate correct `AuthUserFile` in `.htaccess` for password-protected galleries |
 
 ### 3. Start the container
 
 ```bash
-docker compose up -d
+docker compose -f deploy/docker-compose.prod.yml up -d
 ```
 
-### 4. Verify it's running
+The Node.js port (3000) is bound to `127.0.0.1` only — Apache is the only entry point from outside.
+
+### 4. Configure Apache
+
+Copy and adapt the provided VirtualHost (already configured for `photos.vollenweider.org` as reference):
 
 ```bash
-docker compose logs -f
+cp deploy/apache-vhost.conf /etc/apache2/sites-available/mygalleries.conf
+# Edit: replace domain and DocumentRoot path
+nano /etc/apache2/sites-available/mygalleries.conf
+
+a2ensite mygalleries
+apache2ctl configtest
+systemctl reload apache2
 ```
 
-You should see:
-```
-✓  GalleryPack v2 server
-   http://localhost:3000/
+The VirtualHost includes:
+- HTTP → HTTPS redirect
+- HTTP/2 (`Protocols h2 http/1.1`)
+- Security headers (HSTS, CSP, X-Frame-Options, COOP)
+- Cache-Control + Expires for static assets (1 year immutable for images/fonts)
+- Brotli + Deflate compression
+- `AllowOverride AuthConfig` for `.htaccess` Basic Auth
+- ProxyPass for all GalleryPack dynamic routes
+- SSE stream with `flushpackets=on` (live build log)
+
+### 5. SSL
+
+```bash
+certbot --apache -d photos.example.com
+systemctl reload apache2
 ```
 
-### 5. Access the admin panel
+Certbot fills in the `SSLCertificateFile` / `SSLCertificateKeyFile` directives automatically.
 
-Go to `http://your-server:3000/admin` and log in with your `ADMIN_PASSWORD`.
+### 6. DocumentRoot
+
+Apache's `DocumentRoot` must point to GalleryPack's `dist/` on the host.
+The Docker container mounts the same path via the volume in `deploy/docker-compose.prod.yml`:
+
+```yaml
+volumes:
+  - ../dist:/app/dist   # host path ↔ container path
+```
+
+Make sure the `DocumentRoot` in the Apache vhost matches the absolute host path to `dist/`.
+
+### Password-protected galleries
+
+When `GALLERY_APACHE_PATH` is set, each rebuild writes a ready-to-use `.htaccess`:
+
+```apache
+AuthType Basic
+AuthName "My Gallery"
+AuthUserFile /var/www/galleries/dist/my-gallery/.htpasswd
+Require valid-user
+```
+
+Apache enforces this natively — all assets (images, JS, JSON) are server-side protected.
 
 ---
 
-## Option B — Native Node.js (VPS without Docker)
+## Option D — Nginx reverse proxy
+
+Nginx proxies all routes to Node.js. Simpler than the Apache hybrid but no native `.htaccess` auth.
+
+### 1. Install
+
+```bash
+apt install nginx certbot python3-certbot-nginx
+```
+
+### 2. Create config
+
+`/etc/nginx/sites-available/gallerypack`:
+
+```nginx
+server {
+    listen 80;
+    server_name photos.example.com;
+
+    client_max_body_size 2G;      # large photo batches
+    proxy_read_timeout    600s;   # long builds
+    proxy_connect_timeout 600s;
+    proxy_send_timeout    600s;
+
+    location / {
+        proxy_pass         http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+
+        # Required for SSE (live build log) — disable buffering
+        proxy_buffering  off;
+        proxy_cache      off;
+    }
+}
+```
+
+```bash
+ln -s /etc/nginx/sites-available/gallerypack /etc/nginx/sites-enabled/
+nginx -t && systemctl reload nginx
+certbot --nginx -d photos.example.com
+```
+
+---
+
+## Option E — Native Node.js
+
+No Docker. Run directly on the host.
 
 ### 1. Install Node.js 20
 
 ```bash
-# Ubuntu/Debian
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt-get install -y nodejs
-
-# Or use nvm
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-nvm install 20 && nvm use 20
+apt-get install -y nodejs libvips-dev libheif-dev libwebp-dev
 ```
 
-### 2. Install system dependencies (for sharp/HEIC support)
+### 2. Install dependencies
 
 ```bash
-# Ubuntu/Debian
-sudo apt-get install -y libvips-dev libheif-dev libwebp-dev
-```
-
-### 3. Clone and install
-
-```bash
-git clone https://github.com/your-repo/gallerypack.git
-cd gallerypack
+git clone https://github.com/pvollenweider/gallerypack.git /opt/gallerypack
+cd /opt/gallerypack
 npm ci --omit=dev
 npm rebuild sharp
 ```
 
-### 4. Configure environment
+### 3. systemd service
 
-Create a `.env` file or set environment variables in your shell / systemd unit:
-
-```bash
-export PORT=3000
-export BASE_URL="https://your-domain.com"
-export ADMIN_PASSWORD="your-secure-password"
-export SESSION_SECRET="a-long-random-string"
-```
-
-Or create a `.env` file and load it with a process manager (see below).
-
-### 5. Start the server
-
-```bash
-node server/app.js
-```
-
-### 6. Run as a systemd service (recommended for production)
-
-Create `/etc/systemd/system/gallerypack.service`:
+`/etc/systemd/system/gallerypack.service`:
 
 ```ini
 [Unit]
-Description=GalleryPack v2
+Description=GalleryPack
 After=network.target
 
 [Service]
@@ -140,300 +309,88 @@ WorkingDirectory=/opt/gallerypack
 ExecStart=/usr/bin/node server/app.js
 Restart=on-failure
 RestartSec=5
-
 Environment=PORT=3000
-Environment=BASE_URL=https://your-domain.com
-Environment=ADMIN_PASSWORD=your-secure-password
-Environment=SESSION_SECRET=your-session-secret
+Environment=BASE_URL=https://photos.example.com
+Environment=ADMIN_PASSWORD=your-password
+Environment=SESSION_SECRET=your-32char-secret
 Environment=NODE_ENV=production
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-Enable and start:
-
 ```bash
-sudo systemctl daemon-reload
-sudo systemctl enable gallerypack
-sudo systemctl start gallerypack
-sudo systemctl status gallerypack
+systemctl daemon-reload
+systemctl enable --now gallerypack
 ```
 
 ---
 
-## Nginx Reverse Proxy
+## Environment variables
 
-Expose GalleryPack through Nginx with SSL termination.
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `3000` | HTTP listen port |
+| `BASE_URL` | `http://localhost:3000` | Public URL (used in links and emails) |
+| `ADMIN_PASSWORD` | — | Admin panel password (required in prod) |
+| `SESSION_SECRET` | Random | Signs admin session tokens (set a fixed value in prod) |
+| `GALLERY_APACHE_PATH` | — | Apache DocumentRoot — activates correct `.htaccess` generation |
 
-### 1. Install Nginx and Certbot
+---
 
-```bash
-sudo apt-get install -y nginx certbot python3-certbot-nginx
-```
+## Data persistence
 
-### 2. Create Nginx config
+| Path | Contents | Backup |
+|------|----------|--------|
+| `src/` | Source photos + `gallery.config.json` | Yes |
+| `dist/` | Built galleries | Optional (can rebuild) |
+| `server/data/jobs.json` | Build job history | Optional |
+| `server/data/invites.json` | Invite links | Yes |
+| `server/data/settings.json` | App settings (SMTP, etc.) | Yes |
 
-Create `/etc/nginx/sites-available/gallerypack`:
-
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com;
-
-    # Increase upload limit for large photo batches
-    client_max_body_size 2G;
-
-    # Increase timeouts for long builds
-    proxy_read_timeout    600s;
-    proxy_connect_timeout 600s;
-    proxy_send_timeout    600s;
-
-    location / {
-        proxy_pass         http://127.0.0.1:3000;
-        proxy_http_version 1.1;
-        proxy_set_header   Upgrade $http_upgrade;
-        proxy_set_header   Connection 'upgrade';
-        proxy_set_header   Host $host;
-        proxy_set_header   X-Real-IP $remote_addr;
-        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header   X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
-
-        # Required for SSE (build log streaming)
-        proxy_buffering    off;
-        proxy_cache        off;
-    }
-}
-```
-
-Enable and test:
+Backup command:
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/gallerypack /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-### 3. Obtain SSL certificate
-
-```bash
-sudo certbot --nginx -d your-domain.com
-```
-
-Certbot automatically updates the Nginx config for HTTPS and sets up auto-renewal.
-
-### 4. Update BASE_URL
-
-Update your `docker-compose.yml` or systemd service:
-
-```
-BASE_URL=https://your-domain.com
-```
-
-Then restart GalleryPack:
-
-```bash
-# Docker
-docker compose up -d
-
-# systemd
-sudo systemctl restart gallerypack
+tar czf gallerypack-backup-$(date +%Y%m%d).tar.gz \
+    src/ server/data/
 ```
 
 ---
 
-## Apache Reverse Proxy
+## SMTP email notifications
 
-If your server already runs Apache (common on shared hosts and classic VPS setups), you can use it as the reverse proxy instead of Nginx.
+Configure in the admin panel → **Settings** → SMTP section, or via `server/data/settings.json`.
 
-### 1. Enable required modules
+GalleryPack sends emails when:
+- A gallery build completes — photographer + admin receive the gallery and management links
+- An invite link is created with a photographer email — photographer receives the upload link
+- Admin manually re-sends access from a gallery card
 
-```bash
-sudo a2enmod proxy proxy_http proxy_wstunnel headers rewrite ssl
-sudo systemctl restart apache2
-```
+| Setting | Example |
+|---------|---------|
+| SMTP host | `smtp.gmail.com` |
+| Port | `587` (STARTTLS) or `465` (SSL) |
+| Username | `your@gmail.com` |
+| Password | 16-char App Password (Gmail 2FA required) |
+| From | `GalleryPack <noreply@photos.example.com>` |
 
-### 2. Create a VirtualHost config
-
-Create `/etc/apache2/sites-available/gallerypack.conf`:
-
-```apache
-<VirtualHost *:80>
-    ServerName your-domain.com
-
-    # Increase upload limit for large photo batches (adjust as needed)
-    LimitRequestBody 2147483648
-
-    # Increase timeouts for long builds
-    Timeout 600
-    ProxyTimeout 600
-
-    ProxyPreserveHost On
-    ProxyPass        / http://127.0.0.1:3000/
-    ProxyPassReverse / http://127.0.0.1:3000/
-
-    # Required for SSE (build log streaming) — disable response buffering
-    SetEnv proxy-sendchunked 1
-    SetEnv proxy-nokeepalive 1
-
-    RequestHeader set X-Forwarded-Proto "http"
-</VirtualHost>
-```
-
-Enable and test:
-
-```bash
-sudo a2ensite gallerypack
-sudo apache2ctl configtest
-sudo systemctl reload apache2
-```
-
-### 3. Obtain SSL certificate (Let's Encrypt)
-
-```bash
-sudo apt-get install -y certbot python3-certbot-apache
-sudo certbot --apache -d your-domain.com
-```
-
-Certbot adds the HTTPS VirtualHost automatically. Verify it includes the same proxy directives, then update `BASE_URL` to `https://your-domain.com` and restart GalleryPack.
-
-### 4. Update BASE_URL
-
-In `docker-compose.yml` (or your systemd unit):
-
-```
-BASE_URL=https://your-domain.com
-```
-
-Then:
-
-```bash
-# Docker
-docker compose up -d
-
-# systemd
-sudo systemctl restart gallerypack
-```
-
-### Note on SSE streaming
-
-Apache's default mod_proxy buffers responses, which breaks the live build log stream. The `proxy-sendchunked` and `proxy-nokeepalive` directives above disable that buffering. If you see the build log panel stay empty, double-check these are present in your VirtualHost.
+> Port 587 = STARTTLS (leave "Direct SSL/TLS" **unchecked**).
+> Port 465 = direct SSL (check "Direct SSL/TLS").
 
 ---
 
 ## Updating GalleryPack
 
-### Docker
-
 ```bash
 git pull
-docker compose down
+
+# Docker (dev)
 docker compose up -d --build
+
+# Docker (prod)
+docker compose -f deploy/docker-compose.prod.yml up -d --build
+
+# Native
+npm ci --omit=dev && npm rebuild sharp
+systemctl restart gallerypack
 ```
-
-### Native
-
-```bash
-git pull
-npm ci --omit=dev
-npm rebuild sharp
-sudo systemctl restart gallerypack
-```
-
----
-
-## Data Persistence
-
-GalleryPack stores data in these directories:
-
-| Path | Contents | Backup? |
-|------|----------|---------|
-| `src/` | Gallery source photos + configs | Yes |
-| `dist/` | Built static galleries | Optional (can rebuild) |
-| `server/jobs.json` | Build job history | Optional |
-| `server/invites.json` | Invite links | Yes |
-| `server/settings.json` | SMTP and app settings | Yes |
-
-With Docker, these are volume-mounted from the host:
-```yaml
-volumes:
-  - ./src:/app/src
-  - ./dist:/app/dist
-  - ./server:/app/server
-```
-
-To back up:
-```bash
-tar czf gallerypack-backup-$(date +%Y%m%d).tar.gz src/ server/invites.json server/settings.json server/jobs.json
-```
-
----
-
-## Environment Variables
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `PORT` | No | `3000` | HTTP port |
-| `BASE_URL` | Yes (prod) | `http://localhost:3000` | Public URL, used in links and emails |
-| `ADMIN_PASSWORD` | Yes | — | Admin panel password |
-| `SESSION_SECRET` | Yes (prod) | Random (lost on restart) | Signs admin session tokens |
-
----
-
-## SMTP Email Notifications
-
-GalleryPack can send emails when:
-- A gallery is built — photographer + admin receive the gallery link and management URL
-- An invite link is created with a photographer email — photographer receives the upload link
-
-### Setup
-
-1. Go to `/admin` → **Settings** tab
-2. Fill in:
-   - **Admin email** — receives copies of all notifications
-   - **SMTP host** — e.g. `smtp.gmail.com`, `smtp.sendgrid.net`
-   - **Port** — `587` (TLS/STARTTLS) or `465` (SSL)
-   - **Username / Password** — your SMTP credentials
-   - **From address** — e.g. `GalleryPack <noreply@your-domain.com>`
-3. Click **Save**
-
-### Important: port 587 vs 465
-
-- **Port 587 (STARTTLS)** — most common. Leave "Direct SSL/TLS" **unchecked**.
-- **Port 465 (direct SSL)** — check "Direct SSL/TLS". Used by some providers (e.g. older setups).
-
-Enabling "Direct SSL/TLS" on port 587 causes an SSL handshake error (`wrong version number`).
-
-### Gmail example
-
-Use an App Password (requires 2FA on your Google account):
-- Host: `smtp.gmail.com`
-- Port: `587`
-- Username: `your.email@gmail.com`
-- Password: your 16-character App Password
-- Direct SSL/TLS: unchecked (STARTTLS is used automatically)
-
-### Transactional email services (recommended for production)
-
-Services like **Resend**, **Postmark**, **Mailgun**, or **SendGrid** offer better deliverability than direct SMTP:
-- They provide SMTP credentials you can use directly
-- Most have a free tier sufficient for low-volume use
-
----
-
-## Password-Protected Galleries
-
-Password protection uses a client-side gate in the gallery viewer.
-
-**Note:** In Docker/Express deployments, the Apache `.htaccess` files generated by the build are not used. The JavaScript password gate in the gallery viewer is the active protection mechanism. Direct asset URLs (images) are not server-side protected in this mode.
-
-For stronger asset protection in production, consider adding an Nginx `auth_basic` rule for specific gallery paths, or implement a custom Express middleware (see the source code).
-
----
-
-## Notes
-
-- **Gallery ZIP downloads** are generated client-side by the browser (JSZip). For large galleries, this may take a moment.
-- **Standalone galleries** (`standalone: true` in `gallery.config.json`) bundle all vendor assets locally. Use this for galleries that will be exported or served independently.
-- **Non-standalone galleries** (default for web-created galleries) share vendor assets from the `dist/` root.
