@@ -1,6 +1,6 @@
 // apps/api/src/services/email.js — email provider abstraction + transactional templates
 import { getDb } from '../db/database.js';
-import { genId } from '../db/helpers.js';
+import { genId, getSettings } from '../db/helpers.js';
 
 // ── Provider factory ──────────────────────────────────────────────────────────
 
@@ -38,13 +38,30 @@ function createNullProvider() {
   };
 }
 
-/** Singleton provider, resolved from env. */
-let _provider = null;
-function getProvider() {
-  if (_provider) return _provider;
+/**
+ * Resolve the SMTP provider for a given studio.
+ * DB settings take priority over environment variables.
+ * A new transporter is created each call so DB changes take effect immediately.
+ */
+function getProvider(studioId) {
+  // 1. Try DB settings for this studio
+  if (studioId) {
+    const s = getSettings(studioId);
+    if (s?.smtp_host && s?.smtp_user && s?.smtp_pass) {
+      return createSmtpProvider({
+        host:   s.smtp_host,
+        port:   s.smtp_port || 587,
+        secure: s.smtp_secure === 1,
+        user:   s.smtp_user,
+        pass:   s.smtp_pass,
+        from:   s.smtp_from || s.smtp_user,
+      });
+    }
+  }
+  // 2. Fall back to environment variables
   const driver = process.env.EMAIL_PROVIDER || 'null';
   if (driver === 'smtp') {
-    _provider = createSmtpProvider({
+    return createSmtpProvider({
       host:   process.env.SMTP_HOST,
       port:   process.env.SMTP_PORT,
       secure: process.env.SMTP_SECURE,
@@ -52,10 +69,8 @@ function getProvider() {
       pass:   process.env.SMTP_PASS,
       from:   process.env.SMTP_FROM,
     });
-  } else {
-    _provider = createNullProvider();
   }
-  return _provider;
+  return createNullProvider();
 }
 
 // ── Log helpers ───────────────────────────────────────────────────────────────
@@ -78,7 +93,7 @@ function logEmail({ studioId, to, subject, template, status, error }) {
  * @param {{ studioId?, to, subject, html, text, template? }} opts
  */
 export function sendEmail({ studioId, to, subject, html, text, template }) {
-  getProvider().send(to, subject, html, text).then(() => {
+  getProvider(studioId).send(to, subject, html, text).then(() => {
     logEmail({ studioId, to, subject, template, status: 'sent' });
   }).catch(err => {
     console.error('[email] send failed:', err.message);

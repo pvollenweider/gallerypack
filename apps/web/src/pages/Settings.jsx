@@ -14,21 +14,32 @@ export default function Settings() {
     defaultAuthor: '', defaultAuthorEmail: '',
     defaultLocale: 'fr', defaultAccess: 'public',
     defaultAllowDownloadImage: true, defaultAllowDownloadGallery: false, defaultPrivate: false,
+    smtpHost: '', smtpPort: 587, smtpUser: '', smtpPass: '', smtpFrom: '', smtpSecure: false,
   });
+  const [smtpPassSet, setSmtpPassSet] = useState(false);
   const [saving, setSaving] = useState(false);
   const [toast,  setToast]  = useState('');
 
   useEffect(() => {
-    api.getSettings().then(s => setForm({
-      siteTitle:                   s.siteTitle                   || '',
-      defaultAuthor:               s.defaultAuthor               || '',
-      defaultAuthorEmail:          s.defaultAuthorEmail          || '',
-      defaultLocale:               s.defaultLocale               || 'fr',
-      defaultAccess:               s.defaultAccess               || 'public',
-      defaultAllowDownloadImage:   s.defaultAllowDownloadImage   !== false,
-      defaultAllowDownloadGallery: !!s.defaultAllowDownloadGallery,
-      defaultPrivate:              !!s.defaultPrivate,
-    })).catch(() => {});
+    api.getSettings().then(s => {
+      setForm({
+        siteTitle:                   s.siteTitle                   || '',
+        defaultAuthor:               s.defaultAuthor               || '',
+        defaultAuthorEmail:          s.defaultAuthorEmail          || '',
+        defaultLocale:               s.defaultLocale               || 'fr',
+        defaultAccess:               s.defaultAccess               || 'public',
+        defaultAllowDownloadImage:   s.defaultAllowDownloadImage   !== false,
+        defaultAllowDownloadGallery: !!s.defaultAllowDownloadGallery,
+        defaultPrivate:              !!s.defaultPrivate,
+        smtpHost:    s.smtpHost    || '',
+        smtpPort:    s.smtpPort    || 587,
+        smtpUser:    s.smtpUser    || '',
+        smtpPass:    '',
+        smtpFrom:    s.smtpFrom    || '',
+        smtpSecure:  !!s.smtpSecure,
+      });
+      setSmtpPassSet(!!s.smtpPassSet);
+    }).catch(() => {});
   }, []);
 
   async function handleSave(e) {
@@ -96,6 +107,35 @@ export default function Settings() {
             <Row label={t('field_private_default')}>
               <input type="checkbox" checked={form.defaultPrivate}
                 onChange={set('defaultPrivate')} />
+            </Row>
+          </Section>
+
+          <Section label="SMTP — Email">
+            <Row label="Host">
+              <input style={s.input} value={form.smtpHost} placeholder="smtp.example.com"
+                onChange={set('smtpHost')} />
+            </Row>
+            <Row label="Port">
+              <input style={{ ...s.input, maxWidth: 90 }} type="number" value={form.smtpPort}
+                onChange={set('smtpPort')} />
+            </Row>
+            <Row label="User">
+              <input style={s.input} value={form.smtpUser} placeholder="user@example.com"
+                onChange={set('smtpUser')} autoComplete="off" />
+            </Row>
+            <Row label="Password">
+              <input style={s.input} type="password" value={form.smtpPass}
+                placeholder={smtpPassSet ? '••••••••  (leave blank to keep)' : 'Password'}
+                onChange={set('smtpPass')} autoComplete="new-password" />
+            </Row>
+            <Row label="From address">
+              <input style={s.input} value={form.smtpFrom} placeholder="GalleryPack <noreply@example.com>"
+                onChange={set('smtpFrom')} />
+            </Row>
+            <Row label="TLS / SSL">
+              <input type="checkbox" checked={form.smtpSecure}
+                onChange={set('smtpSecure')} />
+              <span style={{ fontSize: '0.8rem', color: '#888' }}>Enable for port 465</span>
             </Row>
           </Section>
 
