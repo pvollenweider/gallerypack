@@ -1,0 +1,1 @@
+ALTER TABLE galleries ADD COLUMN needs_rebuild INTEGER NOT NULL DEFAULT 0;

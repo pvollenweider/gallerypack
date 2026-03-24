@@ -1,0 +1,21 @@
+# Directories mounted as volumes — no need to bake into the image
+src/
+dist/
+
+# Server uploads are ephemeral
+server/uploads/
+server/jobs.json
+
+# Dev / test artefacts — exclude ALL node_modules (native addons compiled for host OS
+# would cause ERR_DLOPEN_FAILED inside the Linux container)
+node_modules/
+**/node_modules/
+.git/
+test/
+
+# macOS
+.DS_Store
+
+# Docs
+docs/
+*.md

@@ -1,0 +1,13 @@
+{
+  "name": "@gallerypack/shared",
+  "version": "0.0.1",
+  "description": "Shared types, storage interface, and utilities",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./storage": "./src/storage/index.js",
+    "./types": "./src/types/index.js"
+  },
+  "dependencies": {}
+}

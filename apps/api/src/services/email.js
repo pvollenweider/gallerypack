@@ -1,0 +1,133 @@
+// apps/api/src/services/email.js — email provider abstraction + transactional templates
+import { getDb } from '../db/database.js';
+import { genId } from '../db/helpers.js';
+
+// ── Provider factory ──────────────────────────────────────────────────────────
+
+function createSmtpProvider(config) {
+  // Lazy-load nodemailer to avoid startup cost when EMAIL_PROVIDER=null
+  let transporter = null;
+  async function getTransporter() {
+    if (!transporter) {
+      const nodemailer = (await import('nodemailer')).default;
+      transporter = nodemailer.createTransport({
+        host:   config.host,
+        port:   Number(config.port) || 587,
+        secure: config.secure === 'true' || config.secure === true,
+        auth:   { user: config.user, pass: config.pass },
+      });
+    }
+    return transporter;
+  }
+
+  return {
+    async send(to, subject, html, text) {
+      const t = await getTransporter();
+      await t.sendMail({ from: config.from || config.user, to, subject, html, text });
+      return true;
+    },
+  };
+}
+
+function createNullProvider() {
+  return {
+    async send(to, subject, html, text) {
+      console.log(`[email:null] to=${to} subject="${subject}"\n${text}`);
+      return true;
+    },
+  };
+}
+
+/** Singleton provider, resolved from env. */
+let _provider = null;
+function getProvider() {
+  if (_provider) return _provider;
+  const driver = process.env.EMAIL_PROVIDER || 'null';
+  if (driver === 'smtp') {
+    _provider = createSmtpProvider({
+      host:   process.env.SMTP_HOST,
+      port:   process.env.SMTP_PORT,
+      secure: process.env.SMTP_SECURE,
+      user:   process.env.SMTP_USER,
+      pass:   process.env.SMTP_PASS,
+      from:   process.env.SMTP_FROM,
+    });
+  } else {
+    _provider = createNullProvider();
+  }
+  return _provider;
+}
+
+// ── Log helpers ───────────────────────────────────────────────────────────────
+
+function logEmail({ studioId, to, subject, template, status, error }) {
+  try {
+    getDb().prepare(`
+      INSERT INTO email_log (id, studio_id, to_address, subject, template, status, error, sent_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(genId(), studioId || null, to, subject, template || null, status, error || null, Date.now());
+  } catch (e) {
+    console.error('[email] failed to write log:', e.message);
+  }
+}
+
+// ── Core send (fire-and-forget) ───────────────────────────────────────────────
+
+/**
+ * Send an email non-blocking. Logs result to email_log.
+ * @param {{ studioId?, to, subject, html, text, template? }} opts
+ */
+export function sendEmail({ studioId, to, subject, html, text, template }) {
+  getProvider().send(to, subject, html, text).then(() => {
+    logEmail({ studioId, to, subject, template, status: 'sent' });
+  }).catch(err => {
+    console.error('[email] send failed:', err.message);
+    logEmail({ studioId, to, subject, template, status: 'failed', error: err.message });
+  });
+}
+
+// ── Templates ─────────────────────────────────────────────────────────────────
+
+/**
+ * Send an invite email.
+ * @param {{ studioId, to, studioName, galleryTitle?, inviteUrl }} opts
+ */
+export function sendInviteEmail({ studioId, to, studioName, galleryTitle, inviteUrl }) {
+  const title = galleryTitle ? `the gallery "${galleryTitle}"` : 'a photo gallery';
+  const subject = `You've been invited to upload photos`;
+  const text = `Hi,\n\nYou've been invited to upload photos to ${title} for ${studioName}.\n\nUse this link to upload:\n${inviteUrl}\n\nThis link may expire — use it as soon as possible.\n`;
+  const html = `<p>Hi,</p>
+<p>You've been invited to upload photos to <strong>${title}</strong> for ${studioName}.</p>
+<p><a href="${inviteUrl}">Click here to upload photos</a></p>
+<p>This link may expire — use it as soon as possible.</p>`;
+
+  sendEmail({ studioId, to, subject, html, text, template: 'invite' });
+}
+
+/**
+ * Send a "gallery ready" notification to the author.
+ * @param {{ studioId, to, galleryTitle, galleryUrl }} opts
+ */
+export function sendGalleryReadyEmail({ studioId, to, galleryTitle, galleryUrl }) {
+  const subject = `Your gallery "${galleryTitle}" is published`;
+  const text = `Hi,\n\nYour gallery "${galleryTitle}" has been built and is now published.\n\nView it here:\n${galleryUrl}\n`;
+  const html = `<p>Hi,</p>
+<p>Your gallery <strong>${galleryTitle}</strong> has been built and is now published.</p>
+<p><a href="${galleryUrl}">View gallery</a></p>`;
+
+  sendEmail({ studioId, to, subject, html, text, template: 'gallery-ready' });
+}
+
+/**
+ * Send an access / management link resend.
+ * @param {{ studioId, to, galleryTitle, managementUrl }} opts
+ */
+export function sendAccessResendEmail({ studioId, to, galleryTitle, managementUrl }) {
+  const subject = `Your management link for "${galleryTitle}"`;
+  const text = `Hi,\n\nHere is your management link for the gallery "${galleryTitle}":\n${managementUrl}\n`;
+  const html = `<p>Hi,</p>
+<p>Here is your management link for the gallery <strong>${galleryTitle}</strong>:</p>
+<p><a href="${managementUrl}">${managementUrl}</a></p>`;
+
+  sendEmail({ studioId, to, subject, html, text, template: 'access-resend' });
+}
