@@ -4,7 +4,8 @@ import multer       from 'multer';
 import path         from 'path';
 import fs           from 'fs';
 import { getDb }    from '../db/database.js';
-import { getGalleryRole, audit } from '../db/helpers.js';
+import { getGalleryRole, listGalleryMembers, listStudioMembers, getSettings, audit } from '../db/helpers.js';
+import { sendEmail } from '../services/email.js';
 import { requireAuth } from '../middleware/auth.js';
 import { can } from '../authorization/index.js';
 import { ROOT }         from '../../../../packages/engine/src/fs.js';
@@ -208,7 +209,7 @@ router.put('/:id/photos/order', (req, res) => {
   const gallery = ensureGalleryBelongsToStudio(req, res);
   if (!gallery) return;
   const galleryRole = getGalleryRole(req.userId, gallery.id);
-  if (!can(req.user, 'write', 'gallery', { studioRole: req.studioRole, galleryRole })) {
+  if (!can(req.user, 'upload', 'photo', { studioRole: req.studioRole, galleryRole })) {
     return res.status(403).json({ error: 'Forbidden' });
   }
 
@@ -226,6 +227,46 @@ router.put('/:id/photos/order', (req, res) => {
     .run(order[0] ? path.basename(order[0]) : null, Date.now(), req.params.id);
 
   res.json({ ok: true });
+});
+
+// POST /api/galleries/:id/photos/upload-done — photographer signals they're done uploading
+router.post('/:id/photos/upload-done', (req, res) => {
+  const gallery = ensureGalleryBelongsToStudio(req, res);
+  if (!gallery) return;
+
+  const galleryRole = getGalleryRole(req.userId, gallery.id);
+  if (!can(req.user, 'upload', 'photo', { studioRole: req.studioRole, galleryRole })) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  // Collect editors/admins to notify: gallery editors + studio editors/admins/owners
+  const galleryEditors = listGalleryMembers(gallery.id)
+    .filter(m => m.role === 'editor');
+  const studioEditors = listStudioMembers(req.studioId)
+    .filter(m => ['editor', 'admin', 'owner'].includes(m.role));
+
+  const allEmails = [...new Set([
+    ...galleryEditors.map(m => m.email),
+    ...studioEditors.map(m => m.user.email),
+  ])].filter(Boolean);
+
+  const s = getSettings(req.studioId);
+  const base = (s?.base_url || process.env.BASE_URL || 'http://localhost:4000').replace(/\/$/, '');
+  const galleryUrl = `${base}/admin/#/galleries/${gallery.id}`;
+  const uploaderName = req.user.name || req.user.email;
+
+  for (const to of allEmails) {
+    sendEmail({
+      studioId: req.studioId,
+      to,
+      subject: `Photos prêtes à publier — ${gallery.title}`,
+      text: `${uploaderName} a terminé d'uploader des photos dans la galerie "${gallery.title}".\n\nVous pouvez maintenant les vérifier et publier la galerie :\n${galleryUrl}\n`,
+      html: `<p><strong>${uploaderName}</strong> a terminé d'uploader des photos dans la galerie <strong>${gallery.title}</strong>.</p><p><a href="${galleryUrl}">Ouvrir la galerie pour publier →</a></p>`,
+      template: 'upload-done',
+    });
+  }
+
+  res.json({ ok: true, notified: allEmails.length });
 });
 
 export default router;

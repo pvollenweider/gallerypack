@@ -36,6 +36,7 @@ export function UploadZone({ galleryId, onDone }) {
   const [dragging,  setDragging]  = useState(false);
   const [files,     setFiles]     = useState([]);
   const [uploading, setUploading] = useState(false);
+  const [notified,  setNotified]  = useState(false);
   const fileRef   = useRef();
   const folderRef = useRef();
 
@@ -85,8 +86,20 @@ export function UploadZone({ galleryId, onDone }) {
     if (onDone) onDone();
   }
 
-  const pendingCount = files.filter(f => f.status === 'pending').length;
-  const doneCount    = files.filter(f => f.status === 'done').length;
+  async function handleDone() {
+    try {
+      const r = await api.uploadDone(galleryId);
+      setNotified(true);
+      if (onDone) onDone();
+      return r;
+    } catch {
+      if (onDone) onDone();
+    }
+  }
+
+  const pendingCount  = files.filter(f => f.status === 'pending').length;
+  const doneCount     = files.filter(f => f.status === 'done').length;
+  const hasUploaded   = doneCount > 0 && !uploading;
 
   return (
     <div style={s.root}>
@@ -133,14 +146,24 @@ export function UploadZone({ galleryId, onDone }) {
         </div>
       )}
 
-      {pendingCount > 0 && (
-        <div style={s.actions}>
+      <div style={s.actions}>
+        {pendingCount > 0 && (
           <button style={s.btn} onClick={upload} disabled={uploading}>
-            {uploading ? 'Uploading…' : `Upload ${pendingCount} photo${pendingCount > 1 ? 's' : ''}`}
+            {uploading ? 'Upload en cours…' : `Uploader ${pendingCount} photo${pendingCount > 1 ? 's' : ''}`}
           </button>
-          {doneCount > 0 && <span style={s.dim}>{doneCount} uploaded</span>}
-        </div>
-      )}
+        )}
+        {doneCount > 0 && <span style={s.dim}>{doneCount} photo{doneCount > 1 ? 's' : ''} uploadée{doneCount > 1 ? 's' : ''}</span>}
+        {hasUploaded && !notified && (
+          <button style={s.doneBtn} onClick={handleDone}>
+            ✓ J'ai terminé — notifier les éditeurs
+          </button>
+        )}
+        {notified && (
+          <span style={{ fontSize: '0.82rem', color: '#059669', fontWeight: 500 }}>
+            ✓ Éditeurs notifiés
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -160,7 +183,8 @@ const s = {
   row:        { display:'flex', justifyContent:'space-between', fontSize:'0.82rem', padding:'0.2rem 0', borderBottom:'1px solid #f0f0f0' },
   fname:      { overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:'70%' },
   status:     { fontWeight:500, fontSize:'0.78rem' },
-  actions:    { display:'flex', alignItems:'center', gap:'1rem' },
+  actions:    { display:'flex', alignItems:'center', gap:'1rem', flexWrap:'wrap' },
   btn:        { padding:'0.5rem 1.25rem', background:'#111', color:'#fff', border:'none', borderRadius:6, fontWeight:600, cursor:'pointer', fontSize:'0.875rem' },
+  doneBtn:    { padding:'0.5rem 1.25rem', background:'#059669', color:'#fff', border:'none', borderRadius:6, fontWeight:600, cursor:'pointer', fontSize:'0.875rem' },
   dim:        { color:'#888', fontSize:'0.82rem' },
 };

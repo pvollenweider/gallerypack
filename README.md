@@ -58,7 +58,14 @@ docker compose -f docker-compose.saas.yml up -d
 - **Private and password gallery indicators** — badges in the admin gallery grid
 - **Disk usage display** — per-gallery storage size shown in the gallery list
 - **Background builds** — build jobs queued and processed by the worker; live log streamed to the browser via SSE
-- **Invite system** — create invite links for photographers to upload without admin access
+- **Multi-user team management** — studio members with a role hierarchy; manage the team from `/admin/#/team`
+- **Studio roles** — `photographer` / `editor` / `admin` / `owner`, applied globally across the studio
+- **Gallery roles** — `viewer` / `contributor` / `editor`, applied per-gallery for fine-grained access control
+- **Invite system** — invite new members by email (automatic email if SMTP is configured, fallback invite link otherwise); invitees set their own password on acceptance
+- **SMTP configuration in the admin UI** — configure SMTP from the Settings page without restarting; env vars still supported as fallback
+- **Upload-done notification** — after uploading, photographers can notify gallery editors and admins with one click
+- **Profile page** — photographers and editors can update their display name and view their gallery accesses
+- **Viewer tokens** — share private galleries with time-limited, revocable links (no account required)
 - **Public landing page** — dark-themed index listing all non-private galleries
 
 ### Access modes
@@ -76,7 +83,7 @@ docker compose -f docker-compose.saas.yml up -d
 | Page | Contents |
 |------|----------|
 | [docs/saas/quick-install.md](docs/saas/quick-install.md) | 5-minute install with Docker Compose |
-| [docs/saas/getting-started.md](docs/saas/getting-started.md) | Admin panel, settings, access control, invites |
+| [docs/saas/getting-started.md](docs/saas/getting-started.md) | Admin panel, roles, team management, settings, access control |
 | [docs/saas/api-reference.md](docs/saas/api-reference.md) | All REST API endpoints |
 
 ---

@@ -82,8 +82,8 @@ export function can(user, action, resource, context = {}) {
   // ── Photo-level actions ─────────────────────────────────────────────────────
 
   if (resource === 'photo' && action === 'upload') {
-    if (isValidStudioRole(studioRole)) return true;
-    if (galleryRole === 'contributor' || galleryRole === 'editor') return true;
+    if (hasStudioRole(studioRole, 'editor')) return true;  // editor/admin/owner → anywhere
+    if (galleryRole === 'contributor' || galleryRole === 'editor') return true;  // photographer → only where granted
     return false;
   }
 

@@ -115,9 +115,63 @@ History of all build jobs for the gallery, newest first. Click a row to open the
 
 ---
 
-## Global settings
+## Roles
 
-Available from the admin navigation. The **locale** set here controls the admin UI language (fr / en / de). Default values for new galleries (author, access mode, download settings, private flag) can also be configured here.
+GalleryPack has two independent role layers.
+
+### Studio roles (global)
+
+Studio roles are set per user and apply across the whole studio.
+
+| Role | Permissions |
+|------|-------------|
+| `photographer` | Can upload photos, but only in galleries where they have an explicit gallery role of `contributor` or `editor` |
+| `editor` | Can manage all galleries, upload anywhere |
+| `admin` | Can manage the team and studio settings |
+| `owner` | Full access |
+
+### Gallery roles (per-gallery)
+
+Gallery roles control access to a specific gallery, independently of the studio role.
+
+| Role | Label | Permissions |
+|------|-------|-------------|
+| `viewer` | Lecteur | Read-only access to a private gallery |
+| `contributor` | Contributeur | Can upload photos and reorder them |
+| `editor` | Éditeur | Can manage gallery settings and photos |
+
+A user with studio role `photographer` must have at least `contributor` gallery access to upload to a gallery.
+
+---
+
+## Team management
+
+Available at `/admin/#/team`. Visible only to `admin` and `owner` studio roles.
+
+- **Studio members list** — each member shows their studio role and their per-gallery accesses as badges. A role-change dropdown is available inline, with a description of the selected role shown below it.
+- **Pending invitations** — table of invitations that have not yet been accepted.
+- **Invite form** — enter an email address and studio role. If SMTP is configured, an invitation email is sent automatically. If the email was not sent (no SMTP or delivery failure), the invite link is displayed as a fallback.
+
+---
+
+## Settings page
+
+Available from the admin navigation.
+
+**Admin / Owner** see full global settings:
+
+- **General** — site title, default author name and email, default locale
+- **Gallery defaults** — default access mode, download settings, private flag for new galleries
+- **SMTP** — host, port, user, password (masked — the stored value is never returned, only a `smtpPassSet: true/false` flag), from address, TLS toggle. A **Send test email** button sends a test message to the logged-in user's email and shows inline success or error feedback.
+- SMTP can also be configured via environment variables (`SMTP_*`). The UI setting takes priority over env vars.
+
+**Photographer / Editor** see a profile page instead: edit their display name and view their per-gallery accesses.
+
+---
+
+## Global settings (defaults)
+
+The **locale** set in settings controls the admin UI language (fr / en / de). Default values for new galleries (author, access mode, download settings, private flag) are also configured here.
 
 ---
 
@@ -143,37 +197,35 @@ In the Settings tab, set **Access** to `password` and fill in the **Password** f
 
 ---
 
-## Invite links
+## Gallery detail — Access tab
 
-Invite links let photographers upload photos without admin access.
+Visible to studio `editor`, `admin`, and `owner`.
 
-### Creating an invite
+### Membres de la galerie
+
+- **Add member** — dropdown of studio members not yet assigned to the gallery, plus a gallery role selector (`viewer` / `contributor` / `editor`).
+- **Member list** — existing gallery members with a role dropdown and a remove button.
+
+### Liens de partage
+
+Viewer tokens for sharing private galleries. Each token has an optional label, an optional expiry date, and a copy-link button.
+
+- `POST /api/galleries/:id/viewer-tokens` — create a token
+- `DELETE /api/galleries/:id/viewer-tokens/:tokenId` — revoke
+
+### Inviter dans le studio
+
+Invite someone who does not yet have an account. Enter their email and desired studio role. An invitation email is sent automatically if SMTP is configured; otherwise the invite link is displayed inline.
+
+---
+
+## Upload-done notification
+
+After uploading photos, a green **"J'ai terminé — notifier les éditeurs"** button appears. Clicking it sends an email to all gallery editors and to studio `editor`, `admin`, and `owner` members, notifying them that new photos are ready.
 
 ```
-POST /api/invites
+POST /api/galleries/:id/photos/upload-done
 ```
-
-An invite has:
-- **token** — 64-char hex string, used to construct the upload URL: `/invite/<token>`
-- **galleryId** — optionally pre-assigns the invite to a specific gallery
-- **email** — sends an invite email automatically if `EMAIL_PROVIDER=smtp`
-- **expiresIn** — TTL in milliseconds (default: 7 days)
-- **singleUse** — if true, invalidated after first use
-
-### Invite flow
-
-1. Admin creates invite via the API → copies the `/invite/<token>` URL
-2. Photographer opens the URL and uploads photos
-3. Admin sees the photos in the gallery's Photos tab
-4. Admin triggers a build
-
-### Revoking
-
-```
-POST /api/invites/:id/revoke
-```
-
-Revoked and expired invites return `410 Gone`.
 
 ---
 
@@ -200,14 +252,15 @@ Revoked and expired invites return `410 Gone`.
 
 ## Email notifications
 
-Set `EMAIL_PROVIDER=smtp` and configure the `SMTP_*` variables.
+SMTP can be configured via environment variables (`SMTP_*`) or in the admin Settings UI. The UI setting takes priority.
 
 | Template | Trigger | Recipient |
 |----------|---------|-----------|
-| `invite` | Invite created with an email address | Photographer |
+| `invite` | Studio invitation created with an email address | Invitee |
+| `upload-done` | Photographer clicks "J'ai terminé" | Gallery editors + studio editors/admins/owners |
 | `gallery-ready` | Successful build, `author_email` set | Author |
 
-With `EMAIL_PROVIDER=null` (default), emails are printed to the API console instead of sent.
+Without SMTP configured, emails are printed to the API console instead of sent.
 
 ---
 

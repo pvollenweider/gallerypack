@@ -195,27 +195,42 @@ describe('can publish gallery', () => {
 // ── Photo-level: upload photo ─────────────────────────────────────────────────
 
 describe('can upload photo', () => {
-  test('studio photographer can upload', () => {
-    assert.equal(can(user, 'upload', 'photo', { studioRole: 'photographer' }), true);
-  });
-
-  test('studio editor can upload', () => {
+  // Studio editor+ can upload anywhere (no gallery role needed)
+  test('studio editor can upload anywhere', () => {
     assert.equal(can(user, 'upload', 'photo', { studioRole: 'editor' }), true);
   });
 
-  test('studio admin can upload', () => {
+  test('studio admin can upload anywhere', () => {
     assert.equal(can(user, 'upload', 'photo', { studioRole: 'admin' }), true);
   });
 
-  test('studio owner can upload', () => {
+  test('studio owner can upload anywhere', () => {
     assert.equal(can(user, 'upload', 'photo', { studioRole: 'owner' }), true);
   });
 
-  test('gallery contributor can upload', () => {
+  // Photographer needs an explicit gallery role (contributor or editor)
+  test('studio photographer alone cannot upload (needs gallery role)', () => {
+    assert.equal(can(user, 'upload', 'photo', { studioRole: 'photographer' }), false);
+  });
+
+  test('photographer with contributor gallery role can upload', () => {
+    assert.equal(can(user, 'upload', 'photo', { studioRole: 'photographer', galleryRole: 'contributor' }), true);
+  });
+
+  test('photographer with editor gallery role can upload', () => {
+    assert.equal(can(user, 'upload', 'photo', { studioRole: 'photographer', galleryRole: 'editor' }), true);
+  });
+
+  test('photographer with viewer gallery role cannot upload', () => {
+    assert.equal(can(user, 'upload', 'photo', { studioRole: 'photographer', galleryRole: 'viewer' }), false);
+  });
+
+  // Gallery role alone (no studio role) — external contributor
+  test('gallery contributor (no studio role) can upload', () => {
     assert.equal(can(user, 'upload', 'photo', { galleryRole: 'contributor' }), true);
   });
 
-  test('gallery editor can upload', () => {
+  test('gallery editor (no studio role) can upload', () => {
     assert.equal(can(user, 'upload', 'photo', { galleryRole: 'editor' }), true);
   });
 
