@@ -20,6 +20,8 @@ function rowToSettings(row) {
     smtpPort:                   row?.smtp_port                     || 587,
     smtpUser:                   row?.smtp_user                     || null,
     smtpFrom:                   row?.smtp_from                     || null,
+    smtpSecure:                 row?.smtp_secure                   === 1,
+    smtpPassSet:                !!(row?.smtp_pass),  // never send the password itself
     baseUrl:                    row?.base_url                      || null,
   };
 }
@@ -36,8 +38,11 @@ router.patch('/', (req, res) => {
     siteTitle, defaultAuthor, defaultAuthorEmail,
     defaultLocale, defaultAccess,
     defaultAllowDownloadImage, defaultAllowDownloadGallery, defaultPrivate,
+    smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom, smtpSecure,
+    baseUrl,
   } = req.body || {};
-  upsertSettings(req.studioId, {
+
+  const updates = {
     site_title:                     siteTitle                    ?? null,
     default_author:                 defaultAuthor                ?? null,
     default_author_email:           defaultAuthorEmail           ?? null,
@@ -46,7 +51,17 @@ router.patch('/', (req, res) => {
     default_allow_download_image:   defaultAllowDownloadImage    !== false ? 1 : 0,
     default_allow_download_gallery: defaultAllowDownloadGallery  === true  ? 1 : 0,
     default_private:                defaultPrivate               === true  ? 1 : 0,
-  });
+    smtp_host:                      smtpHost                     ?? null,
+    smtp_port:                      smtpPort                     ?? 587,
+    smtp_user:                      smtpUser                     ?? null,
+    smtp_from:                      smtpFrom                     ?? null,
+    smtp_secure:                    smtpSecure                   === true  ? 1 : 0,
+    base_url:                       baseUrl                      ?? null,
+  };
+  // Only update password if a new one was explicitly provided
+  if (smtpPass && smtpPass.trim()) updates.smtp_pass = smtpPass.trim();
+
+  upsertSettings(req.studioId, updates);
   res.json(rowToSettings(getSettings(req.studioId)));
 });
 
