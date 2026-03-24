@@ -116,10 +116,15 @@ router.patch('/:id', (req, res) => {
     slideshowInterval: 'slideshow_interval',
   };
 
+  // Columns that must be stored as INTEGER 0/1 in SQLite
+  const boolCols = new Set(['private','standalone','allow_download_image','allow_download_gallery']);
+
   const updates = {};
   for (const [key, val] of Object.entries(req.body || {})) {
     const col = camelToSnake[key] || key;
-    if (allowed.includes(col)) updates[col] = val;
+    if (!allowed.includes(col)) continue;
+    // Convert JS booleans → SQLite integers; leave everything else as-is
+    updates[col] = boolCols.has(col) ? (val ? 1 : 0) : val;
   }
 
   // Hash password when provided (for password-protected galleries)
