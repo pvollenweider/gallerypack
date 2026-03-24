@@ -16,8 +16,10 @@ export default function GalleryDetail() {
   const [tab,       setTab]       = useState('photos'); // photos | settings | jobs
   const [saving,    setSaving]    = useState(false);
   const [form,      setForm]      = useState({});
-  const [dragIdx,   setDragIdx]   = useState(null);
-  const [reordering,setReordering]= useState(false);
+  const [dragIdx,      setDragIdx]      = useState(null);
+  const [reordering,   setReordering]   = useState(false);
+  const [sortAsc,      setSortAsc]      = useState(true);
+  const [needsRebuild, setNeedsRebuild] = useState(false);
 
   useEffect(() => { load(); }, [id]);
 
@@ -27,6 +29,9 @@ export default function GalleryDetail() {
       setGallery(g);
       setPhotos(p);
       setJobs(j);
+      // Detect if any photo was modified after the last build
+      if (g.builtAt && p.some(photo => photo.mtime > g.builtAt)) setNeedsRebuild(true);
+      if (g.buildStatus !== 'done' && p.length > 0) setNeedsRebuild(true);
       setForm({
         title: g.title || '', subtitle: g.subtitle || '',
         author: g.author || '', authorEmail: g.authorEmail || '',
@@ -63,6 +68,7 @@ export default function GalleryDetail() {
     try {
       await api.deletePhoto(id, filename);
       setPhotos(p => p.filter(f => f.file !== filename));
+      setNeedsRebuild(true);
     } catch (e) { alert(e.message); }
   }
 
@@ -123,14 +129,26 @@ export default function GalleryDetail() {
         {tab === 'photos' && (
           <div>
             <h3 style={s.sectionTitle}>Upload photos</h3>
-            <UploadZone galleryId={id} onDone={() => api.listPhotos(id).then(setPhotos)} />
+            <UploadZone galleryId={id} onDone={() => { api.listPhotos(id).then(setPhotos); setNeedsRebuild(true); }} />
+
+            {needsRebuild && (
+              <div style={s.rebuildBanner}>
+                <span>Photos have changed since the last build —</span>
+                <button style={s.rebuildBtn} onClick={() => handleBuild(false)}>Build now</button>
+              </div>
+            )}
 
             <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', marginTop:'1.5rem', marginBottom:'0.75rem' }}>
               <h3 style={{ ...s.sectionTitle, margin:0 }}>Photos ({photos.length})</h3>
               <div style={{ marginLeft:'auto', display:'flex', gap:'0.35rem', alignItems:'center' }}>
                 {reordering && <span style={{ fontSize:'0.75rem', color:'#888' }}>Saving…</span>}
-                <button style={s.sortBtn} onClick={() => sortPhotos('asc')} title="Sort A→Z">A→Z</button>
-                <button style={s.sortBtn} onClick={() => sortPhotos('desc')} title="Sort Z→A">Z→A</button>
+                <button
+                  style={s.sortBtn}
+                  title={sortAsc ? 'Sorted A→Z — click to reverse' : 'Sorted Z→A — click to reverse'}
+                  onClick={() => { const next = !sortAsc; setSortAsc(next); sortPhotos(next ? 'asc' : 'desc'); }}
+                >
+                  <SortIcon asc={sortAsc} />
+                </button>
               </div>
             </div>
             {photos.length === 0 && <p style={s.dim}>No photos yet.</p>}
@@ -253,6 +271,19 @@ export default function GalleryDetail() {
   );
 }
 
+function SortIcon({ asc }) {
+  // asc: long bars at top → short at bottom (A→Z by filename = ascending)
+  // desc: short bars at top → long at bottom
+  const widths = asc ? [14, 10, 6, 3] : [3, 6, 10, 14];
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
+      {widths.map((w, i) => (
+        <rect key={i} x={0} y={i * 3.5} width={w} height="2" rx="1" />
+      ))}
+    </svg>
+  );
+}
+
 function Row({ label, children }) {
   return (
     <div style={{ display:'flex', alignItems:'center', gap:'1rem', marginBottom:'0.6rem' }}>
@@ -292,7 +323,9 @@ const s = {
   coverThumbSelected: { border:'2px solid #111' },
   coverThumbImg:{ width:'100%', aspectRatio:'1', objectFit:'cover', display:'block' },
   coverCheck:   { position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.45)', color:'#fff', fontWeight:700, fontSize:'1.1rem' },
-  sortBtn:      { padding:'2px 8px', background:'none', border:'1px solid #ddd', borderRadius:4, cursor:'pointer', fontSize:'0.75rem' },
+  sortBtn:      { padding:'4px 7px', background:'none', border:'1px solid #ddd', borderRadius:4, cursor:'pointer', display:'flex', alignItems:'center', color:'#555' },
+  rebuildBanner:{ display:'flex', alignItems:'center', gap:'0.75rem', background:'#fffbeb', border:'1px solid #fcd34d', borderRadius:6, padding:'0.6rem 1rem', fontSize:'0.85rem', color:'#92400e', marginTop:'1rem' },
+  rebuildBtn:   { padding:'0.25rem 0.75rem', background:'#f59e0b', color:'#fff', border:'none', borderRadius:4, cursor:'pointer', fontWeight:600, fontSize:'0.8rem', whiteSpace:'nowrap' },
   dim:          { color:'#888', fontSize:'0.875rem' },
   jobList:      { display:'flex', flexDirection:'column', gap:'0.4rem' },
   jobRow:       { display:'flex', gap:'1rem', alignItems:'center', padding:'0.6rem 0.85rem', background:'#fff', borderRadius:6, textDecoration:'none', color:'#111', fontSize:'0.875rem', boxShadow:'0 1px 3px #0001' },

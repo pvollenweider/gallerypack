@@ -18,6 +18,16 @@ function getFirstPhoto(slug) {
   } catch { return null; }
 }
 
+function getDateRange(slug) {
+  try {
+    const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'dist', slug, 'photos.json'), 'utf8'));
+    const dates = Object.values(manifest.photos || {})
+      .map(p => p.exif?.date).filter(Boolean).map(d => new Date(d)).sort((a, b) => a - b);
+    if (!dates.length) return null;
+    return { from: dates[0].toISOString().slice(0, 10), to: dates[dates.length - 1].toISOString().slice(0, 10) };
+  } catch { return null; }
+}
+
 const router = Router();
 router.use(requireAdmin);
 
@@ -49,6 +59,7 @@ function rowToGallery(row) {
     createdAt:            row.created_at,
     updatedAt:            row.updated_at,
     firstPhoto:           row.cover_photo || getFirstPhoto(row.slug),
+    dateRange:            row.build_status === 'done' ? getDateRange(row.slug) : null,
   };
 }
 
