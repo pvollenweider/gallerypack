@@ -10,8 +10,10 @@ import { errorHandler }  from './middleware/error.js';
 
 import authRoutes      from './routes/auth.js';
 import galleriesRoutes from './routes/galleries.js';
+import accessRoutes    from './routes/access.js';
 import photosRoutes    from './routes/photos.js';
 import jobsRoutes      from './routes/jobs.js';
+import invitesRoutes   from './routes/invites.js';
 
 const __DIR = path.dirname(fileURLToPath(import.meta.url));
 const PORT  = process.env.PORT || 4000;
@@ -30,9 +32,11 @@ app.use(cookieParser());
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.use('/api/auth',      authRoutes);
 app.use('/api/galleries', galleriesRoutes);
+app.use('/api/galleries', accessRoutes);
 app.use('/api/galleries', photosRoutes);
 app.use('/api/galleries', jobsRoutes);
 app.use('/api',           jobsRoutes); // for /api/jobs/:jobId routes
+app.use('/api/invites',   invitesRoutes);
 
 app.get('/api/health', (req, res) => res.json({ ok: true, version: process.env.npm_package_version || '0.0.1' }));
 

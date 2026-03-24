@@ -1,6 +1,6 @@
 // apps/api/src/db/helpers.js — reusable query helpers
 import { getDb } from './database.js';
-import { randomBytes } from 'crypto';
+import { randomBytes, createHmac, timingSafeEqual, scryptSync } from 'crypto';
 
 // ── ID generation ─────────────────────────────────────────────────────────────
 
@@ -137,6 +137,91 @@ export function getEvents(jobId, afterSeq = 0) {
   return getDb()
     .prepare('SELECT * FROM build_events WHERE job_id = ? AND seq > ? ORDER BY seq ASC')
     .all(jobId, afterSeq);
+}
+
+// ── Password hashing (scrypt, no native deps) ─────────────────────────────────
+
+/** Hash a password for storage. Returns `scrypt:<salt>:<hash>` (all hex). */
+export function hashPassword(plain) {
+  const salt = randomBytes(16).toString('hex');
+  const hash = scryptSync(plain, salt, 64).toString('hex');
+  return `scrypt:${salt}:${hash}`;
+}
+
+/** Verify a plain password against a stored hash (timing-safe). */
+export function verifyPassword(plain, stored) {
+  if (!stored || !stored.startsWith('scrypt:')) return false;
+  const [, salt, hash] = stored.split(':');
+  const candidate = scryptSync(plain, salt, 64).toString('hex');
+  try {
+    return timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(candidate, 'hex'));
+  } catch { return false; }
+}
+
+// ── Viewer tokens (HMAC-signed, no DB needed) ─────────────────────────────────
+
+const VIEWER_SECRET = process.env.VIEWER_TOKEN_SECRET || 'change-me-in-production';
+const VIEWER_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+/** Create a signed viewer token for a gallery. Returns a `<payload>.<sig>` string. */
+export function createViewerToken(galleryId) {
+  const payload = Buffer.from(JSON.stringify({ g: galleryId, exp: Date.now() + VIEWER_TTL_MS })).toString('base64url');
+  const sig = createHmac('sha256', VIEWER_SECRET).update(payload).digest('base64url');
+  return `${payload}.${sig}`;
+}
+
+/** Verify and decode a viewer token. Returns galleryId or null if invalid/expired. */
+export function verifyViewerToken(token) {
+  if (!token) return null;
+  const [payload, sig] = (token || '').split('.');
+  if (!payload || !sig) return null;
+  const expected = createHmac('sha256', VIEWER_SECRET).update(payload).digest('base64url');
+  try {
+    if (!timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
+  } catch { return null; }
+  const data = JSON.parse(Buffer.from(payload, 'base64url').toString());
+  if (data.exp < Date.now()) return null;
+  return data.g;
+}
+
+// ── Invites ────────────────────────────────────────────────────────────────────
+
+const INVITE_DEFAULT_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+/**
+ * Create an invite.
+ * @param {{ studioId, galleryId?, email?, label?, expiresIn?, singleUse? }} opts
+ */
+export function createInvite({ studioId, galleryId = null, email = null, label = null, expiresIn = INVITE_DEFAULT_TTL_MS, singleUse = false }) {
+  const id    = genId();
+  const token = genToken(32); // 64-char hex, sent in URL
+  const now   = Date.now();
+  const expiresAt = expiresIn ? now + expiresIn : null;
+  getDb().prepare(`
+    INSERT INTO invites (id, studio_id, gallery_id, token, email, label, single_use, expires_at, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(id, studioId, galleryId, token, email, label, singleUse ? 1 : 0, expiresAt, now);
+  return getInviteById(id);
+}
+
+export function getInviteById(id) {
+  return getDb().prepare('SELECT * FROM invites WHERE id = ?').get(id);
+}
+
+export function getInviteByToken(token) {
+  return getDb().prepare('SELECT * FROM invites WHERE token = ?').get(token);
+}
+
+export function listInvites(studioId) {
+  return getDb().prepare('SELECT * FROM invites WHERE studio_id = ? ORDER BY created_at DESC').all(studioId);
+}
+
+export function useInvite(id) {
+  getDb().prepare('UPDATE invites SET used_at = ? WHERE id = ?').run(Date.now(), id);
+}
+
+export function revokeInvite(id) {
+  getDb().prepare('UPDATE invites SET revoked_at = ? WHERE id = ?').run(Date.now(), id);
 }
 
 // ── Settings ──────────────────────────────────────────────────────────────────
