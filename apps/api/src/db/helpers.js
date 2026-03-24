@@ -392,15 +392,23 @@ const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
  * @returns {object} invitation row
  */
 export function createInvitation(studioId, email, role, createdBy) {
-  const id       = randomUUID();
-  const token    = randomBytes(32).toString('hex');
-  const now      = Date.now();
+  const db = getDb();
+  // Replace any existing pending invitation for this email (re-invite / role change).
+  // Refuse if the invitation was already accepted (user is already a member).
+  const existing = db.prepare('SELECT * FROM invitations WHERE studio_id = ? AND email = ?').get(studioId, email);
+  if (existing) {
+    if (existing.accepted_at) throw Object.assign(new Error('This user is already a member'), { status: 409 });
+    db.prepare('DELETE FROM invitations WHERE id = ?').run(existing.id);
+  }
+  const id        = randomUUID();
+  const token     = randomBytes(32).toString('hex');
+  const now       = Date.now();
   const expiresAt = now + INVITATION_TTL_MS;
-  getDb().prepare(`
+  db.prepare(`
     INSERT INTO invitations (id, studio_id, email, role, token, created_by, created_at, expires_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `).run(id, studioId, email, role, token, createdBy, now, expiresAt);
-  return getDb().prepare('SELECT * FROM invitations WHERE id = ?').get(id);
+  return db.prepare('SELECT * FROM invitations WHERE id = ?').get(id);
 }
 
 /** Returns an invitation row by token, or null. */
