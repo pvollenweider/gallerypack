@@ -1,5 +1,5 @@
 // apps/api/src/middleware/auth.js — session authentication middleware
-import { getSession, getUserById, getStudioRole, ROLE_HIERARCHY } from '../db/helpers.js';
+import { getSession, getUserById, getStudioRole, ROLE_HIERARCHY, getViewerToken, touchViewerToken } from '../db/helpers.js';
 
 /**
  * Require a valid session cookie.
@@ -46,6 +46,34 @@ export function requireStudioRole(minRole) {
     }
     next();
   };
+}
+
+/**
+ * Resolve a viewer token from query param `?vt=<token>` or `Authorization: Bearer <token>`.
+ * If a valid, non-expired viewer token is found, sets req.viewerGalleryId and calls next().
+ * Does NOT set req.user — this is anonymous/public access.
+ * Safe to use alongside requireAuth on routes that support both access modes.
+ */
+export function resolveViewerToken(req, res, next) {
+  // Prefer query param ?vt=; fall back to Authorization: Bearer header
+  let raw = req.query.vt;
+  if (!raw) {
+    const authHeader = req.headers.authorization || '';
+    if (authHeader.startsWith('Bearer ')) {
+      raw = authHeader.slice(7).trim();
+    }
+  }
+
+  if (!raw) return next();
+
+  const row = getViewerToken(raw);
+  if (row) {
+    req.viewerGalleryId = row.gallery_id;
+    // Fire-and-forget: update last_used_at without blocking the request
+    touchViewerToken(row.id);
+  }
+
+  next();
 }
 
 /**

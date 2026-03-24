@@ -3,6 +3,17 @@
 const STUDIO_ROLES  = ['photographer', 'editor', 'admin', 'owner'];
 const GALLERY_ROLES = ['viewer', 'contributor', 'editor'];
 
+/**
+ * Determine whether a gallery is publicly accessible.
+ * The `access` column is canonical; falls back to `!private` for legacy rows.
+ * @param {object} gallery
+ * @returns {boolean}
+ */
+function isPublic(gallery) {
+  if (gallery.access !== undefined) return gallery.access === 'public';
+  return !gallery.private;
+}
+
 function hasStudioRole(studioRole, minRole) {
   if (!studioRole) return false;
   return STUDIO_ROLES.indexOf(studioRole) >= STUDIO_ROLES.indexOf(minRole);
@@ -27,11 +38,11 @@ function isValidGalleryRole(role) {
  * @param {object} user     - The request user object ({ id, studio_id, role })
  * @param {string} action   - 'read' | 'write' | 'delete' | 'manage' | 'publish' | 'upload'
  * @param {string} resource - 'gallery' | 'photo' | 'studio' | 'member'
- * @param {object} context  - Extra info: { gallery, studioRole, galleryRole }
+ * @param {object} context  - Extra info: { gallery, studioRole, galleryRole, viewerToken? }
  * @returns {boolean}
  */
 export function can(user, action, resource, context = {}) {
-  const { gallery, studioRole, galleryRole } = context;
+  const { gallery, studioRole, galleryRole, viewerToken } = context;
 
   // ── Studio-level actions ────────────────────────────────────────────────────
 
@@ -46,7 +57,9 @@ export function can(user, action, resource, context = {}) {
   // ── Gallery-level actions ───────────────────────────────────────────────────
 
   if (resource === 'gallery' && action === 'read') {
-    if (gallery && gallery.access === 'public' && !gallery.private) return true;
+    if (!gallery) return false;
+    if (isPublic(gallery)) return true;
+    if (viewerToken) return true;  // valid viewer token grants read-only access
     if (isValidStudioRole(studioRole)) return true;
     if (isValidGalleryRole(galleryRole)) return true;
     return false;

@@ -3,7 +3,7 @@ import { Router } from 'express';
 import fs   from 'fs';
 import path from 'path';
 import { getDb }  from '../db/database.js';
-import { genId, hashPassword, getSettings, listGalleryMembers, upsertGalleryMembership, removeGalleryMembership, GALLERY_ROLE_HIERARCHY, getUserById, getGalleryRole } from '../db/helpers.js';
+import { genId, hashPassword, getSettings, listGalleryMembers, upsertGalleryMembership, removeGalleryMembership, GALLERY_ROLE_HIERARCHY, getUserById, getGalleryRole, createViewerTokenDb, listViewerTokens, deleteViewerToken } from '../db/helpers.js';
 import { requireAdmin, requireStudioRole, requireAuth } from '../middleware/auth.js';
 import { can } from '../authorization/index.js';
 import { ROOT } from '../../../../packages/engine/src/fs.js';
@@ -220,6 +220,11 @@ router.patch('/:id', (req, res) => {
     delete updates.password; // don't store plain text
   }
 
+  // Sync private column when access is updated (access is canonical; private kept for compat)
+  if (updates.access !== undefined) {
+    updates.private = updates.access === 'public' ? 0 : 1;
+  }
+
   if (!Object.keys(updates).length) return res.json(rowToGallery(row));
 
   updates.updated_at = Date.now();
@@ -322,6 +327,57 @@ router.delete('/:id/members/:userId', requireStudioRole('admin'), (req, res) => 
   if (!row) return res.status(404).json({ error: 'Gallery not found' });
 
   removeGalleryMembership(req.params.id, req.params.userId);
+  res.json({ ok: true });
+});
+
+// ── Viewer token routes ───────────────────────────────────────────────────────
+
+// POST /api/galleries/:id/viewer-tokens — create a viewer token
+router.post('/:id/viewer-tokens', (req, res) => {
+  const row = getDb()
+    .prepare('SELECT * FROM galleries WHERE id = ? AND studio_id = ?')
+    .get(req.params.id, req.studioId);
+  if (!row) return res.status(404).json({ error: 'Gallery not found' });
+
+  const galleryRole = getGalleryRole(req.userId, row.id);
+  if (!can(req.user, 'write', 'gallery', { studioRole: req.studioRole, galleryRole })) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  const { label = null, expiresAt = null } = req.body || {};
+  const token = createViewerTokenDb(row.id, req.userId, { label, expiresAt });
+  res.status(201).json(token);
+});
+
+// GET /api/galleries/:id/viewer-tokens — list viewer tokens for a gallery
+router.get('/:id/viewer-tokens', (req, res) => {
+  const row = getDb()
+    .prepare('SELECT * FROM galleries WHERE id = ? AND studio_id = ?')
+    .get(req.params.id, req.studioId);
+  if (!row) return res.status(404).json({ error: 'Gallery not found' });
+
+  const galleryRole = getGalleryRole(req.userId, row.id);
+  if (!can(req.user, 'write', 'gallery', { studioRole: req.studioRole, galleryRole })) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  const tokens = listViewerTokens(row.id);
+  res.json(tokens);
+});
+
+// DELETE /api/galleries/:id/viewer-tokens/:tokenId — revoke a viewer token
+router.delete('/:id/viewer-tokens/:tokenId', (req, res) => {
+  const row = getDb()
+    .prepare('SELECT * FROM galleries WHERE id = ? AND studio_id = ?')
+    .get(req.params.id, req.studioId);
+  if (!row) return res.status(404).json({ error: 'Gallery not found' });
+
+  const galleryRole = getGalleryRole(req.userId, row.id);
+  if (!can(req.user, 'write', 'gallery', { studioRole: req.studioRole, galleryRole })) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  deleteViewerToken(req.params.tokenId);
   res.json({ ok: true });
 });
 
