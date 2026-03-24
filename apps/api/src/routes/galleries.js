@@ -5,6 +5,7 @@ import path from 'path';
 import { getDb }  from '../db/database.js';
 import { genId, hashPassword, getSettings, listGalleryMembers, upsertGalleryMembership, removeGalleryMembership, GALLERY_ROLE_HIERARCHY, getUserById, getGalleryRole, createViewerTokenDb, listViewerTokens, deleteViewerToken, audit } from '../db/helpers.js';
 import { requireAdmin, requireStudioRole, requireAuth } from '../middleware/auth.js';
+import { sendPhotosReadyEmail } from '../services/email.js';
 import { can } from '../authorization/index.js';
 import { ROOT } from '../../../../packages/engine/src/fs.js';
 
@@ -381,6 +382,39 @@ router.delete('/:id/viewer-tokens/:tokenId', (req, res) => {
 
   deleteViewerToken(req.params.tokenId);
   res.json({ ok: true });
+});
+
+// POST /api/galleries/:id/notify-ready — photographer signals photos are ready
+router.post('/:id/notify-ready', requireAuth, (req, res) => {
+  const gallery = getDb()
+    .prepare('SELECT * FROM galleries WHERE id = ? AND studio_id = ?')
+    .get(req.params.id, req.studioId);
+  if (!gallery) return res.status(404).json({ error: 'Gallery not found' });
+
+  // Verify the caller has contributor+ access (must be a gallery member)
+  const galleryRole = getGalleryRole(req.userId, gallery.id);
+  if (!galleryRole) return res.status(403).json({ error: 'Forbidden' });
+
+  // Find all admins + owners of the studio to notify
+  const recipients = getDb()
+    .prepare(`SELECT u.email, u.name FROM studio_memberships sm JOIN users u ON u.id = sm.user_id WHERE sm.studio_id = ? AND sm.role IN ('admin','owner')`)
+    .all(req.studioId);
+
+  const sender = getUserById(req.userId);
+  const base = (process.env.BASE_URL || 'http://localhost:4000').replace(/\/$/, '');
+  const galleryAdminUrl = `${base}/admin/galleries/${gallery.id}`;
+
+  for (const r of recipients) {
+    sendPhotosReadyEmail({
+      studioId: req.studioId,
+      to: r.email,
+      photographerName: sender.name || sender.email,
+      galleryTitle: gallery.title || gallery.slug,
+      galleryAdminUrl,
+    });
+  }
+
+  res.json({ ok: true, notified: recipients.length });
 });
 
 export default router;

@@ -47,6 +47,10 @@ export default function GalleryDetail() {
   const [inviteRole,      setInviteRole]      = useState('photographer');
   const [sendingInvite,   setSendingInvite]   = useState(false);
   const [inviteLink,      setInviteLink]      = useState('');
+  const [studioMembers,   setStudioMembers]   = useState([]);
+  const [addUserId,       setAddUserId]       = useState('');
+  const [addRole,         setAddRole]         = useState('contributor');
+  const [addingMember,    setAddingMember]    = useState(false);
 
   useEffect(() => { load(); }, [id]);
 
@@ -100,7 +104,7 @@ export default function GalleryDetail() {
   }
 
   async function handleDeletePhoto(filename) {
-    if (!confirm(`Delete ${filename}?`)) return;
+    if (!confirm(t('delete_photo_confirm', { file: filename }))) return;
     try {
       await api.deletePhoto(id, filename);
       setPhotos(p => p.filter(f => f.file !== filename));
@@ -132,14 +136,18 @@ export default function GalleryDetail() {
 
   async function loadAccess() {
     try {
-      const [m, vt, inv] = await Promise.all([
+      const [m, vt, inv, sm] = await Promise.all([
         api.getGalleryMembers(id),
         api.getViewerTokens(id),
         api.getInvitations(),
+        api.listStudioMembers(),
       ]);
       setMembers(m);
       setViewerTokens(vt);
       setInvitations(inv);
+      setStudioMembers(sm);
+      const firstPhotographer = sm.find(s => s.role === 'photographer');
+      if (firstPhotographer) setAddUserId(firstPhotographer.user.id);
     } catch {}
   }
 
@@ -155,6 +163,17 @@ export default function GalleryDetail() {
       await api.deleteGalleryMember(id, userId);
       setMembers(ms => ms.filter(m => m.user_id !== userId));
     } catch (e) { setToast(`${t('error')}: ${e.message}`); }
+  }
+
+  async function handleAddMember(e) {
+    e.preventDefault();
+    if (!addUserId) return;
+    setAddingMember(true);
+    try {
+      await api.putGalleryMember(id, addUserId, 'contributor');
+      await loadAccess();
+    } catch (err) { setToast(`${t('error')}: ${err.message}`); }
+    finally { setAddingMember(false); }
   }
 
   async function handleCreateToken(e) {
@@ -189,7 +208,7 @@ export default function GalleryDetail() {
     if (!inviteEmail.trim()) return;
     setSendingInvite(true);
     try {
-      const inv = await api.createInvitation({ email: inviteEmail.trim(), role: inviteRole });
+      const inv = await api.createInvitation({ email: inviteEmail.trim(), role: 'photographer', galleryId: id, galleryRole: 'contributor' });
       setInvitations(is => [inv, ...is]);
       const base = import.meta.env.BASE_URL.replace(/\/$/, '');
       setInviteLink(`${window.location.origin}${base}/invite/${inv.token}`);
@@ -197,6 +216,13 @@ export default function GalleryDetail() {
       setToast(t('access_invite_sent'));
     } catch (e) { setToast(`${t('error')}: ${e.message}`); }
     finally { setSendingInvite(false); }
+  }
+
+  async function handleNotifyReady() {
+    try {
+      await api.notifyReady(id);
+      setToast(t('photos_ready_sent'));
+    } catch (e) { setToast(`${t('error')}: ${e.message}`); }
   }
 
   async function sortPhotos(dir) {
@@ -263,6 +289,13 @@ export default function GalleryDetail() {
         ))}
       </div>
 
+      {needsRebuild && (
+        <div style={s.rebuildBanner}>
+          <span>{t('photos_changed_banner')}</span>
+          {CAN_BUILD && <button style={s.rebuildBtn} onClick={() => handleBuild(false)}>{t('build_now')}</button>}
+        </div>
+      )}
+
       <main style={s.main}>
 
         {/* ── PHOTOS ── */}
@@ -271,10 +304,14 @@ export default function GalleryDetail() {
             <h3 style={s.sectionTitle}>{t('upload_photos')}</h3>
             <UploadZone galleryId={id} onDone={() => { api.listPhotos(id).then(setPhotos); setNeedsRebuild(true); }} />
 
-            {needsRebuild && (
-              <div style={s.rebuildBanner}>
-                <span>{t('photos_changed_banner')}</span>
-                {CAN_BUILD && <button style={s.rebuildBtn} onClick={() => handleBuild(false)}>{t('build_now')}</button>}
+            {user?.studioRole === 'photographer' && photos.length > 0 && (
+              <div style={{ marginTop: '0.75rem' }}>
+                <button style={s.readyBtn} onClick={handleNotifyReady}>
+                  {t('photos_ready_btn')}
+                </button>
+                <p style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', color: '#999' }}>
+                  {t('access_notify_hint')}
+                </p>
               </div>
             )}
 
@@ -308,7 +345,7 @@ export default function GalleryDetail() {
                       : `/api/galleries/${id}/photos/${encodeURIComponent(p.file)}/preview`}
                     style={s.thumb} alt={p.file} />
                   <div style={s.photoName}>{p.file}</div>
-                  <button style={s.deleteBtn} onClick={() => handleDeletePhoto(p.file)}>✕</button>
+                  {CAN_BUILD && <button style={s.deleteBtn} onClick={() => handleDeletePhoto(p.file)}>✕</button>}
                 </div>
               ))}
             </div>
@@ -467,23 +504,41 @@ export default function GalleryDetail() {
         {tab === 'access' && EDITOR_ROLES.includes(user?.role) && (
           <div style={{ maxWidth: 620 }}>
 
-            {/* A. Gallery members */}
+            {/* A. Membres de la galerie */}
             <h3 style={s.sectionTitle}>{t('access_members_title')}</h3>
+            <p style={s.sectionHint}>{t('access_members_hint')}</p>
+
+            {/* Ajouter un photographe du studio */}
+            {(() => {
+              const available = studioMembers.filter(sm => sm.role === 'photographer' && !members.some(m => m.user_id === sm.user.id));
+              if (available.length === 0) return null;
+              return (
+                <form onSubmit={handleAddMember} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <select
+                    style={{ ...s.input, flex: '1 1 180px' }}
+                    value={addUserId}
+                    onChange={e => setAddUserId(e.target.value)}
+                  >
+                    {available.map(sm => (
+                      <option key={sm.user.id} value={sm.user.id}>
+                        {sm.user.name || sm.user.email}
+                      </option>
+                    ))}
+                  </select>
+                  <button style={s.primaryBtn} type="submit" disabled={addingMember}>
+                    {addingMember ? '…' : t('access_add_member_btn')}
+                  </button>
+                </form>
+              );
+            })()}
+
             {members.length === 0
               ? <p style={s.dim}>{t('access_no_members')}</p>
               : <div style={s.accessList}>
                   {members.map(m => (
                     <div key={m.user_id} style={s.accessRow}>
                       <span style={s.accessEmail}>{m.email}</span>
-                      <select
-                        style={{ ...s.input, flex: 'none', width: 140 }}
-                        value={m.role}
-                        onChange={e => handleMemberRoleChange(m.user_id, e.target.value)}
-                      >
-                        {['viewer','contributor','editor'].map(r => (
-                          <option key={r} value={r}>{t(`access_role_${r}`)}</option>
-                        ))}
-                      </select>
+                      <span style={{ fontSize: '0.8rem', color: '#666', flex: 'none' }}>{t('access_member_photographer_label')}</span>
                       <button style={s.accessDangerBtn} onClick={() => handleRemoveMember(m.user_id)}>
                         {t('access_remove')}
                       </button>
@@ -532,8 +587,12 @@ export default function GalleryDetail() {
               </button>
             </form>
 
-            {/* C. Invite to studio */}
-            <h3 style={{ ...s.sectionTitle, marginTop: '1.5rem' }}>{t('access_invite_title')}</h3>
+            {/* C. Invite a photographer to this gallery */}
+            <h3 style={{ ...s.sectionTitle, marginTop: '1.5rem' }}>{t('access_invite_photographer_title')}</h3>
+            <p style={s.sectionHint}>
+              {t('access_invite_photographer_hint')}{' '}
+              {t('access_invite_team_hint')} <a href="/admin/team" style={{ color: '#555' }}>{t('nav_team')}</a>.
+            </p>
             <form onSubmit={handleSendInvite} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
               <input
                 style={{ ...s.input, flex: '1 1 200px' }}
@@ -543,15 +602,6 @@ export default function GalleryDetail() {
                 onChange={e => setInviteEmail(e.target.value)}
                 required
               />
-              <select
-                style={{ ...s.input, flex: 'none', width: 150 }}
-                value={inviteRole}
-                onChange={e => setInviteRole(e.target.value)}
-              >
-                {['photographer','editor','admin'].map(r => (
-                  <option key={r} value={r}>{t(`access_role_${r}`)}</option>
-                ))}
-              </select>
               <button style={s.primaryBtn} type="submit" disabled={sendingInvite}>
                 {t('access_send_invite')}
               </button>
@@ -609,7 +659,8 @@ const s = {
   tab:          { padding:'0.6rem 1rem', border:'none', background:'none', cursor:'pointer', fontSize:'0.875rem', color:'#666', borderBottom:'2px solid transparent' },
   tabActive:    { color:'#111', borderBottom:'2px solid #111', fontWeight:600 },
   main:         { maxWidth:900, margin:'0 auto', padding:'1.5rem' },
-  sectionTitle: { fontSize:'0.95rem', fontWeight:600, margin:'0 0 0.75rem' },
+  sectionTitle: { fontSize:'0.95rem', fontWeight:600, margin:'0 0 0.5rem' },
+  sectionHint:  { fontSize:'0.78rem', color:'#999', margin:'0 0 0.75rem', lineHeight: 1.5 },
   photoGrid:    { display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(140px,1fr))', gap:'0.75rem' },
   photoCard:    { position:'relative', background:'#fff', borderRadius:6, overflow:'hidden', boxShadow:'0 1px 4px #0001' },
   thumb:        { width:'100%', aspectRatio:'1', objectFit:'cover', display:'block' },
@@ -618,6 +669,7 @@ const s = {
   settingsForm: { maxWidth:560 },
   input:        { flex:1, padding:'0.4rem 0.6rem', border:'1px solid #ddd', borderRadius:5, fontSize:'0.875rem', outline:'none' },
   primaryBtn:   { marginTop:'0.25rem', padding:'0.55rem 1.5rem', background:'#111', color:'#fff', border:'none', borderRadius:6, fontWeight:600, cursor:'pointer', fontSize:'0.875rem' },
+  readyBtn:     { padding:'0.55rem 1.25rem', background:'#16a34a', color:'#fff', border:'none', borderRadius:6, fontWeight:600, cursor:'pointer', fontSize:'0.875rem' },
   outlineBtn:   { padding:'0.4rem 0.85rem', background:'none', border:'1px solid #ddd', borderRadius:5, cursor:'pointer', fontSize:'0.8rem' },
   viewBtn:      { padding:'0.4rem 0.85rem', background:'#16a34a', color:'#fff', border:'none', borderRadius:5, cursor:'pointer', fontSize:'0.8rem', textDecoration:'none', fontWeight:600 },
   coverGrid:    { display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(80px,1fr))', gap:'0.5rem', maxWidth:560 },
@@ -626,7 +678,7 @@ const s = {
   coverThumbImg:{ width:'100%', aspectRatio:'1', objectFit:'cover', display:'block' },
   coverCheck:   { position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.45)', color:'#fff', fontWeight:700, fontSize:'1.1rem' },
   sortBtn:      { padding:'4px 7px', background:'none', border:'1px solid #ddd', borderRadius:4, cursor:'pointer', display:'flex', alignItems:'center', color:'#555' },
-  rebuildBanner:{ display:'flex', alignItems:'center', gap:'0.75rem', background:'#fffbeb', border:'1px solid #fcd34d', borderRadius:6, padding:'0.6rem 1rem', fontSize:'0.85rem', color:'#92400e', marginTop:'1rem' },
+  rebuildBanner:{ display:'flex', alignItems:'center', gap:'0.75rem', background:'#fffbeb', borderTop:'1px solid #fcd34d', borderBottom:'1px solid #fcd34d', padding:'0.6rem 1.5rem', fontSize:'0.85rem', color:'#92400e' },
   rebuildBtn:   { padding:'0.25rem 0.75rem', background:'#f59e0b', color:'#fff', border:'none', borderRadius:4, cursor:'pointer', fontWeight:600, fontSize:'0.8rem', whiteSpace:'nowrap' },
   advToggle:    { display:'flex', alignItems:'center', gap:'0.4rem', background:'none', border:'none', cursor:'pointer', fontSize:'0.85rem', color:'#555', fontWeight:600, padding:'0.5rem 0', marginBottom:'0.25rem', width:'100%', textAlign:'left' },
   advArrow:     { fontSize:'0.75rem', color:'#888' },

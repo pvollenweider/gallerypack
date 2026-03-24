@@ -2,11 +2,15 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAuth } from '../lib/auth.jsx';
+import { useT } from '../lib/I18nContext.jsx';
+
+const ROLE_COLORS = { owner: '#7c3aed', admin: '#2563eb', editor: '#0891b2', photographer: '#059669' };
 
 export default function AcceptInvite() {
   const { token }   = useParams();
   const navigate    = useNavigate();
   const { setUser } = useAuth();
+  const t = useT();
 
   const [invite,    setInvite]    = useState(null);
   const [loading,   setLoading]   = useState(true);
@@ -24,13 +28,12 @@ export default function AcceptInvite() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (password !== password2) { setError('Passwords do not match'); return; }
-    if (password.length < 8)    { setError('Password must be at least 8 characters'); return; }
+    if (password !== password2) { setError(t('profile_passwords_mismatch')); return; }
+    if (password.length < 8)    { setError(t('invite_error_min_length')); return; }
     setError('');
     setSubmitting(true);
     try {
-      const data = await api.acceptInvite(token, password);
-      // Cookie is now set — sync the auth context so RequireAuth lets us through
+      await api.acceptInvite(token, password);
       const me = await api.me();
       setUser(me);
       navigate('/', { replace: true });
@@ -40,14 +43,21 @@ export default function AcceptInvite() {
     }
   }
 
-  if (loading) return <div style={s.center}>Loading…</div>;
+  const ROLE_LABELS = {
+    owner:        t('role_owner'),
+    admin:        t('role_admin'),
+    editor:       t('role_editor'),
+    photographer: t('role_photographer'),
+  };
+
+  if (loading) return <div style={s.center}><div style={s.card}><p style={s.sub}>{t('loading')}</p></div></div>;
 
   if (error && !invite) return (
     <div style={s.center}>
       <div style={s.card}>
         <div style={s.logo}>GalleryPack</div>
-        <p style={s.errorMsg}>{error}</p>
-        <a href="/admin/" style={s.link}>Go to login</a>
+        <p style={s.errorMsg}>{error || t('invite_invalid_link')}</p>
+        <a href="/login" style={s.link}>{t('back_to_login')}</a>
       </div>
     </div>
   );
@@ -56,8 +66,8 @@ export default function AcceptInvite() {
     <div style={s.center}>
       <div style={s.card}>
         <div style={s.logo}>GalleryPack</div>
-        <p style={s.sub}>This invitation has already been accepted.</p>
-        <a href="/admin/" style={s.link}>Go to login</a>
+        <p style={s.sub}>{t('invite_already_accepted')}</p>
+        <a href="/login" style={s.link}>{t('invite_go_login')}</a>
       </div>
     </div>
   );
@@ -66,46 +76,42 @@ export default function AcceptInvite() {
     <div style={s.center}>
       <div style={s.card}>
         <div style={s.logo}>GalleryPack</div>
-        <h1 style={s.title}>You're invited</h1>
+        <h1 style={s.title}>{t('invite_title')}</h1>
         <p style={s.sub}>
-          You've been invited to join <strong>{invite?.studioName || 'a studio'}</strong> as{' '}
+          {t('invite_subtitle', { studio: invite?.studioName || '…' })}{' '}
           <span style={{ ...s.roleBadge, background: ROLE_COLORS[invite?.role] + '18', color: ROLE_COLORS[invite?.role] }}>
-            {invite?.role}
+            {ROLE_LABELS[invite?.role] || invite?.role}
           </span>
         </p>
         <p style={s.email}>{invite?.email}</p>
 
         <form onSubmit={handleSubmit} style={s.form}>
-          <label style={s.label}>Choose a password</label>
+          <label style={s.label}>{t('invite_choose_password')}</label>
           <input
             style={s.input}
             type="password"
-            placeholder="At least 8 characters"
+            placeholder={t('invite_password_placeholder')}
             value={password}
             onChange={e => setPassword(e.target.value)}
-            required
-            minLength={8}
-            autoFocus
+            required minLength={8} autoFocus
           />
           <input
             style={s.input}
             type="password"
-            placeholder="Confirm password"
+            placeholder={t('invite_confirm_placeholder')}
             value={password2}
             onChange={e => setPassword2(e.target.value)}
             required
           />
           {error && <p style={s.errorMsg}>{error}</p>}
           <button style={s.btn} type="submit" disabled={submitting}>
-            {submitting ? 'Creating account…' : 'Create my account'}
+            {submitting ? t('invite_creating') : t('invite_create')}
           </button>
         </form>
       </div>
     </div>
   );
 }
-
-const ROLE_COLORS = { owner: '#7c3aed', admin: '#2563eb', editor: '#0891b2', photographer: '#059669' };
 
 const s = {
   center:    { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8f8f8' },

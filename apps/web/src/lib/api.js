@@ -18,9 +18,18 @@ async function req(method, path, body) {
 
 export const api = {
   // Auth
-  login:   (email, password) => req('POST', '/auth/login', { email, password }),
-  logout:  ()                => req('POST', '/auth/logout'),
-  me:      ()                => req('GET',  '/auth/me'),
+  login:           (email, password) => req('POST',  '/auth/login', { email, password }),
+  logout:          ()                => req('POST',  '/auth/logout'),
+  me:              ()                => req('GET',   '/auth/me'),
+  updateMe:        (data)            => req('PATCH', '/auth/me', data),
+  changePassword:  (currentPassword, newPassword) => req('PATCH', '/auth/me', { currentPassword, newPassword }),
+  myGalleries:     ()                => req('GET',   '/auth/me/galleries'),
+  forgotPassword:  (email)           => req('POST',  '/auth/forgot', { email }),
+  requestMagicLink:(email)           => req('POST',  '/auth/magic', { email }),
+  consumeMagicLink:(token)           => req('GET',   `/auth/magic/${token}`),
+  checkResetToken: (token)           => req('GET',   `/auth/reset/${token}`),
+  resetPassword:   (token, password) => req('POST',  `/auth/reset/${token}`, { password }),
+  adminResetLink:  (userId)          => req('POST',  '/auth/admin/reset-link', { userId }),
 
   // Galleries
   listGalleries:   ()          => req('GET',    '/galleries'),
@@ -33,12 +42,16 @@ export const api = {
   // Photos
   listPhotos:  (galleryId)           => req('GET',    `/galleries/${galleryId}/photos`),
   deletePhoto: (galleryId, filename) => req('DELETE', `/galleries/${galleryId}/photos/${encodeURIComponent(filename)}`),
-  reorderPhotos: (galleryId, order)  => req('PUT',    `/galleries/${galleryId}/photos/order`, { order }),
+  reorderPhotos:  (galleryId, order)  => req('PUT',    `/galleries/${galleryId}/photos/order`, { order }),
+  uploadDone:     (galleryId)         => req('POST',   `/galleries/${galleryId}/photos/upload-done`),
 
   // Settings
   getSettings:  ()     => req('GET',   '/settings'),
   saveSettings: (data) => req('PATCH', '/settings', data),
   smtpTest:     ()     => req('POST',  '/settings/smtp-test'),
+
+  // Photographer ready notification
+  notifyReady: (galleryId) => req('POST', `/galleries/${galleryId}/notify-ready`),
 
   // Jobs
   triggerBuild: (galleryId, force = false) => req('POST', `/galleries/${galleryId}/build`, { force }),

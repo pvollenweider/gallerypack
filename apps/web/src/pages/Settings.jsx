@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
-import { useT } from '../lib/I18nContext.jsx';
+import { useT, useLocale } from '../lib/I18nContext.jsx';
+import { useAuth } from '../lib/auth.jsx';
 import { Toast } from '../components/Toast.jsx';
 
 const LOCALES = ['fr','en','de','es','it','pt'];
@@ -9,6 +10,11 @@ const ACCESS  = ['public','private','password'];
 
 export default function Settings() {
   const t = useT();
+  const { user, setUser } = useAuth();
+  const isAdmin = ['admin', 'owner'].includes(user?.studioRole);
+
+  if (!isAdmin) return <ProfilePage user={user} setUser={setUser} />;
+
   const [form,   setForm]   = useState({
     siteTitle: '',
     defaultAuthor: '', defaultAuthorEmail: '',
@@ -49,7 +55,7 @@ export default function Settings() {
     setSmtpResult(null);
     try {
       const r = await api.smtpTest();
-      setSmtpResult({ ok: true, message: `Test email sent to ${r.to}` });
+      setSmtpResult({ ok: true, message: t('smtp_test_ok', { to: r.to }) });
     } catch (err) {
       setSmtpResult({ ok: false, message: err.message });
     } finally {
@@ -62,8 +68,8 @@ export default function Settings() {
     setSaving(true);
     try {
       await api.saveSettings(form);
-      setToast('Settings saved');
-    } catch (err) { setToast(`Error: ${err.message}`); }
+      setToast(t('settings_saved'));
+    } catch (err) { setToast(t('settings_error', { msg: err.message })); }
     finally { setSaving(false); }
   }
 
@@ -91,7 +97,7 @@ export default function Settings() {
 
           <Section label={t('section_photographer')}>
             <Row label={t('field_author_name')}>
-              <input style={s.input} value={form.defaultAuthor} placeholder="Your name"
+              <input style={s.input} value={form.defaultAuthor} placeholder={t('profile_name_placeholder')}
                 onChange={set('defaultAuthor')} />
             </Row>
             <Row label={t('field_author_email')}>
@@ -125,36 +131,36 @@ export default function Settings() {
             </Row>
           </Section>
 
-          <Section label="SMTP — Email">
-            <Row label="Host">
+          <Section label={t('section_smtp')}>
+            <Row label={t('smtp_host')}>
               <input style={s.input} value={form.smtpHost} placeholder="smtp.example.com"
                 onChange={set('smtpHost')} />
             </Row>
-            <Row label="Port">
+            <Row label={t('smtp_port')}>
               <input style={{ ...s.input, maxWidth: 90 }} type="number" value={form.smtpPort}
                 onChange={set('smtpPort')} />
             </Row>
-            <Row label="User">
+            <Row label={t('smtp_user')}>
               <input style={s.input} value={form.smtpUser} placeholder="user@example.com"
                 onChange={set('smtpUser')} autoComplete="off" />
             </Row>
-            <Row label="Password">
+            <Row label={t('smtp_password')}>
               <input style={s.input} type="password" value={form.smtpPass}
-                placeholder={smtpPassSet ? '••••••••  (leave blank to keep)' : 'Password'}
+                placeholder={smtpPassSet ? t('smtp_password_set') : t('smtp_password')}
                 onChange={set('smtpPass')} autoComplete="new-password" />
             </Row>
-            <Row label="From address">
+            <Row label={t('smtp_from')}>
               <input style={s.input} value={form.smtpFrom} placeholder="GalleryPack <noreply@example.com>"
                 onChange={set('smtpFrom')} />
             </Row>
-            <Row label="TLS / SSL">
+            <Row label={t('smtp_tls')}>
               <input type="checkbox" checked={form.smtpSecure}
                 onChange={set('smtpSecure')} />
-              <span style={{ fontSize: '0.8rem', color: '#888' }}>Enable for port 465</span>
+              <span style={{ fontSize: '0.8rem', color: '#888' }}>{t('smtp_tls_hint')}</span>
             </Row>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem', marginLeft: 216 }}>
               <button type="button" style={s.testBtn} onClick={handleSmtpTest} disabled={smtpTesting}>
-                {smtpTesting ? 'Sending…' : 'Send test email'}
+                {smtpTesting ? t('sending') : t('smtp_test_btn')}
               </button>
               {smtpResult && (
                 <span style={{ fontSize: '0.82rem', color: smtpResult.ok ? '#059669' : '#dc2626' }}>
@@ -191,6 +197,176 @@ function Row({ label, children }) {
     </div>
   );
 }
+
+const UI_LOCALES = ['fr', 'en', 'de', 'es', 'it', 'pt'];
+
+function ProfilePage({ user, setUser }) {
+  const t = useT();
+  const { setLocale } = useLocale();
+  const [name,      setName]      = useState(user?.name || '');
+  const [locale,    setLocaleSt]  = useState(user?.locale || '');
+  const [saving,    setSaving]    = useState(false);
+  const [toast,     setToast]     = useState('');
+  const [galleries, setGalleries] = useState(null);
+
+  const [curPwd,    setCurPwd]    = useState('');
+  const [newPwd,    setNewPwd]    = useState('');
+  const [newPwd2,   setNewPwd2]   = useState('');
+  const [pwdSaving, setPwdSaving] = useState(false);
+
+  useEffect(() => {
+    api.myGalleries().then(setGalleries).catch(() => setGalleries([]));
+  }, []);
+
+  async function handleSave(e) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const updated = await api.updateMe({ name, locale: locale || null });
+      setUser(updated);
+      if (locale) setLocale(locale);
+      setToast(t('profile_saved'));
+    } catch (err) { setToast(t('settings_error', { msg: err.message })); }
+    finally { setSaving(false); }
+  }
+
+  async function handlePasswordChange(e) {
+    e.preventDefault();
+    if (newPwd !== newPwd2) { setToast(t('profile_passwords_mismatch')); return; }
+    setPwdSaving(true);
+    try {
+      await api.changePassword(curPwd, newPwd);
+      setCurPwd(''); setNewPwd(''); setNewPwd2('');
+      setToast(t('profile_password_updated'));
+    } catch (err) { setToast(t('settings_error', { msg: err.message })); }
+    finally { setPwdSaving(false); }
+  }
+
+  const STUDIO_ROLE_LABEL = {
+    photographer: t('role_photographer'), editor: t('role_editor'),
+    admin: t('role_admin'), owner: t('role_owner'),
+  };
+  const STUDIO_ROLE_DESC = {
+    photographer: t('role_photographer_desc'), editor: t('role_editor_desc'),
+    admin: t('role_admin_desc'), owner: t('role_owner_desc'),
+  };
+  const GALLERY_ROLE_LABEL = {
+    contributor: t('gallery_role_contributor'), editor: t('gallery_role_editor'),
+    viewer: t('gallery_role_viewer'),
+  };
+  const GALLERY_ROLE_DESC = {
+    contributor: t('gallery_role_contributor_desc'), editor: t('gallery_role_editor_desc'),
+    viewer: t('gallery_role_viewer_desc'),
+  };
+
+  return (
+    <div style={s.page}>
+      <header style={s.header}>
+        <Link to="/" style={s.back}>{t('back_to_galleries')}</Link>
+        <span style={s.title}>{t('profile_title')}</span>
+      </header>
+      <main style={s.main}>
+
+        <form onSubmit={handleSave} style={s.form}>
+          <Section label={t('profile_section_identity')}>
+            <Row label={t('profile_name')}>
+              <input style={s.input} value={name} placeholder={t('profile_name_placeholder')}
+                onChange={e => setName(e.target.value)} />
+            </Row>
+            <Row label={t('profile_email_label')}>
+              <span style={{ fontSize: '0.875rem', color: '#555' }}>{user?.email}</span>
+            </Row>
+            <Row label={t('profile_role')}>
+              <div>
+                <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#111' }}>
+                  {STUDIO_ROLE_LABEL[user?.studioRole] || user?.studioRole}
+                </span>
+                <div style={{ fontSize: '0.78rem', color: '#888', marginTop: '0.15rem' }}>
+                  {STUDIO_ROLE_DESC[user?.studioRole]}
+                </div>
+              </div>
+            </Row>
+          </Section>
+
+          <Section label={t('profile_section_language')}>
+            <Row label={t('profile_language_label')}>
+              <select style={{ ...s.input, maxWidth: 180 }} value={locale} onChange={e => setLocaleSt(e.target.value)}>
+                <option value="">— {t('field_language')} —</option>
+                {UI_LOCALES.map(l => <option key={l} value={l}>{l}</option>)}
+              </select>
+            </Row>
+            <p style={{ ...s.hint, marginLeft: 0 }}>{t('profile_language_desc')}</p>
+          </Section>
+
+          <button style={s.btn} type="submit" disabled={saving}>
+            {saving ? t('saving') : t('save')}
+          </button>
+        </form>
+
+        <form onSubmit={handlePasswordChange} style={{ ...s.form, marginTop: '2rem' }}>
+          <Section label={t('profile_section_password')}>
+            <Row label={t('profile_current_password')}>
+              <input style={s.input} type="password" autoComplete="current-password"
+                value={curPwd} onChange={e => setCurPwd(e.target.value)} required />
+            </Row>
+            <Row label={t('profile_new_password')}>
+              <input style={s.input} type="password" autoComplete="new-password" minLength={8}
+                value={newPwd} onChange={e => setNewPwd(e.target.value)} required />
+            </Row>
+            <Row label={t('profile_confirm_password')}>
+              <input style={s.input} type="password" autoComplete="new-password" minLength={8}
+                value={newPwd2} onChange={e => setNewPwd2(e.target.value)} required />
+            </Row>
+          </Section>
+          <button style={s.btn} type="submit" disabled={pwdSaving}>
+            {pwdSaving ? t('saving') : t('profile_change_password_btn')}
+          </button>
+        </form>
+
+        {user?.studioRole === 'photographer' && <div style={{ marginTop: '2rem' }}>
+          <Section label={t('profile_section_galleries')}>
+            {galleries === null && <p style={{ color: '#888', fontSize: '0.875rem' }}>{t('loading')}</p>}
+            {galleries && galleries.length === 0 && (
+              <p style={{ color: '#888', fontSize: '0.875rem' }}>{t('profile_no_galleries')}</p>
+            )}
+            {galleries && galleries.length > 0 && (
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                <thead>
+                  <tr>
+                    <th style={th}>{t('profile_gallery_th')}</th>
+                    <th style={{ ...th, width: 180 }}>{t('profile_access_th')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {galleries.map(g => (
+                    <tr key={g.id}>
+                      <td style={td}>{g.title} <span style={{ color: '#aaa' }}>/{g.slug}/</span></td>
+                      <td style={td}>
+                        <span style={badge(g.role)}>{GALLERY_ROLE_LABEL[g.role] || g.role}</span>
+                        <div style={{ fontSize: '0.72rem', color: '#aaa', marginTop: '0.15rem' }}>
+                          {GALLERY_ROLE_DESC[g.role]}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </Section>
+        </div>}
+      </main>
+      <Toast message={toast} onDone={() => setToast('')} />
+    </div>
+  );
+}
+
+const th = { textAlign: 'left', padding: '0.4rem 0.5rem', borderBottom: '1px solid #eee', color: '#888', fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase' };
+const td = { padding: '0.5rem', borderBottom: '1px solid #f0f0f0' };
+const badge = (role) => ({
+  display: 'inline-block', padding: '0.15rem 0.5rem', borderRadius: 4, fontSize: '0.78rem', fontWeight: 600,
+  background: role === 'editor' ? '#dbeafe' : role === 'contributor' ? '#dcfce7' : '#f0f0f0',
+  color:      role === 'editor' ? '#1d4ed8' : role === 'contributor' ? '#15803d' : '#555',
+});
 
 const s = {
   page:         { minHeight: '100vh', background: '#f8f8f8' },

@@ -11,6 +11,12 @@ import {
   ROLE_HIERARCHY,
 } from '../db/helpers.js';
 
+function countOwners(studioId) {
+  return getDb()
+    .prepare("SELECT COUNT(*) as n FROM studio_memberships WHERE studio_id = ? AND role = 'owner'")
+    .get(studioId).n;
+}
+
 const router = Router();
 
 // All routes require authentication
@@ -34,6 +40,9 @@ router.put('/members/:userId', requireStudioRole('admin'), (req, res) => {
     return res.status(403).json({ error: 'Only owners can assign the owner role' });
   const existing = getStudioMembership(userId, req.studioId);
   if (!existing) return res.status(404).json({ error: 'Membership not found' });
+  // Prevent demoting the last owner
+  if (existing.role === 'owner' && role !== 'owner' && countOwners(req.studioId) <= 1)
+    return res.status(409).json({ error: 'Impossible de rétrograder le dernier owner. Désignez d\'abord un autre owner.' });
   res.json(upsertStudioMembership(req.studioId, userId, role));
 });
 
@@ -42,6 +51,9 @@ router.delete('/members/:userId', requireStudioRole('owner'), (req, res) => {
   const { userId } = req.params;
   const existing = getStudioMembership(userId, req.studioId);
   if (!existing) return res.status(404).json({ error: 'Membership not found' });
+  // Prevent removing the last owner
+  if (existing.role === 'owner' && countOwners(req.studioId) <= 1)
+    return res.status(409).json({ error: 'Impossible de retirer le dernier owner. Désignez d\'abord un autre owner.' });
   removeStudioMembership(req.studioId, userId);
   res.json({ ok: true });
 });

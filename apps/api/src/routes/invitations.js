@@ -9,9 +9,11 @@ import {
   listInvitations,
   deleteInvitation,
   getStudio,
+  getSettings,
   createSession,
   audit,
 } from '../db/helpers.js';
+import { sendInviteEmail } from '../services/email.js';
 
 const VALID_ROLES = ['owner', 'admin', 'editor', 'photographer'];
 
@@ -25,15 +27,20 @@ router.post('/', requireAuth, (req, res) => {
     return res.status(403).json({ error: 'Forbidden' });
   }
 
-  const { email, role } = req.body || {};
+  const { email, role, galleryId, galleryRole } = req.body || {};
   if (!email) return res.status(400).json({ error: 'email is required' });
   if (!role || !VALID_ROLES.includes(role)) {
     return res.status(400).json({ error: `role must be one of: ${VALID_ROLES.join(', ')}` });
   }
 
+  const VALID_GALLERY_ROLES = ['contributor', 'editor'];
+  if (galleryId && (!galleryRole || !VALID_GALLERY_ROLES.includes(galleryRole))) {
+    return res.status(400).json({ error: 'galleryRole must be one of: contributor, editor' });
+  }
+
   let invitation;
   try {
-    invitation = createInvitation(req.studioId, email, role, req.userId);
+    invitation = createInvitation(req.studioId, email, role, req.userId, { galleryId: galleryId || null, galleryRole: galleryRole || null });
   } catch (err) {
     // SQLite UNIQUE constraint on (studio_id, email)
     if (err.message && err.message.includes('UNIQUE')) {
@@ -43,6 +50,20 @@ router.post('/', requireAuth, (req, res) => {
   }
 
   try { audit(req.studioId, req.userId, 'member.invite', 'invitation', invitation.id, { email, role }); } catch {}
+
+  // Send invite email (fire-and-forget)
+  try {
+    const s = getSettings(req.studioId);
+    const base = (s?.base_url || process.env.BASE_URL || 'http://localhost:4000').replace(/\/$/, '');
+    const studio = getStudio(req.studioId);
+    sendInviteEmail({
+      studioId: req.studioId,
+      to: email,
+      studioName: studio?.name || 'GalleryPack',
+      inviteUrl: `${base}/admin/invite/${invitation.token}`,
+    });
+  } catch {}
+
   res.status(201).json(invitation);
 });
 

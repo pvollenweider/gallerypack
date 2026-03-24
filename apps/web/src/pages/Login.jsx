@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../lib/auth.jsx';
+import { useT } from '../lib/I18nContext.jsx';
 
 export default function Login() {
   const { login } = useAuth();
   const navigate  = useNavigate();
+  const t = useT();
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
   const [error,    setError]    = useState('');
@@ -18,7 +20,7 @@ export default function Login() {
       await login(email, password);
       navigate('/');
     } catch (err) {
-      setError(err.message || 'Login failed');
+      setError(err.message || t('login_failed'));
     } finally {
       setLoading(false);
     }
@@ -31,19 +33,20 @@ export default function Login() {
         <form onSubmit={handleSubmit} style={s.form}>
           <input
             style={s.input}
-            type="email" placeholder="Email" autoComplete="email"
+            type="email" placeholder={t('login_email')} autoComplete="email"
             value={email} onChange={e => setEmail(e.target.value)} required
           />
           <input
             style={s.input}
-            type="password" placeholder="Password" autoComplete="current-password"
+            type="password" placeholder={t('login_password')} autoComplete="current-password"
             value={password} onChange={e => setPassword(e.target.value)} required
           />
           {error && <p style={s.error}>{error}</p>}
           <button style={s.btn} type="submit" disabled={loading}>
-            {loading ? 'Signing in…' : 'Sign in'}
+            {loading ? t('login_signing_in') : t('login_sign_in')}
           </button>
         </form>
+        <Link to="/forgot-password" style={s.forgot}>{t('login_forgot_password')}</Link>
       </div>
     </div>
   );
@@ -56,5 +59,6 @@ const s = {
   form:  { display:'flex', flexDirection:'column', gap:'0.75rem' },
   input: { padding:'0.6rem 0.75rem', border:'1px solid #ddd', borderRadius:6, fontSize:'0.95rem', outline:'none' },
   btn:   { padding:'0.65rem', background:'#111', color:'#fff', border:'none', borderRadius:6, fontWeight:600, cursor:'pointer', fontSize:'0.95rem' },
-  error: { margin:0, color:'#c00', fontSize:'0.85rem' },
+  error:  { margin:0, color:'#c00', fontSize:'0.85rem' },
+  forgot: { display:'block', marginTop:'1rem', textAlign:'center', fontSize:'0.85rem', color:'#888', textDecoration:'none' },
 };

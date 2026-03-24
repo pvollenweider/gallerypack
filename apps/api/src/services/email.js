@@ -120,6 +120,28 @@ export function sendInviteEmail({ studioId, to, studioName, galleryTitle, invite
 }
 
 /**
+ * Send a magic login link (passwordless, 5-min TTL).
+ * @param {{ studioId, to, magicUrl }} opts
+ */
+export function sendMagicLinkEmail({ studioId, to, magicUrl }) {
+  const subject = 'Votre lien de connexion (valable 5 min)';
+  const text = `Bonjour,\n\nCliquez sur ce lien pour vous connecter :\n${magicUrl}\n\nCe lien est valable 5 minutes et ne peut être utilisé qu'une seule fois.\nSi vous n'avez pas demandé ce lien, ignorez cet email.`;
+  const html = `<p>Bonjour,</p><p>Cliquez sur ce lien pour vous connecter :</p><p><a href="${magicUrl}">${magicUrl}</a></p><p>Ce lien est <strong>valable 5 minutes</strong> et ne peut être utilisé qu'une seule fois.</p><p>Si vous n'avez pas demandé ce lien, ignorez cet email.</p>`;
+  sendEmail({ studioId, to, subject, html, text, template: 'magic-link' });
+}
+
+/**
+ * Notify admins that a photographer has finished uploading.
+ * @param {{ studioId, to, photographerName, galleryTitle, galleryAdminUrl }} opts
+ */
+export function sendPhotosReadyEmail({ studioId, to, photographerName, galleryTitle, galleryAdminUrl }) {
+  const subject = `Photos prêtes — ${galleryTitle}`;
+  const text = `Bonjour,\n\n${photographerName} a indiqué que les photos de la galerie "${galleryTitle}" sont prêtes à publier.\n\nGérer la galerie :\n${galleryAdminUrl}\n`;
+  const html = `<p>Bonjour,</p><p><strong>${photographerName}</strong> a indiqué que les photos de la galerie <strong>${galleryTitle}</strong> sont prêtes à publier.</p><p><a href="${galleryAdminUrl}">Gérer la galerie</a></p>`;
+  sendEmail({ studioId, to, subject, html, text, template: 'photos-ready' });
+}
+
+/**
  * Send a "gallery ready" notification to the author.
  * @param {{ studioId, to, galleryTitle, galleryUrl }} opts
  */

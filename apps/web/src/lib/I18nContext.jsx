@@ -1,21 +1,33 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { createTranslator } from './i18n.js';
 import { api } from './api.js';
 
-const I18nContext = createContext(createTranslator('en'));
+const I18nCtx    = createContext(createTranslator('en'));
+const LocaleCtx  = createContext({ locale: 'en', setLocale: () => {} });
 
 export function I18nProvider({ children }) {
-  const [t, setT] = useState(() => createTranslator('en'));
+  const [locale, setLocale] = useState('en');
 
   useEffect(() => {
-    api.getSettings().catch(() => ({})).then(s => {
-      setT(() => createTranslator(s.defaultLocale || 'en'));
+    Promise.all([
+      api.me().catch(() => null),
+      api.getSettings().catch(() => ({})),
+    ]).then(([user, settings]) => {
+      const l = user?.locale || settings?.defaultLocale || 'en';
+      setLocale(l);
     });
   }, []);
 
-  return <I18nContext.Provider value={t}>{children}</I18nContext.Provider>;
+  const t = useMemo(() => createTranslator(locale), [locale]);
+
+  return (
+    <LocaleCtx.Provider value={{ locale, setLocale }}>
+      <I18nCtx.Provider value={t}>
+        {children}
+      </I18nCtx.Provider>
+    </LocaleCtx.Provider>
+  );
 }
 
-export function useT() {
-  return useContext(I18nContext);
-}
+export function useT()      { return useContext(I18nCtx); }
+export function useLocale() { return useContext(LocaleCtx); }

@@ -7,7 +7,10 @@ import GalleryDetail from './pages/GalleryDetail.jsx';
 import BuildStatus  from './pages/BuildStatus.jsx';
 import Settings     from './pages/Settings.jsx';
 import Team         from './pages/Team.jsx';
-import AcceptInvite from './pages/AcceptInvite.jsx';
+import AcceptInvite    from './pages/AcceptInvite.jsx';
+import ForgotPassword  from './pages/ForgotPassword.jsx';
+import ResetPassword   from './pages/ResetPassword.jsx';
+import MagicLogin      from './pages/MagicLogin.jsx';
 import { Footer }   from './components/Footer.jsx';
 
 function RequireAuth({ children }) {
@@ -39,7 +42,10 @@ export default function App() {
       <Route path="/jobs/:jobId"   element={<AuthLayout><BuildStatus /></AuthLayout>} />
       <Route path="/settings"      element={<AuthLayout><Settings /></AuthLayout>} />
       <Route path="/team"          element={<AuthLayout><Team /></AuthLayout>} />
-      <Route path="/invite/:token" element={<AcceptInvite />} />
+      <Route path="/invite/:token"           element={<AcceptInvite />} />
+      <Route path="/forgot-password"          element={<ForgotPassword />} />
+      <Route path="/reset-password/:token"    element={<ResetPassword />} />
+      <Route path="/magic-login/:token"       element={<MagicLogin />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
     </I18nProvider>

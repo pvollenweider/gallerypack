@@ -312,7 +312,8 @@ export function removeStudioMembership(studioId, userId) {
  * Returns array of { user: {...}, role } objects.
  */
 export function listStudioMembers(studioId) {
-  const rows = getDb().prepare(`
+  const db = getDb();
+  const rows = db.prepare(`
     SELECT sm.role, u.id, u.email, u.name, u.role as user_role, u.created_at
     FROM studio_memberships sm
     JOIN users u ON u.id = sm.user_id
@@ -320,9 +321,25 @@ export function listStudioMembers(studioId) {
     ORDER BY sm.created_at ASC
   `).all(studioId);
 
+  // Attach per-gallery roles for each member
+  const galleryAccess = db.prepare(`
+    SELECT gm.user_id, gm.role as gallery_role, g.id as gallery_id, g.title as gallery_title
+    FROM gallery_memberships gm
+    JOIN galleries g ON g.id = gm.gallery_id
+    WHERE g.studio_id = ?
+    ORDER BY g.title ASC
+  `).all(studioId);
+
+  const accessByUser = {};
+  for (const a of galleryAccess) {
+    if (!accessByUser[a.user_id]) accessByUser[a.user_id] = [];
+    accessByUser[a.user_id].push({ galleryId: a.gallery_id, galleryTitle: a.gallery_title, role: a.gallery_role });
+  }
+
   return rows.map(r => ({
     role: r.role,
     user: { id: r.id, email: r.email, name: r.name, role: r.user_role, createdAt: r.created_at },
+    galleries: accessByUser[r.id] || [],
   }));
 }
 
@@ -375,7 +392,7 @@ export function listGalleryMembers(galleryId) {
     FROM gallery_memberships gm
     JOIN users u ON u.id = gm.user_id
     WHERE gm.gallery_id = ?
-    ORDER BY gm.created_at ASC
+    ORDER BY u.email ASC
   `).all(galleryId);
 }
 
@@ -391,7 +408,7 @@ const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
  * @param {string} createdBy - user ID of the inviting admin
  * @returns {object} invitation row
  */
-export function createInvitation(studioId, email, role, createdBy) {
+export function createInvitation(studioId, email, role, createdBy, { galleryId = null, galleryRole = null } = {}) {
   const db = getDb();
   // Replace any existing pending invitation for this email (re-invite / role change).
   // Refuse if the invitation was already accepted (user is already a member).
@@ -405,9 +422,9 @@ export function createInvitation(studioId, email, role, createdBy) {
   const now       = Date.now();
   const expiresAt = now + INVITATION_TTL_MS;
   db.prepare(`
-    INSERT INTO invitations (id, studio_id, email, role, token, created_by, created_at, expires_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, studioId, email, role, token, createdBy, now, expiresAt);
+    INSERT INTO invitations (id, studio_id, email, role, token, created_by, created_at, expires_at, gallery_id, gallery_role)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(id, studioId, email, role, token, createdBy, now, expiresAt, galleryId, galleryRole);
   return db.prepare('SELECT * FROM invitations WHERE id = ?').get(id);
 }
 
@@ -434,6 +451,9 @@ export function acceptInvitation(token, password) {
     const passwordHash = hashPassword(password);
     const user = createUser({ studioId: inv.studio_id, email: inv.email, passwordHash, role: inv.role });
     upsertStudioMembership(inv.studio_id, user.id, inv.role);
+    if (inv.gallery_id && inv.gallery_role) {
+      upsertGalleryMembership(inv.gallery_id, user.id, inv.gallery_role);
+    }
     db.prepare('UPDATE invitations SET accepted_at = ? WHERE id = ?').run(Date.now(), inv.id);
     return user;
   })();
@@ -449,6 +469,68 @@ export function listInvitations(studioId) {
 /** Delete an invitation by id. */
 export function deleteInvitation(id) {
   getDb().prepare('DELETE FROM invitations WHERE id = ?').run(id);
+}
+
+// ── Password reset tokens ─────────────────────────────────────────────────────
+
+const RESET_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
+
+export function createPasswordResetToken(userId) {
+  const db = getDb();
+  db.prepare('DELETE FROM password_reset_tokens WHERE user_id = ? AND used_at IS NULL').run(userId);
+  const id    = randomUUID();
+  const token = randomBytes(32).toString('hex');
+  const now   = Date.now();
+  db.prepare(`
+    INSERT INTO password_reset_tokens (id, user_id, token, created_at, expires_at)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(id, userId, token, now, now + RESET_TTL_MS);
+  return db.prepare('SELECT * FROM password_reset_tokens WHERE id = ?').get(id);
+}
+
+export function getPasswordResetToken(token) {
+  return getDb().prepare('SELECT * FROM password_reset_tokens WHERE token = ?').get(token) || null;
+}
+
+export function usePasswordResetToken(token, newPassword) {
+  const db = getDb();
+  return db.transaction(() => {
+    const row = db.prepare('SELECT * FROM password_reset_tokens WHERE token = ?').get(token);
+    if (!row)      throw Object.assign(new Error('Lien invalide'), { status: 404 });
+    if (row.used_at) throw Object.assign(new Error('Ce lien a déjà été utilisé'), { status: 409 });
+    if (row.expires_at < Date.now()) throw Object.assign(new Error('Ce lien a expiré'), { status: 410 });
+    db.prepare('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?')
+      .run(hashPassword(newPassword), Date.now(), row.user_id);
+    db.prepare('UPDATE password_reset_tokens SET used_at = ? WHERE id = ?').run(Date.now(), row.id);
+    return getUserById(row.user_id);
+  })();
+}
+
+// ── Magic links (passwordless login, 5-min TTL) ───────────────────────────────
+
+const MAGIC_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+export function createMagicLink(userId) {
+  const db = getDb();
+  db.prepare('DELETE FROM magic_links WHERE user_id = ? AND used_at IS NULL').run(userId);
+  const id    = randomUUID();
+  const token = randomBytes(32).toString('hex');
+  const now   = Date.now();
+  db.prepare('INSERT INTO magic_links (id, user_id, token, created_at, expires_at) VALUES (?, ?, ?, ?, ?)')
+    .run(id, userId, token, now, now + MAGIC_TTL_MS);
+  return db.prepare('SELECT * FROM magic_links WHERE id = ?').get(id);
+}
+
+export function useMagicLink(token) {
+  const db = getDb();
+  return db.transaction(() => {
+    const row = db.prepare('SELECT * FROM magic_links WHERE token = ?').get(token);
+    if (!row)          throw Object.assign(new Error('Lien invalide'), { status: 404 });
+    if (row.used_at)   throw Object.assign(new Error('Ce lien a déjà été utilisé'), { status: 409 });
+    if (row.expires_at < Date.now()) throw Object.assign(new Error('Ce lien a expiré (5 min)'), { status: 410 });
+    db.prepare('UPDATE magic_links SET used_at = ? WHERE id = ?').run(Date.now(), row.id);
+    return getUserById(row.user_id);
+  })();
 }
 
 // ── Viewer tokens (DB-backed, per-gallery share links) ────────────────────────
