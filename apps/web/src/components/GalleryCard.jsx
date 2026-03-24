@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const STATUS_COLOR = {
@@ -40,12 +41,18 @@ function formatDateRange(dateRange, fallback) {
 }
 
 export function GalleryCard({ gallery, onBuild, onDelete }) {
-  const navigate = useNavigate();
-  const color    = STATUS_COLOR[gallery.buildStatus] || '#6b7280';
+  const navigate  = useNavigate();
+  const color     = STATUS_COLOR[gallery.buildStatus] || '#6b7280';
   const dateLabel = formatDateRange(gallery.dateRange, gallery.date);
+  const [hovered, setHovered] = useState(false);
 
   return (
-    <div style={s.card} onClick={() => navigate(`/galleries/${gallery.id}`)}>
+    <div
+      style={{ ...s.card, ...(hovered ? s.cardHover : {}) }}
+      onClick={() => navigate(`/galleries/${gallery.id}`)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
       <div style={s.cover}>
         {gallery.firstPhoto
           ? <img src={`/api/galleries/${gallery.id}/photos/${encodeURIComponent(gallery.firstPhoto)}/preview`} style={s.img} alt="" />
@@ -70,7 +77,8 @@ export function GalleryCard({ gallery, onBuild, onDelete }) {
 }
 
 const s = {
-  card:        { background:'#fff', borderRadius:10, overflow:'hidden', boxShadow:'0 1px 6px #0001', cursor:'pointer', transition:'box-shadow 0.15s' },
+  card:        { background:'#fff', borderRadius:10, overflow:'hidden', boxShadow:'0 1px 6px rgba(0,0,0,0.07)', cursor:'pointer', transition:'box-shadow 0.2s, transform 0.2s' },
+  cardHover:   { boxShadow:'0 8px 28px rgba(0,0,0,0.13)', transform:'translateY(-2px)' },
   cover:       { height:160, background:'#f4f4f4', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' },
   img:         { width:'100%', height:'100%', objectFit:'cover' },
   placeholder: { fontSize:'2.5rem', color:'#ccc' },

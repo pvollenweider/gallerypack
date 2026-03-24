@@ -19,6 +19,8 @@ import jobsRoutes      from './routes/jobs.js';
 import invitesRoutes   from './routes/invites.js';
 import publicRoutes, { getPublicGalleries } from './routes/public.js';
 import { renderLanding } from './views/landing.js';
+import settingsRoutes from './routes/settings.js';
+import { getSettings } from './db/helpers.js';
 
 const __DIR     = path.dirname(fileURLToPath(import.meta.url));
 const PORT      = process.env.PORT || 4000;
@@ -80,6 +82,7 @@ app.get(/^\/admin(\/.*)?$/, (req, res) => res.sendFile(path.join(ADMIN_DIST, 'in
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.use('/api/public',              publicRoutes);           // no auth — must be before /api catch-all
+app.use('/api/settings',            settingsRoutes);
 app.use('/api/auth',                authRoutes);
 app.use('/api/galleries',           galleriesRoutes);
 app.use('/api/galleries',           accessRoutes);
@@ -90,8 +93,12 @@ app.use('/api/invites',             invitesRoutes);
 
 // ── Public gallery listing (served when Caddy falls back for missing /index.html) ──
 app.get('/', (req, res) => {
+  const galleries  = getPublicGalleries();
+  const studioRow  = getDb().prepare('SELECT id FROM studios LIMIT 1').get();
+  const settings   = studioRow ? getSettings(studioRow.id) : null;
+  const siteTitle  = settings?.site_title || 'GalleryPack';
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.send(renderLanding(getPublicGalleries()));
+  res.send(renderLanding(galleries, siteTitle));
 });
 
 // ── Error handler ─────────────────────────────────────────────────────────────
