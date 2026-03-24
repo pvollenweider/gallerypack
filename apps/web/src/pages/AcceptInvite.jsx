@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
+import { useAuth } from '../lib/auth.jsx';
 
 export default function AcceptInvite() {
   const { token }   = useParams();
   const navigate    = useNavigate();
+  const { setUser } = useAuth();
 
   const [invite,    setInvite]    = useState(null);
   const [loading,   setLoading]   = useState(true);
@@ -27,7 +29,10 @@ export default function AcceptInvite() {
     setError('');
     setSubmitting(true);
     try {
-      await api.acceptInvite(token, password);
+      const data = await api.acceptInvite(token, password);
+      // Cookie is now set — sync the auth context so RequireAuth lets us through
+      const me = await api.me();
+      setUser(me);
       navigate('/', { replace: true });
     } catch (e) {
       setError(e.message);
