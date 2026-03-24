@@ -54,14 +54,15 @@ describe('can manage member', () => {
 describe('can read gallery', () => {
   const publicGallery  = { access: 'public',  private: false };
   const privateGallery = { access: 'private', private: true  };
+  // access column is now canonical: access='public' means public even if private=1
   const publicButPriv  = { access: 'public',  private: true  };
 
   test('public gallery is readable by anyone (no roles)', () => {
     assert.equal(can(user, 'read', 'gallery', { gallery: publicGallery }), true);
   });
 
-  test('public+private gallery is not readable without a role', () => {
-    assert.equal(can(user, 'read', 'gallery', { gallery: publicButPriv }), false);
+  test('access column is canonical: access=public overrides private flag', () => {
+    assert.equal(can(user, 'read', 'gallery', { gallery: publicButPriv }), true);
   });
 
   test('private gallery is not readable without roles', () => {
@@ -86,6 +87,24 @@ describe('can read gallery', () => {
 
   test('gallery editor role grants read access', () => {
     assert.equal(can(user, 'read', 'gallery', { gallery: privateGallery, galleryRole: 'editor' }), true);
+  });
+});
+
+// ── Gallery-level: viewer token read access ───────────────────────────────────
+
+describe('can read gallery with viewerToken', () => {
+  const privateGallery = { access: 'private', private: true };
+
+  test('valid viewerToken grants read access to a private gallery', () => {
+    assert.equal(can(user, 'read', 'gallery', { gallery: privateGallery, viewerToken: true }), true);
+  });
+
+  test('viewerToken without gallery context returns false', () => {
+    assert.equal(can(user, 'read', 'gallery', { viewerToken: true }), false);
+  });
+
+  test('viewerToken does not grant write access', () => {
+    assert.equal(can(user, 'write', 'gallery', { gallery: privateGallery, viewerToken: true }), false);
   });
 });
 
