@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Building gallery… — GalleryPack</title>
+  <script src="/js/i18n.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #f7f6f2;
+      --surface: #ffffff;
+      --border:  #e4e2d8;
+      --accent:  #c4933f;
+      --text:    #1c1c1a;
+      --muted:   #888480;
+      --danger:  #c94040;
+      --green:   #2a9e52;
+      --radius:  10px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 14px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 16px 80px;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 600px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* Header */
+    .status-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .status-icon {
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+    .status-icon.building {
+      background: rgba(196,147,63,.1);
+      border: 2px solid rgba(196,147,63,.3);
+    }
+    .status-icon.done {
+      background: rgba(42,158,82,.1);
+      border: 2px solid rgba(42,158,82,.3);
+    }
+    .status-icon.error {
+      background: rgba(201,64,64,.1);
+      border: 2px solid rgba(201,64,64,.3);
+    }
+    .status-icon .spinner {
+      width: 22px; height: 22px;
+      border: 2px solid rgba(196,147,63,.2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .status-text h1 { font-size: 18px; font-weight: 600; }
+    .status-text p  { font-size: 13px; color: var(--muted); margin-top: 3px; }
+
+    /* Progress bar */
+    .progress-bar {
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .progress-bar .fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+      width: 0%;
+      transition: width .4s ease;
+      animation: indeterminate 1.8s ease infinite;
+    }
+    @keyframes indeterminate {
+      0%   { width: 0%;   margin-left: 0%; }
+      50%  { width: 60%;  margin-left: 20%; }
+      100% { width: 0%;   margin-left: 100%; }
+    }
+    .progress-bar.done .fill   { animation: none; width: 100%; background: var(--green); }
+    .progress-bar.error .fill  { animation: none; width: 100%; background: var(--danger); }
+
+    /* Log */
+    .log-container {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .log-header {
+      padding: 10px 14px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+    }
+    #log {
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 12px;
+      line-height: 1.7;
+      color: #6a6864;
+      padding: 14px;
+      height: 280px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    #log .line-ok     { color: #2a9e52; }
+    #log .line-warn   { color: var(--accent); }
+    #log .line-error  { color: var(--danger); }
+    #log .line-info   { color: #4a88c4; }
+    #log .line-plain  { color: #888; }
+
+    /* Result */
+    #result {
+      display: none;
+      background: rgba(42,158,82,.08);
+      border: 1px solid rgba(42,158,82,.25);
+      border-radius: var(--radius);
+      padding: 24px;
+      text-align: center;
+    }
+    #result.show { display: block; }
+    #result h2 { font-size: 16px; margin-bottom: 8px; color: var(--green); }
+    #result p  { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+    #result a.btn {
+      display: inline-block;
+      background: var(--green);
+      color: #000;
+      font-weight: 600;
+      font-size: 14px;
+      padding: 12px 28px;
+      border-radius: var(--radius);
+      text-decoration: none;
+      transition: opacity .2s;
+    }
+    #result a.btn:hover { opacity: .85; }
+
+    /* Error result */
+    #result-error {
+      display: none;
+      background: rgba(201,64,64,.08);
+      border: 1px solid rgba(201,64,64,.25);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+    #result-error.show { display: block; }
+    #result-error h2 { font-size: 15px; color: var(--danger); margin-bottom: 8px; }
+    #result-error p  { font-size: 13px; color: var(--muted); }
+
+    a.new-link {
+      font-size: 13px;
+      color: var(--muted);
+      text-decoration: none;
+      text-align: center;
+      display: block;
+    }
+    a.new-link:hover { color: var(--text); }
+  </style>
+</head>
+<body>
+
+<div class="card">
+
+  <div class="status-header">
+    <div class="status-icon building" id="status-icon">
+      <div class="spinner"></div>
+    </div>
+    <div class="status-text">
+      <h1 id="status-title" data-i18n="status.heading.building">Building your gallery…</h1>
+      <p id="status-sub" data-i18n="status.subtext.building">This usually takes a few seconds to a few minutes depending on photo count.</p>
+    </div>
+  </div>
+
+  <div class="progress-bar" id="progress-bar">
+    <div class="fill"></div>
+  </div>
+
+  <div class="log-container">
+    <div class="log-header" data-i18n="status.log.header">Build log</div>
+    <div id="log"></div>
+  </div>
+
+  <div id="result">
+    <h2 data-i18n="status.result.title">✓ Gallery ready</h2>
+    <p data-i18n="status.result.subtitle">Your gallery has been built and is ready to view.</p>
+    <a class="btn" id="gallery-link" href="#" data-i18n="status.result.open">Open gallery →</a>
+  </div>
+
+  <div id="result-error">
+    <h2 data-i18n="status.error.title">Build failed</h2>
+    <p id="error-msg" data-i18n="status.error.subtitle">An error occurred during the build. Check the log above for details.</p>
+  </div>
+
+  <a class="new-link" href="/new" data-i18n="status.new.link">← Create another gallery</a>
+
+</div>
+
+<script>
+  window.GP_LOCALE = gpDetectLocale();
+  applyI18n();
+
+  // Extract job ID from URL: /status/<id>  or  /status?id=<id>
+  const pathParts = window.location.pathname.split('/').filter(Boolean);
+  const jobId = pathParts[pathParts.length - 1] !== 'status'
+    ? pathParts[pathParts.length - 1]
+    : new URLSearchParams(window.location.search).get('id');
+
+  if (!jobId) {
+    document.getElementById('status-title').textContent = t('status.nojob');
+    document.getElementById('status-sub').textContent   = '';
+  } else {
+    startStream(jobId);
+  }
+
+  function startStream(id) {
+    const logEl    = document.getElementById('log');
+    const es       = new EventSource(`/api/galleries/${id}/stream`);
+
+    es.addEventListener('log', e => {
+      const { line } = JSON.parse(e.data);
+      appendLine(logEl, line);
+    });
+
+    es.addEventListener('status', e => {
+      const { status } = JSON.parse(e.data);
+      if (status === 'building') setStatus('building');
+    });
+
+    es.addEventListener('done', e => {
+      const { galleryUrl } = JSON.parse(e.data);
+      es.close();
+      setDone(galleryUrl);
+    });
+
+    es.addEventListener('error', e => {
+      try {
+        const { message } = JSON.parse(e.data);
+        es.close();
+        setError(message);
+      } catch (_) {
+        // SSE connection error — fall back to polling
+        es.close();
+        pollStatus(id);
+      }
+    });
+
+    // Timeout fallback: if no update in 5 min, poll
+    const timeout = setTimeout(() => { es.close(); pollStatus(id); }, 300_000);
+    es.addEventListener('done',  () => clearTimeout(timeout));
+    es.addEventListener('error', () => clearTimeout(timeout));
+  }
+
+  async function pollStatus(id) {
+    try {
+      const res = await fetch(`/api/galleries/${id}`);
+      const job = await res.json();
+      for (const line of job.log) appendLine(document.getElementById('log'), line);
+      if (job.status === 'done')  setDone(job.galleryUrl);
+      else if (job.status === 'error') setError(job.error);
+      else setTimeout(() => pollStatus(id), 2000);
+    } catch (_) {
+      setTimeout(() => pollStatus(id), 3000);
+    }
+  }
+
+  function appendLine(el, line) {
+    const div = document.createElement('div');
+    if      (/^[✓✔]/.test(line))               div.className = 'line-ok';
+    else if (/^[▶→]|Starting|Building/.test(line)) div.className = 'line-info';
+    else if (/^[⚠⚡]|WARN/.test(line))          div.className = 'line-warn';
+    else if (/^[✗✘]|error|fail/i.test(line))   div.className = 'line-error';
+    else                                          div.className = 'line-plain';
+    div.textContent = line;
+    el.appendChild(div);
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function setStatus(status) {
+    const icon = document.getElementById('status-icon');
+    icon.className = `status-icon ${status}`;
+  }
+
+  function setDone(galleryUrl) {
+    document.getElementById('status-title').textContent = t('status.heading.done');
+    document.getElementById('status-sub').textContent   = t('status.subtext.done');
+    document.title = t('status.page.title.done');
+
+    const icon = document.getElementById('status-icon');
+    icon.className = 'status-icon done';
+    icon.innerHTML = '✓';
+    icon.style.fontSize = '20px';
+    icon.style.color = 'var(--green)';
+
+    const bar = document.getElementById('progress-bar');
+    bar.className = 'progress-bar done';
+
+    const result = document.getElementById('result');
+    const link   = document.getElementById('gallery-link');
+    link.href    = galleryUrl;
+    result.classList.add('show');
+
+    // Auto-redirect after 3s
+    setTimeout(() => { window.location.href = galleryUrl; }, 3000);
+  }
+
+  function setError(message) {
+    document.getElementById('status-title').textContent = t('status.heading.error');
+    document.getElementById('status-sub').textContent   = '';
+    document.title = t('status.page.title.error');
+
+    const icon = document.getElementById('status-icon');
+    icon.className = 'status-icon error';
+    icon.innerHTML = '✗';
+    icon.style.fontSize = '20px';
+    icon.style.color = 'var(--danger)';
+
+    const bar = document.getElementById('progress-bar');
+    bar.className = 'progress-bar error';
+
+    document.getElementById('error-msg').textContent = message;
+    document.getElementById('result-error').classList.add('show');
+  }
+</script>
+</body>
+</html>

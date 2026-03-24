@@ -1,0 +1,52 @@
+# ── Stage 1: build the React admin SPA ───────────────────────────────────────
+FROM node:20-alpine AS web-build
+
+WORKDIR /app
+
+# Install only the deps needed for the web build
+COPY package*.json ./
+COPY packages/shared/package.json packages/shared/
+COPY apps/web/package.json        apps/web/
+RUN npm ci
+
+COPY packages/shared/ packages/shared/
+COPY apps/web/        apps/web/
+
+RUN npm run build --workspace=apps/web
+# Output: /app/apps/web/dist/
+
+# ── Stage 2: API server ────────────────────────────────────────────────────────
+FROM node:20-bookworm-slim
+
+# Sharp/libvips native deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      libvips-dev libheif-dev libwebp-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Install workspace deps (layer cache)
+COPY package*.json ./
+COPY packages/engine/package.json packages/engine/
+COPY packages/shared/package.json packages/shared/
+COPY apps/api/package.json        apps/api/
+RUN npm ci --omit=dev && npm rebuild sharp
+
+# Copy source
+COPY packages/         packages/
+COPY apps/api/         apps/api/
+
+# Copy built admin SPA from stage 1
+COPY --from=web-build /app/apps/web/dist /app/admin-dist
+
+RUN mkdir -p data src dist
+
+EXPOSE 4000
+ENV NODE_ENV=production
+ENV PORT=4000
+ENV ADMIN_DIST=/app/admin-dist
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD node -e "fetch('http://localhost:4000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
+CMD ["node", "apps/api/src/index.js"]

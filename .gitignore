@@ -19,3 +19,18 @@ src/*/photos/
 # Publish config (contains server credentials)
 publish.config.json
 photos.json
+
+# v2 server — transient upload temp files and job state
+server/uploads/
+server/jobs.json
+server/invites.json
+server/settings.json
+
+# Claude Code memory
+.claude/
+apps/api/data/
+data/
+.env
+*.db
+*.db-shm
+*.db-wal

@@ -1,0 +1,28 @@
+FROM node:20-bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      libvips-dev libheif-dev libwebp-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY package*.json ./
+COPY packages/engine/package.json   packages/engine/
+COPY packages/shared/package.json   packages/shared/
+COPY apps/api/package.json          apps/api/
+COPY workers/builder/package.json   workers/builder/
+RUN npm ci --omit=dev && npm rebuild sharp
+
+COPY packages/          packages/
+COPY apps/api/          apps/api/
+COPY workers/           workers/
+COPY build.config.json  ./
+
+RUN mkdir -p data src dist
+
+ENV NODE_ENV=production
+
+HEALTHCHECK --interval=60s --timeout=10s --start-period=15s --retries=2 \
+  CMD node -e "require('fs').existsSync('/tmp/worker.alive') && (Date.now() - require('fs').statSync('/tmp/worker.alive').mtimeMs < 120000) ? process.exit(0) : process.exit(1)"
+
+CMD ["node", "workers/builder/src/index.js"]
