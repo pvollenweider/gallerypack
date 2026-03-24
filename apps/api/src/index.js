@@ -11,6 +11,7 @@ import { errorHandler }  from './middleware/error.js';
 import authRoutes      from './routes/auth.js';
 import galleriesRoutes from './routes/galleries.js';
 import photosRoutes    from './routes/photos.js';
+import jobsRoutes      from './routes/jobs.js';
 
 const __DIR = path.dirname(fileURLToPath(import.meta.url));
 const PORT  = process.env.PORT || 4000;
@@ -30,6 +31,8 @@ app.use(cookieParser());
 app.use('/api/auth',      authRoutes);
 app.use('/api/galleries', galleriesRoutes);
 app.use('/api/galleries', photosRoutes);
+app.use('/api/galleries', jobsRoutes);
+app.use('/api',           jobsRoutes); // for /api/jobs/:jobId routes
 
 app.get('/api/health', (req, res) => res.json({ ok: true, version: process.env.npm_package_version || '0.0.1' }));
 

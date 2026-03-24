@@ -85,6 +85,62 @@ export function getSettings(studioId) {
   return getDb().prepare('SELECT * FROM settings WHERE studio_id = ?').get(studioId);
 }
 
+// ── Build jobs ────────────────────────────────────────────────────────────────
+
+export function createJob({ galleryId, studioId, triggeredBy = 'admin', force = false }) {
+  const id  = genId();
+  const now = Date.now();
+  getDb().prepare(`
+    INSERT INTO build_jobs (id, gallery_id, studio_id, status, triggered_by, force, created_at)
+    VALUES (?, ?, ?, 'queued', ?, ?, ?)
+  `).run(id, galleryId, studioId, triggeredBy, force ? 1 : 0, now);
+  return getDb().prepare('SELECT * FROM build_jobs WHERE id = ?').get(id);
+}
+
+export function getJob(id) {
+  return getDb().prepare('SELECT * FROM build_jobs WHERE id = ?').get(id);
+}
+
+export function listJobs(galleryId) {
+  return getDb()
+    .prepare('SELECT * FROM build_jobs WHERE gallery_id = ? ORDER BY created_at DESC LIMIT 20')
+    .all(galleryId);
+}
+
+export function updateJobStatus(id, status, fields = {}) {
+  const allowed = { running: 'started_at', done: 'finished_at', error: 'finished_at' };
+  const timeCol = allowed[status];
+  const now = Date.now();
+  if (timeCol && fields[timeCol] === undefined) fields[timeCol] = now;
+  if (fields.error_msg !== undefined) {
+    getDb().prepare('UPDATE build_jobs SET status = ?, error_msg = ?, updated_at = ? WHERE id = ?')
+      .run(status, fields.error_msg, now, id);
+  }
+  if (timeCol) {
+    getDb().prepare(`UPDATE build_jobs SET status = ?, ${timeCol} = ? WHERE id = ?`)
+      .run(status, fields[timeCol], id);
+  } else {
+    getDb().prepare('UPDATE build_jobs SET status = ? WHERE id = ?').run(status, id);
+  }
+}
+
+export function appendEvent(jobId, type, data) {
+  const db  = getDb();
+  const seq = (db.prepare('SELECT COALESCE(MAX(seq),0)+1 as next FROM build_events WHERE job_id = ?').get(jobId)?.next) || 1;
+  const now = Date.now();
+  db.prepare('INSERT INTO build_events (job_id, seq, type, data, created_at) VALUES (?, ?, ?, ?, ?)')
+    .run(jobId, seq, type, typeof data === 'string' ? data : JSON.stringify(data), now);
+  return seq;
+}
+
+export function getEvents(jobId, afterSeq = 0) {
+  return getDb()
+    .prepare('SELECT * FROM build_events WHERE job_id = ? AND seq > ? ORDER BY seq ASC')
+    .all(jobId, afterSeq);
+}
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+
 export function upsertSettings(studioId, fields) {
   const now = Date.now();
   const allowed = ['smtp_host','smtp_port','smtp_user','smtp_pass','smtp_from','smtp_secure','apache_path','base_url'];
