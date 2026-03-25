@@ -333,7 +333,10 @@ export function buildHTML(cfg, photos, fontCss = '', standalone = false, customL
   const { project } = cfg;
   // Asset path prefix: standalone galleries embed vendor/fonts locally;
   // shared galleries reference the common dist/vendor/ and dist/fonts/ dirs.
-  const vp = standalone ? 'vendor/' : '../vendor/';
+  // For nested dist paths (e.g. project-slug/gallery-slug/) we need the correct
+  // number of '../' to reach the shared dist/ root.
+  const depth = standalone ? 0 : Math.max(1, (distName || '').split('/').length);
+  const vp = standalone ? 'vendor/' : '../'.repeat(depth) + 'vendor/';
 
   // Lightbox transition settings from build.config.json.
   const VALID_EFFECTS = new Set(['slide', 'fade', 'zoom', 'none']);
@@ -346,7 +349,7 @@ export function buildHTML(cfg, photos, fontCss = '', standalone = false, customL
   const gridMobSmall = cfg.build.gridSizeMobileSmall || 400;
   const gridMobBig   = cfg.build.gridSizeMobileBig   || 600;
   // Font path prefix (mirrors vp but for the fonts/ directory).
-  const fp = standalone ? 'fonts/' : '../fonts/';
+  const fp = standalone ? 'fonts/' : '../'.repeat(depth) + 'fonts/';
 
   // Embed optional custom legal templates as PROJECT properties so the browser
   // can use them directly without any multilingual fallback logic.

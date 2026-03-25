@@ -195,9 +195,12 @@ export async function buildGallery(srcName, { build, project: projectOverride, d
     const isStandalone = !!galCfg.project.standalone;
     log('\n\x1b[1m🏗   HTML\x1b[0m');
 
+    const distDepth    = distName ? distName.split('/').length : 1;
     const localFontCss = isStandalone
       ? fontCss.replace(/url\('\.\.\/fonts\//g, "url('fonts/")
-      : fontCss;
+      : distDepth > 1
+        ? fontCss.replace(/url\('\.\.\/fonts\//g, `url('${'../'.repeat(distDepth)}fonts/`)
+        : fontCss;
 
     const galSrc        = path.join(SRC_ROOT, srcName);
     const legalHtmlPath = path.join(galSrc, 'legal.html');
