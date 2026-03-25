@@ -105,10 +105,10 @@ router.patch('/me', requireAuth, async (req, res) => {
 // GET /api/auth/me/galleries — list galleries the current user has explicit access to
 router.get('/me/galleries', requireAuth, async (req, res) => {
   const [rows] = await query(`
-    SELECT g.id, g.title, g.slug, gm.role
-    FROM gallery_memberships gm
-    JOIN galleries g ON g.id = gm.gallery_id
-    WHERE gm.user_id = ?
+    SELECT g.id, g.title, g.slug, gra.role
+    FROM gallery_role_assignments gra
+    JOIN galleries g ON g.id = gra.gallery_id
+    WHERE gra.user_id = ?
     ORDER BY g.title
   `, [req.userId]);
   res.json(rows);

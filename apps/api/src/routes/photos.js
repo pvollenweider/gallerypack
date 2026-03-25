@@ -4,7 +4,7 @@ import multer       from 'multer';
 import path         from 'path';
 import fs           from 'fs';
 import { query }    from '../db/database.js';
-import { getGalleryRole, listGalleryMembers, listStudioMembers, getSettings, audit } from '../db/helpers.js';
+import { getGalleryRole, listGalleryRoleAssignments, listStudioMembers, getSettings, audit } from '../db/helpers.js';
 import { sendEmail } from '../services/email.js';
 import { requireAuth } from '../middleware/auth.js';
 import { can } from '../authorization/index.js';
@@ -249,7 +249,7 @@ router.post('/:id/photos/upload-done', async (req, res) => {
   }
 
   // Collect editors/admins to notify
-  const galleryEditors = (await listGalleryMembers(gallery.id)).filter(m => m.role === 'editor');
+  const galleryEditors = (await listGalleryRoleAssignments(gallery.id)).filter(m => m.role === 'editor');
   const studioEditors  = (await listStudioMembers(req.studioId))
     .filter(m => ['collaborator', 'admin', 'owner'].includes(m.role));
 

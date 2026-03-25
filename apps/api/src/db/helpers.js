@@ -533,50 +533,14 @@ export async function listStudioMembers(studioId) {
   }));
 }
 
-// ── Gallery memberships ───────────────────────────────────────────────────────
+// ── Gallery role (reads from canonical gallery_role_assignments) ───────────────
 
 export const GALLERY_ROLE_HIERARCHY = ['viewer', 'contributor', 'editor'];
 
-export async function getGalleryMembership(userId, galleryId) {
-  const [rows] = await query(
-    'SELECT * FROM gallery_memberships WHERE user_id = ? AND gallery_id = ?',
-    [userId, galleryId]
-  );
-  return rows[0] ?? null;
-}
-
+/** Canonical gallery role lookup — reads gallery_role_assignments table. */
 export async function getGalleryRole(userId, galleryId) {
-  const row = await getGalleryMembership(userId, galleryId);
+  const row = await getGalleryRoleAssignment(userId, galleryId);
   return row ? row.role : null;
-}
-
-export async function upsertGalleryMembership(galleryId, userId, role) {
-  const id  = genId();
-  const now = Date.now();
-  await query(`
-    INSERT INTO gallery_memberships (id, gallery_id, user_id, role, created_at)
-    VALUES (?, ?, ?, ?, ?)
-    ON DUPLICATE KEY UPDATE role = VALUES(role)
-  `, [id, galleryId, userId, role, now]);
-  return getGalleryMembership(userId, galleryId);
-}
-
-export async function removeGalleryMembership(galleryId, userId) {
-  await query(
-    'DELETE FROM gallery_memberships WHERE gallery_id = ? AND user_id = ?',
-    [galleryId, userId]
-  );
-}
-
-export async function listGalleryMembers(galleryId) {
-  const [rows] = await query(`
-    SELECT gm.user_id, u.email, gm.role, gm.created_at
-    FROM gallery_memberships gm
-    JOIN users u ON u.id = gm.user_id
-    WHERE gm.gallery_id = ?
-    ORDER BY u.email ASC
-  `, [galleryId]);
-  return rows;
 }
 
 // ── Invitations (studio user invitations) ────────────────────────────────────
@@ -645,12 +609,12 @@ export async function acceptInvitation(token, password) {
     `, [membershipId, inv.studio_id, userId, inv.role, now]);
 
     if (inv.gallery_id && inv.gallery_role) {
-      const gmId = genId();
+      const graId = randomUUID();
       await conn.query(`
-        INSERT INTO gallery_memberships (id, gallery_id, user_id, role, created_at)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO gallery_role_assignments (id, gallery_id, user_id, role, granted_by_user_id, created_at)
+        VALUES (?, ?, ?, ?, NULL, ?)
         ON DUPLICATE KEY UPDATE role = VALUES(role)
-      `, [gmId, inv.gallery_id, userId, inv.gallery_role, now]);
+      `, [graId, inv.gallery_id, userId, inv.gallery_role, now]);
     }
 
     await conn.query(
