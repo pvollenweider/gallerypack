@@ -84,7 +84,7 @@ function rowToGallery(row) {
     location:             row.location,
     locale:               row.locale,
     access:               row.access,
-    private:              !!row.private,
+    private:              row.access !== 'public', // derived from access (canonical); DB column kept for compat
     standalone:           !!row.standalone,
     allowDownloadImage:   !!row.allow_download_image,
     allowDownloadGallery: !!row.allow_download_gallery,
@@ -159,17 +159,19 @@ router.post('/', (req, res) => {
 
   const id  = genId();
   const now = Date.now();
+  // Hash password at creation time — never store plain text
+  const passwordHash = access === 'password' && password ? hashPassword(password) : null;
   getDb().prepare(`
     INSERT INTO galleries
       (id, studio_id, slug, title, description, subtitle, author, author_email, date, location,
-       locale, access, password, private, standalone,
+       locale, access, password_hash, private, standalone,
        allow_download_image, allow_download_gallery, cover_photo,
        slideshow_interval, copyright, build_status, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
   `).run(
     id, req.studioId, slug, title ?? slug, description ?? null, subtitle ?? null, author ?? null,
     authorEmail ?? null, date ?? null, location ?? null,
-    locale, access, password ?? null, priv ? 1 : 0, standalone ? 1 : 0,
+    locale, access, passwordHash, priv ? 1 : 0, standalone ? 1 : 0,
     allowDownloadImage ? 1 : 0, allowDownloadGallery ? 1 : 0,
     coverPhoto ?? null, slideshowInterval ?? null, copyright ?? null,
     now, now
@@ -193,10 +195,11 @@ router.patch('/:id', (req, res) => {
 
   const allowed = [
     'title','description','subtitle','author','author_email','date','location',
-    'locale','access','password','password_hash','private','standalone',
+    'locale','access','password','standalone',
     'allow_download_image','allow_download_gallery','cover_photo',
     'slideshow_interval','copyright',
   ];
+  // Note: password_hash and private are NOT in allowed — they are managed internally.
 
   // Map camelCase body keys to snake_case DB columns
   const camelToSnake = {

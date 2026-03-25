@@ -14,11 +14,10 @@ const GALLERY_ROLES = ['viewer', 'contributor', 'editor'];
 
 /**
  * Determine whether a gallery is publicly accessible.
- * The `access` column is canonical; falls back to `!private` for legacy rows.
+ * `access` column is canonical — all rows have it since migration 013.
  */
 function isPublic(gallery) {
-  if (gallery.access !== undefined) return gallery.access === 'public';
-  return !gallery.private; // TODO(#63): remove once all rows have access column
+  return gallery.access === 'public';
 }
 
 function hasStudioRole(studioRole, minRole) {

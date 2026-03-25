@@ -74,7 +74,7 @@ export default function Dashboard() {
   };
   const FILTERS = ['all','private','password','rebuild'];
   const filteredGalleries = galleries.filter(g => {
-    if (filter === 'private')  return g.private;
+    if (filter === 'private')  return g.access !== 'public';
     if (filter === 'password') return g.access === 'password';
     if (filter === 'rebuild')  return g.needsRebuild || g.buildStatus === 'pending';
     return true;

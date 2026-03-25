@@ -85,9 +85,9 @@ export function GalleryCard({ gallery, onBuild, onDelete, canBuild = true }) {
           : <div style={s.placeholder}>📷</div>}
 
         {/* Top-right corner badges on the image */}
-        {(gallery.private || gallery.access === 'password') && (
+        {gallery.access !== 'public' && (
           <div style={s.imgBadges}>
-            {gallery.private && (
+            {gallery.access === 'private' && (
               <span style={s.imgBadge} title={t('private_indicator')}><LockIcon /></span>
             )}
             {gallery.access === 'password' && (

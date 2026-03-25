@@ -71,7 +71,6 @@ export default function GalleryDetail() {
         password: '', coverPhoto: g.coverPhoto || '',
         allowDownloadImage: g.allowDownloadImage !== false,
         allowDownloadGallery: !!g.allowDownloadGallery,
-        private: !!g.private,
       };
       setForm(formData);
       setNewSlug(g.slug);
@@ -79,7 +78,7 @@ export default function GalleryDetail() {
         formData.date || formData.location ||
         formData.locale !== 'fr' || formData.access !== 'public' ||
         formData.coverPhoto || !formData.allowDownloadImage ||
-        formData.allowDownloadGallery || formData.private
+        formData.allowDownloadGallery
       ));
     } catch { navigate('/'); }
   }
@@ -434,9 +433,7 @@ export default function GalleryDetail() {
                 <Row label={t('field_allow_dl_gallery')}>
                   <input type="checkbox" checked={form.allowDownloadGallery} onChange={e => setForm(f => ({ ...f, allowDownloadGallery: e.target.checked }))} />
                 </Row>
-                <Row label={t('field_private')}>
-                  <input type="checkbox" checked={form.private} onChange={e => setForm(f => ({ ...f, private: e.target.checked }))} />
-                </Row>
+                {/* private field removed — access dropdown is canonical */}
               </div>
             )}
 
