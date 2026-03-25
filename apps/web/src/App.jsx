@@ -19,7 +19,19 @@ import AcceptInvite   from './pages/AcceptInvite.jsx';
 import ForgotPassword from './pages/ForgotPassword.jsx';
 import ResetPassword  from './pages/ResetPassword.jsx';
 import MagicLogin     from './pages/MagicLogin.jsx';
+import UploadPage     from './pages/UploadPage.jsx';
+import Dashboard      from './pages/Dashboard.jsx';
 import { Footer }     from './components/Footer.jsx';
+
+// Inspector
+import InspectorLayout     from './inspector/InspectorLayout.jsx';
+import InspectorGallery    from './inspector/InspectorGallery.jsx';
+import InspectorPhoto      from './inspector/InspectorPhoto.jsx';
+import { InspectorStudioList, InspectorStudioDetail } from './inspector/InspectorStudio.jsx';
+import { InspectorProjectList, InspectorProjectDetail } from './inspector/InspectorProject.jsx';
+import { InspectorUserList, InspectorUserDetail } from './inspector/InspectorUser.jsx';
+import InspectorDashboard  from './inspector/InspectorDashboard.jsx';
+import InspectorAnomalies  from './inspector/InspectorAnomalies.jsx';
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth();
@@ -51,6 +63,7 @@ export default function App() {
       <Route path="/"                            element={<AuthLayout><StudiosPage /></AuthLayout>} />
       {/* Studio home — projects + team */}
       <Route path="/studio"                      element={<AuthLayout><StudioHome /></AuthLayout>} />
+      <Route path="/dashboard"                   element={<AuthLayout><Dashboard /></AuthLayout>} />
       {/* Project detail — galleries */}
       <Route path="/projects/:id"                element={<AuthLayout><ProjectDetail /></AuthLayout>} />
       {/* Gallery detail */}
@@ -63,6 +76,24 @@ export default function App() {
       <Route path="/forgot-password"             element={<ForgotPassword />} />
       <Route path="/reset-password/:token"       element={<ResetPassword />} />
       <Route path="/magic-login/:token"          element={<MagicLogin />} />
+      <Route path="/upload/:token"               element={<UploadPage />} />
+
+      {/* Inspector (superadmin only) */}
+      <Route path="/inspector" element={<RequireAuth><InspectorLayout /></RequireAuth>}>
+        <Route index                             element={<Navigate to="/inspector/studios" replace />} />
+        <Route path="studios"                    element={<InspectorStudioList />} />
+        <Route path="studios/:id"                element={<InspectorStudioDetail />} />
+        <Route path="projects"                   element={<InspectorProjectList />} />
+        <Route path="projects/:id"               element={<InspectorProjectDetail />} />
+        <Route path="galleries"                  element={<Navigate to="/inspector/studios" replace />} />
+        <Route path="galleries/:id"              element={<InspectorGallery />} />
+        <Route path="photos/:id"                 element={<InspectorPhoto />} />
+        <Route path="users"                      element={<InspectorUserList />} />
+        <Route path="users/:id"                  element={<InspectorUserDetail />} />
+        <Route path="anomalies"                  element={<InspectorAnomalies />} />
+        <Route path="dashboard"                  element={<InspectorDashboard />} />
+      </Route>
+
       <Route path="*"                            element={<Navigate to="/" replace />} />
     </Routes>
     </I18nProvider>
