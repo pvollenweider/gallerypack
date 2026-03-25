@@ -191,4 +191,18 @@ export const api = {
       xhr.send(fd);
     });
   },
+
+  // Upload a single file via token (for per-file queue with individual progress)
+  uploadOneViaToken(token, file, onProgress) {
+    return new Promise((resolve, reject) => {
+      const fd = new FormData();
+      fd.append('photos', file);
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `/upload/${token}/photos`);
+      if (onProgress) xhr.upload.onprogress = (e) => onProgress(e.loaded / e.total);
+      xhr.onload  = () => xhr.status < 300 ? resolve(JSON.parse(xhr.responseText)) : reject(new Error(xhr.responseText));
+      xhr.onerror = () => reject(new Error('Upload failed'));
+      xhr.send(fd);
+    });
+  },
 };
