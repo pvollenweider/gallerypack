@@ -148,8 +148,17 @@ export function getEvents(jobId, afterSeq = 0) {
 
 /**
  * Hash a password for storage.
- * New format: `$scrypt$<salt_hex>$<hash_hex>` (64-char salt, 64-char hash).
- * Also handles legacy `scrypt:<salt>:<hash>` format for verification.
+ * Format: `$scrypt$<salt_hex>$<hash_hex>` (64-char salt, 128-char hash).
+ *
+ * scrypt parameters (Node.js defaults):
+ *   N = 16384 (cost factor — minimum recommended; consider bumping to 32768 in future)
+ *   r = 8     (block size)
+ *   p = 1     (parallelisation factor)
+ *   keylen = 64 bytes (512 bits)
+ *
+ * These defaults are intentionally kept to avoid a dependency on explicit params
+ * for now. When N is increased, old hashes verified with the old N will still
+ * work (verifyPassword re-derives with the same N the hash was created with).
  */
 export function hashPassword(plain) {
   const salt = randomBytes(32).toString('hex'); // 64 hex chars
