@@ -36,6 +36,33 @@ export async function getDefaultStudio() {
   return rows[0] ?? null;
 }
 
+export async function listAllStudios() {
+  const [rows] = await query(`
+    SELECT s.*,
+      (SELECT COUNT(*) FROM studio_memberships sm WHERE sm.studio_id = s.id) AS member_count,
+      (SELECT COUNT(*) FROM galleries g WHERE g.studio_id = s.id) AS gallery_count
+    FROM studios s ORDER BY s.created_at ASC
+  `);
+  return rows;
+}
+
+export async function updateStudio(id, { name, slug, plan }) {
+  const sets = [];
+  const vals = [];
+  if (name  !== undefined) { sets.push('name = ?');  vals.push(name); }
+  if (slug  !== undefined) { sets.push('slug = ?');  vals.push(slug); }
+  if (plan  !== undefined) { sets.push('plan = ?');  vals.push(plan); }
+  if (!sets.length) return getStudio(id);
+  sets.push('updated_at = ?'); vals.push(Date.now());
+  vals.push(id);
+  await query(`UPDATE studios SET ${sets.join(', ')} WHERE id = ?`, vals);
+  return getStudio(id);
+}
+
+export async function deleteStudio(id) {
+  await query('DELETE FROM studios WHERE id = ?', [id]);
+}
+
 export async function createStudio({ name, slug, plan = 'free', isDefault = false }) {
   const id  = genId();
   const now = Date.now();
@@ -78,12 +105,12 @@ export async function getUserById(id) {
   return rows[0] ?? null;
 }
 
-export async function createUser({ studioId, email, passwordHash, role = 'admin', name = '' }) {
+export async function createUser({ studioId, email, passwordHash, role = 'admin', name = '', platformRole = null }) {
   const id  = genId();
   const now = Date.now();
   await query(
-    'INSERT INTO users (id, studio_id, email, password_hash, role, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    [id, studioId, email, passwordHash, role, name, now, now]
+    'INSERT INTO users (id, studio_id, email, password_hash, role, name, platform_role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [id, studioId, email, passwordHash, role, name, platformRole, now, now]
   );
   return getUserById(id);
 }

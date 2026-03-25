@@ -82,6 +82,21 @@ export const api = {
   getInviteInfo:    (token)           => req('GET',    `/invitations/accept/${token}`),
   acceptInvite:     (token, password) => req('POST',   `/invitations/accept/${token}`, { password }),
 
+  // Projects
+  listProjects:   ()          => req('GET',    '/projects'),
+  getProject:     (id)        => req('GET',    `/projects/${id}`),
+  createProject:  (data)      => req('POST',   '/projects', data),
+  updateProject:  (id, data)  => req('PATCH',  `/projects/${id}`, data),
+  deleteProject:  (id)        => req('DELETE', `/projects/${id}`),
+
+  // Platform (superadmin)
+  listPlatformStudios:  ()            => req('GET',    '/platform/studios'),
+  createPlatformStudio: (data)        => req('POST',   '/platform/studios', data),
+  updatePlatformStudio: (id, data)    => req('PATCH',  `/platform/studios/${id}`, data),
+  deletePlatformStudio: (id)          => req('DELETE', `/platform/studios/${id}`),
+  listPlatformUsers:    ()            => req('GET',    '/platform/users'),
+  updatePlatformUser:   (id, data)    => req('PATCH',  `/platform/users/${id}`, data),
+
   // Upload (multipart — handled separately)
   uploadPhotos(galleryId, files, onProgress) {
     return new Promise((resolve, reject) => {
