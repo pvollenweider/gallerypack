@@ -6,11 +6,16 @@
 // Unauthorized use is strictly prohibited.
 
 // apps/api/src/middleware/auth.js — session authentication middleware
-import { getSession, getUserById, getStudioRole, ROLE_HIERARCHY, getViewerToken, touchViewerToken } from '../db/helpers.js';
+import { getSession, getUserById, getStudioRole, getOrgRole, ROLE_HIERARCHY, getViewerToken, touchViewerToken } from '../db/helpers.js';
 
 /**
  * Require a valid session cookie.
- * Attaches req.user, req.userId, req.studioId, and req.studioRole on success.
+ *
+ * Attaches on req:
+ *   user, userId, platformRole
+ *   organizationId, orgRole   — canonical (Sprint 22)
+ *   studioId, studioRole      — legacy aliases (same values, kept for compat)
+ *
  * Express 5 supports async middleware natively.
  */
 export async function requireAuth(req, res, next) {
@@ -27,29 +32,33 @@ export async function requireAuth(req, res, next) {
   req.userId       = user.id;
   req.platformRole = user.platform_role || null;
 
-  // studioId precedence: hostname-resolved context > user's home studio
-  // (hostname context is set by resolveStudioContext middleware in multi mode)
-  if (!req.studioId) req.studioId = user.studio_id;
+  // organizationId / studioId precedence:
+  //   hostname-resolved context (set by resolveStudioContext) > user's home org
+  if (!req.organizationId) req.organizationId = user.organization_id || user.studio_id;
+  if (!req.studioId)       req.studioId       = req.organizationId;
 
-  // Attach studio role for the resolved studio.
-  // In single-mode the context resolver always picks the default studio, which may
-  // differ from a non-admin user's own studio (e.g. a photographer in a non-default
-  // studio).  When the user has no membership in the resolved studio, fall back to
-  // their own home studio so API calls resolve to the correct dataset.
-  if (req.studioId) {
-    req.studioRole = (await getStudioRole(user.id, req.studioId)) || null;
+  // Resolve membership role for the resolved organization.
+  // getOrgRole falls back to studio_id lookup for pre-015 rows.
+  if (req.organizationId) {
+    const resolvedRole = (await getOrgRole(user.id, req.organizationId)) || null;
+    req.orgRole   = resolvedRole;
+    req.studioRole = resolvedRole; // keep legacy alias in sync
 
-    // If the user has no role in the resolved studio and the studio wasn't
-    // explicitly chosen (via studio_override cookie or multi-mode hostname),
-    // fall back to the user's own home studio.
-    // Do NOT apply this fallback when a superadmin has switched studio context.
+    // If no role found and org wasn't explicitly chosen, fall back to user's home org.
     const hasOverride = !!req.cookies?.studio_override;
-    if (!req.studioRole && !hasOverride && user.studio_id && user.studio_id !== req.studioId) {
-      req.studioId   = user.studio_id;
-      req.studioRole = (await getStudioRole(user.id, user.studio_id)) || null;
+    if (!req.orgRole && !hasOverride) {
+      const homeOrgId = user.organization_id || user.studio_id;
+      if (homeOrgId && homeOrgId !== req.organizationId) {
+        req.organizationId = homeOrgId;
+        req.studioId       = homeOrgId;
+        req.orgRole        = (await getOrgRole(user.id, homeOrgId)) || null;
+        req.studioRole     = req.orgRole;
+      }
     }
 
-    if (!req.studioRole && req.platformRole === 'superadmin') {
+    // Superadmin always gets owner-level access in any org
+    if (!req.orgRole && req.platformRole === 'superadmin') {
+      req.orgRole   = 'owner';
       req.studioRole = 'owner';
     }
   }
@@ -58,15 +67,16 @@ export async function requireAuth(req, res, next) {
 }
 
 /**
- * Require a minimum studio role.
+ * Require a minimum organization role.
  * Role hierarchy (lowest → highest): photographer < collaborator < admin < owner
  *
  * Usage: router.get('/...', requireAuth, requireStudioRole('admin'), handler)
+ * (name kept as requireStudioRole for backward compat)
  */
 export function requireStudioRole(minRole) {
   return (req, res, next) => {
-    const role = req.studioRole;
-    if (!role) return res.status(403).json({ error: 'Forbidden: no studio membership' });
+    const role = req.orgRole || req.studioRole;
+    if (!role) return res.status(403).json({ error: 'Forbidden: no organization membership' });
 
     const userLevel = ROLE_HIERARCHY.indexOf(role);
     const minLevel  = ROLE_HIERARCHY.indexOf(minRole);
@@ -108,11 +118,12 @@ export async function resolveViewerToken(req, res, next) {
 }
 
 /**
- * Require admin access (owner or admin studio role).
+ * Require admin access (owner or admin organization role).
  */
 export async function requireAdmin(req, res, next) {
   await requireAuth(req, res, () => {
-    if (req.studioRole !== 'owner' && req.studioRole !== 'admin') {
+    const role = req.orgRole || req.studioRole;
+    if (role !== 'owner' && role !== 'admin') {
       return res.status(403).json({ error: 'Forbidden' });
     }
     next();

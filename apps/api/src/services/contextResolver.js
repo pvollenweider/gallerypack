@@ -5,25 +5,35 @@
 // Use, reproduction, or distribution requires a valid commercial license.
 // Unauthorized use is strictly prohibited.
 
-// apps/api/src/services/contextResolver.js — hostname → studio resolution
+// apps/api/src/services/contextResolver.js — hostname → organization resolution
 //
-// PLATFORM_MODE=single (default): all requests resolve to the default studio.
-// PLATFORM_MODE=multi: studio resolved from X-Forwarded-Host / Host header.
+// PLATFORM_MODE=single (default): all requests resolve to the default organization.
+// PLATFORM_MODE=multi: organization resolved from X-Forwarded-Host / Host header.
 //
 // Resolution order (multi mode):
-//   1. Exact match in studio_domains table
-//   2. Subdomain match: <slug>.BASE_DOMAIN → studios.slug
-//   3. BASE_DOMAIN itself → platform root (no studio)
+//   1. Exact match in studio_domains (organization_id column, Sprint 22)
+//   2. Subdomain match: <slug>.BASE_DOMAIN → organizations.slug
+//   3. BASE_DOMAIN itself → platform root (no organization)
 //   4. Unknown hostname → null
+//
+// NOTE: Returns organization rows. Since organizations.id === studios.id,
+// callers that use the result as a "studio" continue to work unchanged.
 
-import { getStudioByDomain, getStudioBySlug, getDefaultStudio } from '../db/helpers.js';
+import {
+  getOrganizationByDomain,
+  getOrganizationBySlug,
+  getDefaultOrganization,
+  getStudioByDomain,
+  getStudioBySlug,
+  getDefaultStudio,
+} from '../db/helpers.js';
 
 const PLATFORM_MODE = process.env.PLATFORM_MODE || 'single';
 const BASE_DOMAIN   = (process.env.BASE_DOMAIN || 'gallerypack.app').toLowerCase();
 
 /**
- * Resolve a studio entity from an incoming hostname string.
- * Returns the studio row or null (platform root / unknown host).
+ * Resolve an organization from an incoming hostname string.
+ * Returns an organization row (or a studio row as fallback) or null.
  *
  * @param {string|undefined} rawHostname - e.g. "circus.gallerypack.app" or "circus.gallerypack.app:4000"
  * @returns {Promise<object|null>}
@@ -32,7 +42,8 @@ export async function resolveStudioFromHostname(rawHostname) {
   const host = rawHostname?.split(':')[0]?.toLowerCase()?.trim() || '';
 
   if (PLATFORM_MODE === 'single') {
-    return getDefaultStudio();
+    // Prefer organizations table; fall back to studios for older installs
+    return (await getDefaultOrganization()) ?? getDefaultStudio();
   }
 
   // ── Multi-tenant resolution ─────────────────────────────────────────────────
@@ -42,15 +53,20 @@ export async function resolveStudioFromHostname(rawHostname) {
   // Platform root
   if (host === BASE_DOMAIN || host === `www.${BASE_DOMAIN}`) return null;
 
-  // 1. Exact domain match in studio_domains
+  // 1. Exact domain match — try organizations first, fall back to studios
+  const byOrgDomain = await getOrganizationByDomain(host);
+  if (byOrgDomain) return byOrgDomain;
+
   const byDomain = await getStudioByDomain(host);
   if (byDomain) return byDomain;
 
-  // 2. Subdomain of BASE_DOMAIN → studio slug
+  // 2. Subdomain of BASE_DOMAIN → slug
   const subdomainSuffix = `.${BASE_DOMAIN}`;
   if (host.endsWith(subdomainSuffix)) {
     const slug = host.slice(0, -subdomainSuffix.length);
-    if (slug) return getStudioBySlug(slug);
+    if (slug) {
+      return (await getOrganizationBySlug(slug)) ?? getStudioBySlug(slug);
+    }
   }
 
   return null; // unknown hostname

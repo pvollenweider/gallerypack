@@ -85,6 +85,13 @@ export async function createStudio({ name, slug, plan = 'free', isDefault = fals
     'INSERT INTO studios (id, name, slug, plan, is_default, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
     [id, name, slug, plan, isDefault ? 1 : 0, now, now]
   );
+  // Dual-write to organizations (Sprint 22 — same ID guarantees referential integrity)
+  await query(
+    `INSERT INTO organizations (id, slug, name, is_default, created_at, updated_at)
+     VALUES (?, ?, ?, ?, FROM_UNIXTIME(? / 1000), FROM_UNIXTIME(? / 1000))
+     ON DUPLICATE KEY UPDATE slug = VALUES(slug), name = VALUES(name), is_default = VALUES(is_default)`,
+    [id, slug, name, isDefault ? 1 : 0, now, now]
+  );
   return getStudio(id);
 }
 
@@ -1065,6 +1072,48 @@ export async function getPhotoStatusCounts(galleryId) {
 /** Update gallery workflow status (draft | ready | published). */
 export async function setGalleryStatus(galleryId, status) {
   await query(`UPDATE galleries SET workflow_status = ? WHERE id = ?`, [status, galleryId]);
+}
+
+// ── Organization helpers (Sprint 22) ──────────────────────────────────────────
+// These read from the `organizations` table introduced in migration 013.
+// organizations.id === studios.id, so these are safe to use alongside studio helpers.
+
+export async function getOrganization(id) {
+  const [rows] = await query('SELECT * FROM organizations WHERE id = ?', [id]);
+  return rows[0] ?? null;
+}
+
+export async function getOrganizationBySlug(slug) {
+  const [rows] = await query('SELECT * FROM organizations WHERE slug = ?', [slug]);
+  return rows[0] ?? null;
+}
+
+export async function getDefaultOrganization() {
+  const [rows] = await query('SELECT * FROM organizations WHERE is_default = 1 LIMIT 1');
+  return rows[0] ?? null;
+}
+
+export async function getOrganizationByDomain(domain) {
+  const [rows] = await query(`
+    SELECT o.* FROM organizations o
+    JOIN studio_domains sd ON sd.organization_id = o.id
+    WHERE sd.domain = ?
+  `, [domain]);
+  return rows[0] ?? null;
+}
+
+/**
+ * Look up a user's role in an organization (via studio_memberships.organization_id).
+ * Falls back to studio_id lookup so pre-015 rows without organization_id still resolve.
+ */
+export async function getOrgRole(userId, orgId) {
+  const [rows] = await query(
+    `SELECT role FROM studio_memberships
+     WHERE user_id = ? AND (organization_id = ? OR studio_id = ?)
+     LIMIT 1`,
+    [userId, orgId, orgId]
+  );
+  return rows[0]?.role ?? null;
 }
 
 // ── Audit log ─────────────────────────────────────────────────────────────────

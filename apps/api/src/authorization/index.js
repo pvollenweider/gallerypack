@@ -61,11 +61,13 @@ function hasGalleryRole(galleryRole, minRole) {
  * @param {object} user     - The request user object ({ id, studio_id, role })
  * @param {string} action   - See matrix above
  * @param {string} resource - 'gallery' | 'photo' | 'studio' | 'member' | 'project'
- * @param {object} context  - { platformRole?, studioRole?, projectRole?, galleryRole?, gallery?, viewerToken? }
+ * @param {object} context  - { platformRole?, studioRole?, orgRole?, projectRole?, galleryRole?, gallery?, viewerToken? }
  * @returns {boolean}
  */
 export function can(user, action, resource, context = {}) {
-  const { studioRole, projectRole, galleryRole, gallery, viewerToken } = context;
+  // orgRole is the canonical name (Sprint 22); studioRole is the legacy alias — accept either
+  const studioRole = context.studioRole ?? context.orgRole ?? null;
+  const { projectRole, galleryRole, gallery, viewerToken } = context;
 
   // ── Platform superadmin bypasses all checks ───────────────────────────────
   // Accept platformRole from context (legacy callers) or directly from user object
