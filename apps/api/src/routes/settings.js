@@ -1,7 +1,7 @@
 // apps/api/src/routes/settings.js — admin global settings
 import { Router } from 'express';
 import { requireAdmin } from '../middleware/auth.js';
-import { getSettings, upsertSettings } from '../db/helpers.js';
+import { getSettings, upsertSettings, audit } from '../db/helpers.js';
 import { sendEmail } from '../services/email.js';
 
 const router = Router();
@@ -63,6 +63,9 @@ router.patch('/', (req, res) => {
   if (smtpPass && smtpPass.trim()) updates.smtp_pass = smtpPass.trim();
 
   upsertSettings(req.studioId, updates);
+  // Audit SMTP changes separately (sensitive config — don't log passwords)
+  const hasSmtpChange = smtpHost !== undefined || smtpPort !== undefined || smtpUser !== undefined || smtpPass !== undefined || smtpFrom !== undefined;
+  try { audit(req.studioId, req.userId, 'studio.settings_changed', 'studio', req.studioId, { smtp_changed: hasSmtpChange }); } catch {}
   res.json(rowToSettings(getSettings(req.studioId)));
 });
 
