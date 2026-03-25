@@ -1,3 +1,10 @@
+// Copyright (c) 2026 Philippe Vollenweider
+//
+// This file is part of the GalleryPack commercial platform.
+// This source code is proprietary and confidential.
+// Use, reproduction, or distribution requires a valid commercial license.
+// Unauthorized use is strictly prohibited.
+
 // workers/builder/src/index.js — build queue worker
 // Polls build_jobs for queued jobs and executes them one at a time.
 // Runs as a standalone process alongside the API server.

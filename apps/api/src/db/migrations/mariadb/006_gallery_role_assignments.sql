@@ -1,3 +1,7 @@
+-- Copyright (c) 2026 Philippe Vollenweider
+-- This file is part of the GalleryPack commercial platform.
+-- Proprietary and confidential. All rights reserved.
+
 -- Migration 10 — gallery_role_assignments (new canonical table)
 -- Replaces gallery_memberships. gallery_memberships is kept until Sprint 9 clean-up (#78).
 -- Roles: editor | contributor | viewer

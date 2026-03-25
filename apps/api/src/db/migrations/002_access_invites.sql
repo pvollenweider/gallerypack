@@ -1,3 +1,7 @@
+-- Copyright (c) 2026 Philippe Vollenweider
+-- This file is part of the GalleryPack commercial platform.
+-- Proprietary and confidential. All rights reserved.
+
 -- 002_access_invites.sql — gallery password hashes + invite revocation + single-use
 
 -- Add bcrypt-style password hash to galleries (replaces plain `password` field for viewer access)

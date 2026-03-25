@@ -1,3 +1,10 @@
+// Copyright (c) 2026 Philippe Vollenweider
+//
+// This file is part of the GalleryPack commercial platform.
+// This source code is proprietary and confidential.
+// Use, reproduction, or distribution requires a valid commercial license.
+// Unauthorized use is strictly prohibited.
+
 // apps/api/src/routes/studios.js — studio membership management
 // v1: single-studio only. All routes operate on req.studioId (the caller's studio).
 import { Router } from 'express';

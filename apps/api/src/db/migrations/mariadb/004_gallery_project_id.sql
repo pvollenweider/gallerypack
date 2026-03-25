@@ -1,3 +1,7 @@
+-- Copyright (c) 2026 Philippe Vollenweider
+-- This file is part of the GalleryPack commercial platform.
+-- Proprietary and confidential. All rights reserved.
+
 -- Migration 7 — add project_id + visibility to galleries
 -- Attaches each gallery to a project. Initially nullable; migration 5 backfills, then enforces NOT NULL.
 

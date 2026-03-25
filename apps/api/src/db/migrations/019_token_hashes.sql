@@ -1,3 +1,7 @@
+-- Copyright (c) 2026 Philippe Vollenweider
+-- This file is part of the GalleryPack commercial platform.
+-- Proprietary and confidential. All rights reserved.
+
 -- 019_token_hashes.sql
 -- Replace plaintext tokens with SHA-256 hashes in all token tables.
 -- Rationale: a DB leak should not expose usable tokens.

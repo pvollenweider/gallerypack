@@ -1,3 +1,7 @@
+-- Copyright (c) 2026 Philippe Vollenweider
+-- This file is part of the GalleryPack commercial platform.
+-- Proprietary and confidential. All rights reserved.
+
 -- Migration 5 — projects
 -- A Project is the grouping level between Studio and Gallery.
 -- Every gallery belongs to one project; projects belong to one studio.

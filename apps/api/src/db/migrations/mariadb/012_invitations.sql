@@ -1,3 +1,7 @@
+-- Copyright (c) 2026 Philippe Vollenweider
+-- This file is part of the GalleryPack commercial platform.
+-- Proprietary and confidential. All rights reserved.
+
 CREATE TABLE IF NOT EXISTS invitations (
   id          VARCHAR(36)  NOT NULL PRIMARY KEY,
   studio_id   VARCHAR(32)  NOT NULL,

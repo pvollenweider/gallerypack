@@ -1,3 +1,10 @@
+// Copyright (c) 2026 Philippe Vollenweider
+//
+// This file is part of the GalleryPack commercial platform.
+// This source code is proprietary and confidential.
+// Use, reproduction, or distribution requires a valid commercial license.
+// Unauthorized use is strictly prohibited.
+
 // apps/api/src/db/helpers.js — reusable async query helpers (mysql2)
 import { query, withTransaction } from './database.js';
 import { randomBytes, randomUUID, createHash, createHmac, timingSafeEqual, scryptSync } from 'crypto';

@@ -1,3 +1,7 @@
+-- Copyright (c) 2026 Philippe Vollenweider
+-- This file is part of the GalleryPack commercial platform.
+-- Proprietary and confidential. All rights reserved.
+
 -- Additional indexes for performance with large datasets
 CREATE INDEX IF NOT EXISTS idx_galleries_studio_status  ON galleries(studio_id, build_status);
 CREATE INDEX IF NOT EXISTS idx_galleries_studio_private ON galleries(studio_id, private);

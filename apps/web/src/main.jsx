@@ -1,3 +1,10 @@
+// Copyright (c) 2026 Philippe Vollenweider
+//
+// This file is part of the GalleryPack commercial platform.
+// This source code is proprietary and confidential.
+// Use, reproduction, or distribution requires a valid commercial license.
+// Unauthorized use is strictly prohibited.
+
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';

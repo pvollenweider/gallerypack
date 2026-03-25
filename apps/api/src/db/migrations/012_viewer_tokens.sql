@@ -1,3 +1,7 @@
+-- Copyright (c) 2026 Philippe Vollenweider
+-- This file is part of the GalleryPack commercial platform.
+-- Proprietary and confidential. All rights reserved.
+
 CREATE TABLE IF NOT EXISTS viewer_tokens (
   id          TEXT NOT NULL PRIMARY KEY,
   gallery_id  TEXT NOT NULL REFERENCES galleries(id) ON DELETE CASCADE,

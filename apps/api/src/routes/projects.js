@@ -1,3 +1,10 @@
+// Copyright (c) 2026 Philippe Vollenweider
+//
+// This file is part of the GalleryPack commercial platform.
+// This source code is proprietary and confidential.
+// Use, reproduction, or distribution requires a valid commercial license.
+// Unauthorized use is strictly prohibited.
+
 // apps/api/src/routes/projects.js — Project CRUD + membership management
 // Projects sit between Studio and Gallery in the hierarchy.
 import { Router } from 'express';

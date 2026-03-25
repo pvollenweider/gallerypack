@@ -1,3 +1,10 @@
+// Copyright (c) 2026 Philippe Vollenweider
+//
+// This file is part of the GalleryPack commercial platform.
+// This source code is proprietary and confidential.
+// Use, reproduction, or distribution requires a valid commercial license.
+// Unauthorized use is strictly prohibited.
+
 // workers/builder/src/watchdog.js — detect and recover stuck jobs
 // A job is "stuck" if it has been in `running` status for longer than STUCK_TIMEOUT_MS
 // with no new build_events written.

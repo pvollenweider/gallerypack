@@ -1,6 +1,7 @@
 {
   "name": "@gallerypack/api",
   "version": "0.0.1",
+  "license": "UNLICENSED",
   "description": "GalleryPack SaaS API server",
   "type": "module",
   "main": "src/index.js",

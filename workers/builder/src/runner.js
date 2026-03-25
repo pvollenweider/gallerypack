@@ -1,3 +1,10 @@
+// Copyright (c) 2026 Philippe Vollenweider
+//
+// This file is part of the GalleryPack commercial platform.
+// This source code is proprietary and confidential.
+// Use, reproduction, or distribution requires a valid commercial license.
+// Unauthorized use is strictly prohibited.
+
 // workers/builder/src/runner.js — execute a single build job
 // Calls the engine's buildGallery() directly (no subprocess) and writes
 // progress events to the build_events table for SSE streaming.

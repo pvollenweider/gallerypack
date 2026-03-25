@@ -1,3 +1,7 @@
+-- Copyright (c) 2026 Philippe Vollenweider
+-- This file is part of the GalleryPack commercial platform.
+-- Proprietary and confidential. All rights reserved.
+
 -- Migration 6 — project_role_assignments
 -- Per-project role grants for studio members.
 -- Roles: manager | editor | contributor

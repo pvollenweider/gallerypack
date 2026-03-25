@@ -1,3 +1,7 @@
+-- Copyright (c) 2026 Philippe Vollenweider
+-- This file is part of the GalleryPack commercial platform.
+-- Proprietary and confidential. All rights reserved.
+
 CREATE TABLE IF NOT EXISTS audit_log (
   id          TEXT NOT NULL PRIMARY KEY,
   studio_id   TEXT REFERENCES studios(id) ON DELETE SET NULL,

@@ -1,6 +1,7 @@
 {
   "name": "@gallerypack/engine",
   "version": "0.0.1",
+  "license": "AGPL-3.0-only",
   "description": "Core build engine — image processing, HTML generation, config resolution",
   "type": "module",
   "main": "src/index.js",

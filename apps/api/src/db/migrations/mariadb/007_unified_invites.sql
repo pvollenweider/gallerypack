@@ -1,3 +1,7 @@
+-- Copyright (c) 2026 Philippe Vollenweider
+-- This file is part of the GalleryPack commercial platform.
+-- Proprietary and confidential. All rights reserved.
+
 -- Migration 11: unified scoped invites table
 -- Renames old invites (photographer upload links) to gallery_invites to free
 -- up the name, then creates the new unified invites table.

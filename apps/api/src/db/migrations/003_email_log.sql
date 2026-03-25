@@ -1,3 +1,7 @@
+-- Copyright (c) 2026 Philippe Vollenweider
+-- This file is part of the GalleryPack commercial platform.
+-- Proprietary and confidential. All rights reserved.
+
 -- 003_email_log.sql — transactional email log
 
 CREATE TABLE IF NOT EXISTS email_log (
