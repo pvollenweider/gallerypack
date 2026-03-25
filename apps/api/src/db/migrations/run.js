@@ -1,4 +1,5 @@
 // apps/api/src/db/migrations/run.js — migration runner
+import { createHash } from 'crypto';
 import { getDb } from '../database.js';
 import fs   from 'fs';
 import path from 'path';
@@ -8,6 +9,9 @@ const __DIR = path.dirname(fileURLToPath(import.meta.url));
 
 export function runMigrations() {
   const db = getDb();
+
+  // Register helper UDFs available to all SQL migrations
+  db.function('sha256_hex', str => createHash('sha256').update(str || '').digest('hex'));
 
   // Track applied migrations in a meta table
   db.exec(`
