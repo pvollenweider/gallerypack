@@ -9,8 +9,9 @@ import { runMigrations } from './db/migrations/run.js';
 import { bootstrap }     from './services/bootstrap.js';
 import { errorHandler }  from './middleware/error.js';
 import { rateLimit }     from './middleware/rateLimit.js';
-import { getDb }         from './db/database.js';
+import { query, getPool } from './db/database.js';
 import { createStorage } from '../../../packages/shared/src/storage/index.js';
+import { getSettings, getSession } from './db/helpers.js';
 
 import authRoutes        from './routes/auth.js';
 import galleriesRoutes   from './routes/galleries.js';
@@ -23,17 +24,11 @@ import publicRoutes, { getPublicGalleries } from './routes/public.js';
 import { renderLanding } from './views/landing.js';
 import settingsRoutes from './routes/settings.js';
 import studiosRoutes  from './routes/studios.js';
-import { getSettings, getSession } from './db/helpers.js';
 
 const __DIR      = path.dirname(fileURLToPath(import.meta.url));
 const PORT       = process.env.PORT || 4000;
 const ADMIN_DIST = process.env.ADMIN_DIST || path.join(__DIR, '../../../../apps/web/dist');
-// Gallery dist dir — served as static files when no reverse proxy (Caddy) is in front
 const DIST_DIR   = process.env.DIST_DIR   || path.join(__DIR, '../../../../dist');
-
-// ── Bootstrap ─────────────────────────────────────────────────────────────────
-runMigrations();
-bootstrap();
 
 // ── App ───────────────────────────────────────────────────────────────────────
 const app = express();
@@ -43,37 +38,35 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 // ── Rate limiters ─────────────────────────────────────────────────────────────
-const uploadRateLimit = rateLimit({ windowMs: 60_000, max: 100 }); // 100 req/min per IP on upload
+const uploadRateLimit = rateLimit({ windowMs: 60_000, max: 100 });
 
-// ── Health (must be registered before the catch-all /api router) ──────────────
+// ── Health (registered before routes) ────────────────────────────────────────
 const _storage = createStorage();
 app.get('/api/health', async (req, res) => {
   const checks = { ok: true, version: process.env.npm_package_version || '0.0.1' };
 
-  // DB check
   try {
-    getDb().prepare('SELECT 1').get();
+    await query('SELECT 1');
     checks.db = 'connected';
-  } catch (e) {
-    checks.db  = 'error';
-    checks.ok  = false;
+  } catch {
+    checks.db = 'error';
+    checks.ok = false;
   }
 
-  // Storage check
   try {
     await _storage.exists('__health');
     checks.storage = 'ok';
-  } catch (e) {
+  } catch {
     checks.storage = 'error';
     checks.ok      = false;
   }
 
-  // Worker liveness: check for a recently enqueued/running job as proxy
   try {
-    const recent = getDb()
-      .prepare("SELECT COUNT(*) as n FROM build_jobs WHERE status IN ('queued','running') AND created_at > ?")
-      .get(Date.now() - 5 * 60_000);
-    checks.worker = recent.n > 0 ? 'running' : 'idle';
+    const [rows] = await query(
+      "SELECT COUNT(*) AS n FROM build_jobs WHERE status IN ('queued','running') AND created_at > ?",
+      [Date.now() - 5 * 60_000]
+    );
+    checks.worker = rows[0].n > 0 ? 'running' : 'idle';
   } catch {
     checks.worker = 'unknown';
   }
@@ -86,7 +79,7 @@ app.use('/admin', express.static(ADMIN_DIST));
 app.get(/^\/admin(\/.*)?$/, (req, res) => res.sendFile(path.join(ADMIN_DIST, 'index.html')));
 
 // ── Routes ────────────────────────────────────────────────────────────────────
-app.use('/api/public',              publicRoutes);           // no auth — must be before /api catch-all
+app.use('/api/public',              publicRoutes);
 app.use('/api/settings',            settingsRoutes);
 app.use('/api/auth',                authRoutes);
 app.use('/api/galleries',           galleriesRoutes);
@@ -99,23 +92,23 @@ app.use('/api/invitations',         invitationsRouter);
 app.use('/api/studios',             studiosRoutes);
 
 // ── Built galleries — static files (fallback when no reverse proxy in front) ──
-// Serves /dist/<slug>/* as static files and falls back to index.html for SPA routing.
 app.use(express.static(DIST_DIR, { index: 'index.html' }));
 app.get(/^\/([^/]+)\/?$/, (req, res, next) => {
-  const slug    = req.params[0];
+  const slug      = req.params[0];
   const indexHtml = path.join(DIST_DIR, slug, 'index.html');
   if (fs.existsSync(indexHtml)) return res.sendFile(indexHtml);
   next();
 });
 
-// ── Public gallery listing (served when Caddy falls back for missing /index.html) ──
+// ── Public gallery listing ────────────────────────────────────────────────────
 app.get('/', async (req, res) => {
-  const galleries  = await getPublicGalleries();
-  const studioRow  = getDb().prepare('SELECT id FROM studios LIMIT 1').get();
-  const settings   = studioRow ? getSettings(studioRow.id) : null;
+  const galleries = await getPublicGalleries();
+  const [studioRows] = await query('SELECT id FROM studios LIMIT 1');
+  const studioRow  = studioRows[0];
+  const settings   = studioRow ? await getSettings(studioRow.id) : null;
   const siteTitle  = settings?.site_title || 'GalleryPack';
   const token      = req.cookies?.session;
-  const isLoggedIn = token ? !!getSession(token) : false;
+  const isLoggedIn = token ? !!(await getSession(token)) : false;
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.send(renderLanding(galleries, siteTitle, isLoggedIn));
 });
@@ -123,9 +116,18 @@ app.get('/', async (req, res) => {
 // ── Error handler ─────────────────────────────────────────────────────────────
 app.use(errorHandler);
 
-// ── Start ─────────────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`\n  ✓  GalleryPack API listening on port ${PORT}\n`);
-});
+// ── Bootstrap then start ──────────────────────────────────────────────────────
+(async () => {
+  try {
+    await runMigrations();
+    await bootstrap();
+    app.listen(PORT, () => {
+      console.log(`\n  ✓  GalleryPack API listening on port ${PORT}\n`);
+    });
+  } catch (err) {
+    console.error('Fatal startup error:', err);
+    process.exit(1);
+  }
+})();
 
 export default app;

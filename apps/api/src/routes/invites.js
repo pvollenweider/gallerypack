@@ -5,16 +5,16 @@ import {
   createInvite, getInviteById, getInviteByToken, listInvites, useInvite, revokeInvite,
   getStudio,
 } from '../db/helpers.js';
-import { getDb } from '../db/database.js';
+import { query } from '../db/database.js';
 import { sendInviteEmail } from '../services/email.js';
 
 const router = Router();
 
 // ── POST /api/invites — create an invite (admin only) ─────────────────────────
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
   const { galleryId, email, label, expiresIn, singleUse } = req.body;
 
-  const invite = createInvite({
+  const invite = await createInvite({
     studioId:  req.studioId,
     galleryId: galleryId || null,
     email:     email     || null,
@@ -25,10 +25,11 @@ router.post('/', requireAuth, (req, res) => {
 
   // Send invite email if an address was provided
   if (invite.email) {
-    const studio = getStudio(req.studioId);
-    const gallery = invite.gallery_id
-      ? getDb().prepare('SELECT title, slug FROM galleries WHERE id = ?').get(invite.gallery_id)
-      : null;
+    const studio = await getStudio(req.studioId);
+    const [galleryRows] = invite.gallery_id
+      ? await query('SELECT title, slug FROM galleries WHERE id = ?', [invite.gallery_id])
+      : [[]];
+    const gallery = galleryRows?.[0] || null;
     const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 4000}`;
     sendInviteEmail({
       studioId:     req.studioId,
@@ -39,19 +40,18 @@ router.post('/', requireAuth, (req, res) => {
     });
   }
 
-  // Never return raw token hash to client; return the opaque URL token
   res.status(201).json(sanitize(invite));
 });
 
 // ── GET /api/invites — list invites for studio ────────────────────────────────
-router.get('/', requireAuth, (req, res) => {
-  const invites = listInvites(req.studioId);
+router.get('/', requireAuth, async (req, res) => {
+  const invites = await listInvites(req.studioId);
   res.json(invites.map(sanitize));
 });
 
 // ── GET /api/invites/:token — validate token (public, used by upload page) ────
-router.get('/:token', (req, res) => {
-  const invite = getInviteByToken(req.params.token);
+router.get('/:token', async (req, res) => {
+  const invite = await getInviteByToken(req.params.token);
 
   if (!invite) return res.status(404).json({ error: 'Invite not found' });
 
@@ -69,10 +69,9 @@ router.get('/:token', (req, res) => {
 
   // Mark as used (for single-use invites this is definitive)
   if (invite.single_use) {
-    useInvite(invite.id);
+    await useInvite(invite.id);
   }
 
-  // Return safe public info (no internal IDs that leak studio structure)
   res.json({
     id:        invite.id,
     galleryId: invite.gallery_id,
@@ -82,22 +81,21 @@ router.get('/:token', (req, res) => {
 });
 
 // ── POST /api/invites/:id/revoke — revoke an invite ───────────────────────────
-router.post('/:id/revoke', requireAuth, (req, res) => {
-  const invite = getInviteById(req.params.id);
+router.post('/:id/revoke', requireAuth, async (req, res) => {
+  const invite = await getInviteById(req.params.id);
 
   if (!invite) return res.status(404).json({ error: 'Invite not found' });
   if (invite.studio_id !== req.studioId) return res.status(403).json({ error: 'Forbidden' });
 
-  revokeInvite(invite.id);
+  await revokeInvite(invite.id);
   res.json({ ok: true });
 });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/** Strip internal fields before sending to client. */
 function sanitize(invite) {
   const { token, ...rest } = invite;
-  return { ...rest, token }; // keep token for the creator to copy the link
+  return { ...rest, token };
 }
 
 export default router;

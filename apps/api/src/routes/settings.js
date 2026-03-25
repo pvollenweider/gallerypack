@@ -28,13 +28,13 @@ function rowToSettings(row) {
 }
 
 // GET /api/settings
-router.get('/', (req, res) => {
-  const row = getSettings(req.studioId);
+router.get('/', async (req, res) => {
+  const row = await getSettings(req.studioId);
   res.json(rowToSettings(row));
 });
 
 // PATCH /api/settings
-router.patch('/', (req, res) => {
+router.patch('/', async (req, res) => {
   const {
     siteTitle, defaultAuthor, defaultAuthorEmail,
     defaultLocale, defaultAccess,
@@ -62,11 +62,11 @@ router.patch('/', (req, res) => {
   // Only update password if a new one was explicitly provided
   if (smtpPass && smtpPass.trim()) updates.smtp_pass = smtpPass.trim();
 
-  upsertSettings(req.studioId, updates);
+  await upsertSettings(req.studioId, updates);
   // Audit SMTP changes separately (sensitive config — don't log passwords)
   const hasSmtpChange = smtpHost !== undefined || smtpPort !== undefined || smtpUser !== undefined || smtpPass !== undefined || smtpFrom !== undefined;
-  try { audit(req.studioId, req.userId, 'studio.settings_changed', 'studio', req.studioId, { smtp_changed: hasSmtpChange }); } catch {}
-  res.json(rowToSettings(getSettings(req.studioId)));
+  try { await audit(req.studioId, req.userId, 'studio.settings_changed', 'studio', req.studioId, { smtp_changed: hasSmtpChange }); } catch {}
+  res.json(rowToSettings(await getSettings(req.studioId)));
 });
 
 // POST /api/settings/smtp-test — send a test email to the logged-in user
@@ -74,7 +74,7 @@ router.post('/smtp-test', async (req, res) => {
   const to = req.user.email;
   if (!to) return res.status(400).json({ error: 'No email address on your account' });
 
-  const s = getSettings(req.studioId);
+  const s = await getSettings(req.studioId);
   const hasDbConfig = s?.smtp_host && s?.smtp_user && s?.smtp_pass;
   const hasEnvConfig = process.env.EMAIL_PROVIDER === 'smtp' && process.env.SMTP_HOST;
 
@@ -83,7 +83,6 @@ router.post('/smtp-test', async (req, res) => {
   }
 
   try {
-    // Dynamically build a one-shot transporter to get the actual error
     const nodemailer = (await import('nodemailer')).default;
     const cfg = hasDbConfig
       ? { host: s.smtp_host, port: Number(s.smtp_port) || 587, secure: s.smtp_secure === 1,

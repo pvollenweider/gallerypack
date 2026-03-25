@@ -8,7 +8,7 @@
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
     "migrate": "node src/db/migrations/run.js",
-    "test": "node --test src/authorization/can.test.js src/db/helpers.test.js"
+    "test": "node --test src/authorization/can.test.js test/helpers.test.js"
   },
   "dependencies": {
     "@gallerypack/engine": "*",
@@ -16,6 +16,6 @@
     "express": "^5.2.1",
     "multer": "^2.1.1",
     "nodemailer": "^6.9.16",
-    "better-sqlite3": "^9.4.3"
+    "mysql2": "^3.11.3"
   }
 }

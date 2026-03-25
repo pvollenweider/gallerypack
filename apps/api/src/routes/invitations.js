@@ -15,14 +15,14 @@ import {
 } from '../db/helpers.js';
 import { sendInviteEmail } from '../services/email.js';
 
-const VALID_ROLES = ['owner', 'admin', 'editor', 'photographer'];
+const VALID_ROLES = ['owner', 'admin', 'collaborator', 'photographer'];
 
 const router = Router();
 
 // ── Authenticated routes ──────────────────────────────────────────────────────
 
 // POST /api/invitations — create invitation (admin+)
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
   if (!can(req.user, 'manage', 'member', { studioRole: req.studioRole })) {
     return res.status(403).json({ error: 'Forbidden' });
   }
@@ -40,22 +40,21 @@ router.post('/', requireAuth, (req, res) => {
 
   let invitation;
   try {
-    invitation = createInvitation(req.studioId, email, role, req.userId, { galleryId: galleryId || null, galleryRole: galleryRole || null });
+    invitation = await createInvitation(req.studioId, email, role, req.userId, { galleryId: galleryId || null, galleryRole: galleryRole || null });
   } catch (err) {
-    // SQLite UNIQUE constraint on (studio_id, email)
-    if (err.message && err.message.includes('UNIQUE')) {
+    if (err.message && (err.message.includes('UNIQUE') || err.message.includes('Duplicate'))) {
       return res.status(409).json({ error: 'An invitation for this email already exists' });
     }
     throw err;
   }
 
-  try { audit(req.studioId, req.userId, 'member.invite', 'invitation', invitation.id, { email, role }); } catch {}
+  try { await audit(req.studioId, req.userId, 'member.invite', 'invitation', invitation.id, { email, role }); } catch {}
 
   // Send invite email (fire-and-forget)
   try {
-    const s = getSettings(req.studioId);
+    const s = await getSettings(req.studioId);
     const base = (s?.base_url || process.env.BASE_URL || 'http://localhost:4000').replace(/\/$/, '');
-    const studio = getStudio(req.studioId);
+    const studio = await getStudio(req.studioId);
     sendInviteEmail({
       studioId: req.studioId,
       to: email,
@@ -68,34 +67,34 @@ router.post('/', requireAuth, (req, res) => {
 });
 
 // GET /api/invitations — list invitations for user's studio (admin+)
-router.get('/', requireAuth, (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
   if (!can(req.user, 'manage', 'member', { studioRole: req.studioRole })) {
     return res.status(403).json({ error: 'Forbidden' });
   }
 
-  const invitations = listInvitations(req.studioId);
+  const invitations = await listInvitations(req.studioId);
   res.json(invitations);
 });
 
 // DELETE /api/invitations/:id — revoke invitation (admin+)
-router.delete('/:id', requireAuth, (req, res) => {
+router.delete('/:id', requireAuth, async (req, res) => {
   if (!can(req.user, 'manage', 'member', { studioRole: req.studioRole })) {
     return res.status(403).json({ error: 'Forbidden' });
   }
 
-  deleteInvitation(req.params.id);
-  try { audit(req.studioId, req.userId, 'member.invite_revoked', 'invitation', req.params.id, {}); } catch {}
+  await deleteInvitation(req.params.id);
+  try { await audit(req.studioId, req.userId, 'member.invite_revoked', 'invitation', req.params.id, {}); } catch {}
   res.json({ ok: true });
 });
 
 // ── Public accept endpoints (no auth required) ────────────────────────────────
 
 // GET /api/invitations/accept/:token — get invitation info for the accept page
-router.get('/accept/:token', (req, res) => {
-  const inv = getInvitationByToken(req.params.token);
+router.get('/accept/:token', async (req, res) => {
+  const inv = await getInvitationByToken(req.params.token);
   if (!inv) return res.status(404).json({ error: 'Invitation not found' });
 
-  const studio = getStudio(inv.studio_id);
+  const studio = await getStudio(inv.studio_id);
 
   res.json({
     email:           inv.email,
@@ -107,19 +106,19 @@ router.get('/accept/:token', (req, res) => {
 });
 
 // POST /api/invitations/accept/:token — accept invitation, body: { password }
-router.post('/accept/:token', (req, res) => {
+router.post('/accept/:token', async (req, res) => {
   const { password } = req.body || {};
   if (!password) return res.status(400).json({ error: 'password is required' });
 
   let user;
   try {
-    user = acceptInvitation(req.params.token, password);
+    user = await acceptInvitation(req.params.token, password);
   } catch (err) {
     const status = err.status || 400;
     return res.status(status).json({ error: err.message });
   }
 
-  const sessionToken = createSession(user.id);
+  const sessionToken = await createSession(user.id);
   res.cookie('session', sessionToken, {
     httpOnly: true,
     sameSite: 'strict',
@@ -127,7 +126,7 @@ router.post('/accept/:token', (req, res) => {
     maxAge: 30 * 24 * 60 * 60 * 1000,
   });
 
-  try { audit(user.studio_id, user.id, 'member.invite_accepted', 'user', user.id, { email: user.email }); } catch {}
+  try { await audit(user.studio_id, user.id, 'member.invite_accepted', 'user', user.id, { email: user.email }); } catch {}
   res.status(201).json({
     ok:   true,
     user: { id: user.id, email: user.email, role: user.role, name: user.name },

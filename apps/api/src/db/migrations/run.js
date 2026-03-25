@@ -1,47 +1,67 @@
-// apps/api/src/db/migrations/run.js — migration runner
-import { createHash } from 'crypto';
-import { getDb } from '../database.js';
+// apps/api/src/db/migrations/run.js — MariaDB migration runner
+import { getPool, closePool } from '../database.js';
 import fs   from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-const __DIR = path.dirname(fileURLToPath(import.meta.url));
+const __DIR       = path.dirname(fileURLToPath(import.meta.url));
+// MariaDB migrations live in the mariadb/ subdirectory.
+// The root migrations/ directory contains legacy SQLite .sql files.
+const MARIADB_DIR = path.join(__DIR, 'mariadb');
 
-export function runMigrations() {
-  const db = getDb();
-
-  // Register helper UDFs available to all SQL migrations
-  db.function('sha256_hex', str => createHash('sha256').update(str || '').digest('hex'));
+export async function runMigrations() {
+  const pool = getPool();
 
   // Track applied migrations in a meta table
-  db.exec(`
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS _migrations (
-      id         TEXT PRIMARY KEY,
-      applied_at INTEGER NOT NULL
-    )
+      id         VARCHAR(128) PRIMARY KEY,
+      applied_at BIGINT NOT NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   `);
 
-  const applied = new Set(
-    db.prepare('SELECT id FROM _migrations').all().map(r => r.id)
-  );
+  const [rows] = await pool.query('SELECT id FROM _migrations');
+  const applied = new Set(rows.map(r => r.id));
 
-  // Collect .sql files, sorted by name (001_, 002_, …)
-  const files = fs.readdirSync(__DIR)
+  // Collect .sql files from mariadb/ subdirectory, sorted by name (001_, 002_, …)
+  const files = fs.readdirSync(MARIADB_DIR)
     .filter(f => f.endsWith('.sql'))
     .sort();
 
   for (const file of files) {
     if (applied.has(file)) continue;
-    const sql = fs.readFileSync(path.join(__DIR, file), 'utf8');
-    db.exec(sql);
-    db.prepare('INSERT INTO _migrations (id, applied_at) VALUES (?, ?)').run(file, Date.now());
+
+    const sql = fs.readFileSync(path.join(MARIADB_DIR, file), 'utf8');
+
+    // Split on statement boundaries so we can execute each statement separately.
+    // mysql2 does not support multi-statement strings in pool.query() by default.
+    const statements = sql
+      .split(/;\s*\n/)
+      .map(s => s.trim())
+      .filter(s => s.length > 0 && !s.startsWith('--'));
+
+    for (const stmt of statements) {
+      await pool.query(stmt);
+    }
+
+    await pool.query(
+      'INSERT INTO _migrations (id, applied_at) VALUES (?, ?)',
+      [file, Date.now()]
+    );
     console.log(`  ✓  migration applied: ${file}`);
   }
 }
 
 // Allow direct execution: node apps/api/src/db/migrations/run.js
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  runMigrations();
-  console.log('Migrations complete.');
-  process.exit(0);
+  runMigrations()
+    .then(() => {
+      console.log('Migrations complete.');
+      return closePool();
+    })
+    .then(() => process.exit(0))
+    .catch(err => {
+      console.error('Migration failed:', err);
+      process.exit(1);
+    });
 }

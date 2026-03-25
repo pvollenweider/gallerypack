@@ -2,7 +2,7 @@
 import { Router } from 'express';
 import fs   from 'fs';
 import path from 'path';
-import { getDb } from '../db/database.js';
+import { query } from '../db/database.js';
 import { ROOT }  from '../../../../packages/engine/src/fs.js';
 import { createStorage } from '../../../../packages/shared/src/storage/index.js';
 
@@ -32,12 +32,12 @@ function getPublicPhotoCount(slug) {
 const router = Router();
 
 export async function getPublicGalleries() {
-  const rows = getDb()
-    .prepare(`SELECT slug, title, subtitle, description, date, location, access, build_status, cover_photo
-              FROM galleries
-              WHERE access = 'public'
-              ORDER BY date DESC, created_at DESC`)
-    .all();
+  const [rows] = await query(
+    `SELECT slug, title, subtitle, description, date, location, access, build_status, cover_photo
+     FROM galleries
+     WHERE access = 'public'
+     ORDER BY date DESC, created_at DESC`
+  );
   return Promise.all(rows.map(async row => ({
     slug:        row.slug,
     title:       row.title || row.slug,

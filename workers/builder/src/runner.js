@@ -2,13 +2,13 @@
 // Calls the engine's buildGallery() directly (no subprocess) and writes
 // progress events to the build_events table for SSE streaming.
 import path from 'path';
-import { getDb }                       from '../../../apps/api/src/db/database.js';
-import { getJob, updateJobStatus, appendEvent, getSettings } from '../../../apps/api/src/db/helpers.js';
-import { sendGalleryReadyEmail } from '../../../apps/api/src/services/email.js';
-import { buildGallery }                from '../../../packages/engine/src/gallery.js';
-import { downloadVendors, downloadFonts } from '../../../packages/engine/src/network.js';
-import { ROOT }        from '../../../packages/engine/src/fs.js';
-import { createStorage } from '../../../packages/shared/src/storage/index.js';
+import { query }                                                from '../../../apps/api/src/db/database.js';
+import { getJob, updateJobStatus, appendEvent, getSettings }   from '../../../apps/api/src/db/helpers.js';
+import { sendGalleryReadyEmail }                               from '../../../apps/api/src/services/email.js';
+import { buildGallery }                                        from '../../../packages/engine/src/gallery.js';
+import { downloadVendors, downloadFonts }                      from '../../../packages/engine/src/network.js';
+import { ROOT }                                                from '../../../packages/engine/src/fs.js';
+import { createStorage }                                       from '../../../packages/shared/src/storage/index.js';
 import fs from 'fs';
 
 // Storage adapter — used for reading/writing build artifacts
@@ -25,13 +25,9 @@ function makeEventWriter(jobId) {
 
 /**
  * Map a gallery DB row to the engine's project config format.
- * This ensures all admin settings (title, author, download options, etc.)
- * are passed to the engine at build time — even if no gallery.config.json exists on disk.
  */
 function galleryToProjectConfig(g) {
   const proj = {};
-  // Force distName = slug so the built folder always matches the gallery URL.
-  // (The engine derives distName from project.name ?? project.title, which can differ from the slug.)
   proj.name                 = g.slug;
   if (g.title)              proj.title              = g.title;
   if (g.subtitle)           proj.subtitle           = g.subtitle;
@@ -44,51 +40,46 @@ function galleryToProjectConfig(g) {
   if (g.description)        proj.description        = g.description;
   if (g.cover_photo)        proj.coverPhoto         = g.cover_photo;
   if (g.slideshow_interval) proj.autoplay           = { slideshowInterval: g.slideshow_interval };
-  proj.private              = g.access !== 'public'; // derived from access (canonical after migration 013)
+  proj.private              = g.access !== 'public';
   proj.standalone           = !!g.standalone;
-  // Explicit false only when column is 0 (disabled); NULL = use engine default (enabled)
   if (g.allow_download_image   !== null) proj.allowDownloadImage   = g.allow_download_image   !== 0;
   if (g.allow_download_gallery !== null) proj.allowDownloadGallery = g.allow_download_gallery !== 0;
   return proj;
 }
 
 export async function runJob(jobId) {
-  const job = getJob(jobId);
+  const job = await getJob(jobId);
   if (!job) throw new Error(`Job ${jobId} not found`);
   if (job.status !== 'queued') return; // already picked up
 
   // Mark as running
-  updateJobStatus(jobId, 'running', { started_at: Date.now() });
+  await updateJobStatus(jobId, 'running', { started_at: Date.now() });
 
-  const gallery = getDb()
-    .prepare('SELECT * FROM galleries WHERE id = ?')
-    .get(job.gallery_id);
+  const [galleryRows] = await query('SELECT * FROM galleries WHERE id = ?', [job.gallery_id]);
+  const gallery = galleryRows[0];
   if (!gallery) {
-    updateJobStatus(jobId, 'error', { error_msg: 'Gallery not found' });
-    appendEvent(jobId, 'error', 'Gallery not found in database');
+    await updateJobStatus(jobId, 'error', { error_msg: 'Gallery not found' });
+    await appendEvent(jobId, 'error', 'Gallery not found in database');
     return;
   }
 
   // Get settings for this studio (GALLERY_APACHE_PATH etc.)
-  const settings = getSettings(job.studio_id);
+  const settings = await getSettings(job.studio_id);
   if (settings?.apache_path) {
     process.env.GALLERY_APACHE_PATH = settings.apache_path;
   }
 
-  const ew = makeEventWriter(jobId);
-
   // Intercept process.stdout.write so engine log lines go to build_events
   const originalWrite = process.stdout.write.bind(process.stdout);
   process.stdout.write = (chunk, ...args) => {
-    const line = typeof chunk === 'string' ? chunk : chunk.toString();
-    // Strip ANSI colour codes for storage
+    const line  = typeof chunk === 'string' ? chunk : chunk.toString();
     const clean = line.replace(/\x1b\[[0-9;]*m/g, '').replace(/\n$/, '');
     if (clean.trim()) appendEvent(jobId, 'log', clean);
     return originalWrite(chunk, ...args);
   };
 
   try {
-    appendEvent(jobId, 'log', `Starting build for gallery: ${gallery.slug}`);
+    await appendEvent(jobId, 'log', `Starting build for gallery: ${gallery.slug}`);
 
     // Load build config
     const buildCfgPath = path.join(ROOT, 'build.config.json');
@@ -104,9 +95,9 @@ export async function runJob(jobId) {
       { build: buildCfg, project: galleryToProjectConfig(gallery) },
       fontCss,
       {
-        force:             !!job.force,
+        force:              !!job.force,
         generateApacheAuth: !!settings?.apache_path,
-        geocoder:          undefined, // use default Nominatim
+        geocoder:           undefined, // use default Nominatim
       }
     );
 
@@ -116,12 +107,13 @@ export async function runJob(jobId) {
     if (!artifactOk) throw new Error(`Build completed but manifest not found: ${manifestKey}`);
 
     // Persist artifact metadata back to the gallery row
-    getDb().prepare(
-      'UPDATE galleries SET build_status = ?, built_at = ?, needs_rebuild = 0, updated_at = ? WHERE id = ?'
-    ).run('done', Date.now(), Date.now(), gallery.id);
+    await query(
+      'UPDATE galleries SET build_status = ?, built_at = ?, needs_rebuild = 0, updated_at = ? WHERE id = ?',
+      ['done', Date.now(), Date.now(), gallery.id]
+    );
 
-    updateJobStatus(jobId, 'done', { finished_at: Date.now() });
-    appendEvent(jobId, 'done', JSON.stringify({
+    await updateJobStatus(jobId, 'done', { finished_at: Date.now() });
+    await appendEvent(jobId, 'done', JSON.stringify({
       photoCount: result?.photoCount,
       distName:   result?.distName,
       durationMs: result?.durationMs,
@@ -131,18 +123,19 @@ export async function runJob(jobId) {
     if (gallery.author_email) {
       const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 4000}`;
       sendGalleryReadyEmail({
-        studioId:    gallery.studio_id,
-        to:          gallery.author_email,
+        studioId:     gallery.studio_id,
+        to:           gallery.author_email,
         galleryTitle: gallery.title || gallery.slug,
-        galleryUrl:  `${baseUrl}/${gallery.slug}/`,
+        galleryUrl:   `${baseUrl}/${gallery.slug}/`,
       });
     }
   } catch (err) {
-    getDb().prepare(
-      'UPDATE galleries SET build_status = ?, updated_at = ? WHERE id = ?'
-    ).run('error', Date.now(), gallery.id);
-    updateJobStatus(jobId, 'error', { error_msg: err.message, finished_at: Date.now() });
-    appendEvent(jobId, 'error', err.message);
+    await query(
+      'UPDATE galleries SET build_status = ?, updated_at = ? WHERE id = ?',
+      ['error', Date.now(), gallery.id]
+    );
+    await updateJobStatus(jobId, 'error', { error_msg: err.message, finished_at: Date.now() });
+    await appendEvent(jobId, 'error', err.message);
   } finally {
     // Restore stdout
     process.stdout.write = originalWrite;

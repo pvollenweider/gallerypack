@@ -3,7 +3,7 @@ import { Router }   from 'express';
 import multer       from 'multer';
 import path         from 'path';
 import fs           from 'fs';
-import { getDb }    from '../db/database.js';
+import { query }    from '../db/database.js';
 import { getGalleryRole, listGalleryMembers, listStudioMembers, getSettings, audit } from '../db/helpers.js';
 import { sendEmail } from '../services/email.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -12,40 +12,40 @@ import { ROOT }         from '../../../../packages/engine/src/fs.js';
 import { createStorage } from '../../../../packages/shared/src/storage/index.js';
 
 // Storage adapter — resolved once at startup from env
-// Provides a uniform interface whether files live on disk or in S3.
 export const fileStorage = createStorage();
 
 const router = Router();
 router.use(requireAuth);
 
 // Source photos path: src/<slug>/photos/ (local) or equivalent prefix (S3)
-function photosPrefix(slug) {
-  return path.join('src', slug, 'photos');
-}
-
-// Absolute path on disk (only used for multer + fs ops — local driver only)
 function photosDir(slug) {
   return path.join(ROOT, 'src', slug, 'photos');
 }
 
-function ensureGalleryBelongsToStudio(req, res) {
-  const row = getDb()
-    .prepare('SELECT * FROM galleries WHERE id = ? AND studio_id = ?')
-    .get(req.params.id, req.studioId);
-  if (!row) { res.status(404).json({ error: 'Gallery not found' }); return null; }
-  return row;
+async function ensureGalleryBelongsToStudio(req, res) {
+  const [rows] = await query(
+    'SELECT * FROM galleries WHERE id = ? AND studio_id = ?',
+    [req.params.id, req.studioId]
+  );
+  if (!rows[0]) { res.status(404).json({ error: 'Gallery not found' }); return null; }
+  return rows[0];
 }
 
 // Multer: store files in src/<slug>/photos/
 const storage = multer.diskStorage({
-  destination(req, file, cb) {
-    const gallery = getDb()
-      .prepare('SELECT slug FROM galleries WHERE id = ? AND studio_id = ?')
-      .get(req.params.id, req.studioId);
-    if (!gallery) return cb(new Error('Gallery not found'));
-    const dir = photosDir(gallery.slug);
-    fs.mkdirSync(dir, { recursive: true });
-    cb(null, dir);
+  async destination(req, file, cb) {
+    try {
+      const [rows] = await query(
+        'SELECT slug FROM galleries WHERE id = ? AND studio_id = ?',
+        [req.params.id, req.studioId]
+      );
+      if (!rows[0]) return cb(new Error('Gallery not found'));
+      const dir = photosDir(rows[0].slug);
+      fs.mkdirSync(dir, { recursive: true });
+      cb(null, dir);
+    } catch (err) {
+      cb(err);
+    }
   },
   filename(req, file, cb) {
     // Preserve original filename; sanitize to avoid path traversal
@@ -66,9 +66,9 @@ const upload = multer({
 
 // GET /api/galleries/:id/photos/:filename/preview — serve original photo resized to 800px
 router.get('/:id/photos/:filename/preview', async (req, res) => {
-  const gallery = ensureGalleryBelongsToStudio(req, res);
+  const gallery = await ensureGalleryBelongsToStudio(req, res);
   if (!gallery) return;
-  const galleryRole = getGalleryRole(req.userId, gallery.id);
+  const galleryRole = await getGalleryRole(req.userId, gallery.id);
   if (!can(req.user, 'read', 'gallery', { gallery, studioRole: req.studioRole, galleryRole })) {
     return res.status(403).json({ error: 'Forbidden' });
   }
@@ -80,7 +80,7 @@ router.get('/:id/photos/:filename/preview', async (req, res) => {
   try {
     const { default: sharp } = await import('sharp');
     const buf = await sharp(filePath)
-      .rotate()               // auto-orient via EXIF
+      .rotate()
       .resize(800, 800, { fit: 'inside', withoutEnlargement: true })
       .jpeg({ quality: 75 })
       .toBuffer();
@@ -94,9 +94,9 @@ router.get('/:id/photos/:filename/preview', async (req, res) => {
 
 // GET /api/galleries/:id/photos
 router.get('/:id/photos', async (req, res) => {
-  const gallery = ensureGalleryBelongsToStudio(req, res);
+  const gallery = await ensureGalleryBelongsToStudio(req, res);
   if (!gallery) return;
-  const galleryRole = getGalleryRole(req.userId, gallery.id);
+  const galleryRole = await getGalleryRole(req.userId, gallery.id);
   if (!can(req.user, 'read', 'gallery', { gallery, studioRole: req.studioRole, galleryRole })) {
     return res.status(403).json({ error: 'Forbidden' });
   }
@@ -111,7 +111,8 @@ router.get('/:id/photos', async (req, res) => {
   // Apply saved order from DB (photo_order column).
   // Lazy migration: if DB column is NULL but legacy file exists, import once then remove file.
   let savedOrder = null;
-  const galleryRow = getDb().prepare('SELECT photo_order FROM galleries WHERE id = ?').get(gallery.id);
+  const [galleryRows] = await query('SELECT photo_order FROM galleries WHERE id = ?', [gallery.id]);
+  const galleryRow = galleryRows[0];
   if (galleryRow?.photo_order) {
     try { savedOrder = JSON.parse(galleryRow.photo_order); } catch {}
   } else {
@@ -120,9 +121,7 @@ router.get('/:id/photos', async (req, res) => {
     try {
       if (fs.existsSync(orderFile)) {
         savedOrder = JSON.parse(fs.readFileSync(orderFile, 'utf8'));
-        // Persist to DB and delete sidecar file
-        getDb().prepare('UPDATE galleries SET photo_order = ? WHERE id = ?')
-          .run(JSON.stringify(savedOrder), gallery.id);
+        await query('UPDATE galleries SET photo_order = ? WHERE id = ?', [JSON.stringify(savedOrder), gallery.id]);
         try { fs.unlinkSync(orderFile); } catch {}
       }
     } catch {}
@@ -144,7 +143,6 @@ router.get('/:id/photos', async (req, res) => {
   });
 
   // Attach processed thumbnail name from photos.json manifest if available
-  // Use storage adapter so this works for both local and S3 deployments.
   const manifestKey = path.join('dist', gallery.slug, 'photos.json').replace(/\\/g, '/');
   let nameMap = {};
   try {
@@ -161,12 +159,11 @@ router.get('/:id/photos', async (req, res) => {
 const MAX_PHOTOS_PER_GALLERY = 500;
 
 // POST /api/galleries/:id/photos — upload one or more photos
-router.post('/:id/photos', upload.array('photos', 200), (req, res) => {
-  const gallery = ensureGalleryBelongsToStudio(req, res);
+router.post('/:id/photos', upload.array('photos', 200), async (req, res) => {
+  const gallery = await ensureGalleryBelongsToStudio(req, res);
   if (!gallery) return;
-  const galleryRole = getGalleryRole(req.userId, gallery.id);
+  const galleryRole = await getGalleryRole(req.userId, gallery.id);
   if (!can(req.user, 'upload', 'photo', { studioRole: req.studioRole, galleryRole })) {
-    // Clean up any already-uploaded files
     for (const f of req.files || []) { try { fs.unlinkSync(f.path); } catch {} }
     return res.status(403).json({ error: 'Forbidden' });
   }
@@ -179,7 +176,6 @@ router.post('/:id/photos', upload.array('photos', 200), (req, res) => {
     : 0;
 
   if (existing + (req.files?.length || 0) > MAX_PHOTOS_PER_GALLERY) {
-    // Delete just-uploaded files to avoid leaving orphans
     for (const f of req.files || []) { try { fs.unlinkSync(f.path); } catch {} }
     return res.status(422).json({
       error: `Gallery quota exceeded. Max ${MAX_PHOTOS_PER_GALLERY} photos per gallery (currently ${existing}).`,
@@ -188,20 +184,22 @@ router.post('/:id/photos', upload.array('photos', 200), (req, res) => {
 
   const uploaded = (req.files || []).map(f => ({ file: f.filename, size: f.size }));
   if (uploaded.length > 0) {
-    getDb().prepare('UPDATE galleries SET needs_rebuild = 1, updated_at = ? WHERE id = ?')
-      .run(Date.now(), req.params.id);
+    await query(
+      'UPDATE galleries SET needs_rebuild = 1, updated_at = ? WHERE id = ?',
+      [Date.now(), req.params.id]
+    );
     for (const f of uploaded) {
-      try { audit(req.studioId, req.userId, 'photo.upload', 'gallery', req.params.id, { filename: f.file }); } catch {}
+      try { await audit(req.studioId, req.userId, 'photo.upload', 'gallery', req.params.id, { filename: f.file }); } catch {}
     }
   }
   res.status(201).json({ uploaded: uploaded.length, files: uploaded });
 });
 
 // DELETE /api/galleries/:id/photos/:filename
-router.delete('/:id/photos/:filename', (req, res) => {
-  const gallery = ensureGalleryBelongsToStudio(req, res);
+router.delete('/:id/photos/:filename', async (req, res) => {
+  const gallery = await ensureGalleryBelongsToStudio(req, res);
   if (!gallery) return;
-  const galleryRole = getGalleryRole(req.userId, gallery.id);
+  const galleryRole = await getGalleryRole(req.userId, gallery.id);
   if (!can(req.user, 'delete', 'photo', { studioRole: req.studioRole, galleryRole })) {
     return res.status(403).json({ error: 'Forbidden' });
   }
@@ -211,17 +209,19 @@ router.delete('/:id/photos/:filename', (req, res) => {
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found' });
 
   fs.unlinkSync(filePath);
-  getDb().prepare('UPDATE galleries SET needs_rebuild = 1, updated_at = ? WHERE id = ?')
-    .run(Date.now(), req.params.id);
-  try { audit(req.studioId, req.userId, 'photo.delete', 'gallery', req.params.id, { filename: safe }); } catch {}
+  await query(
+    'UPDATE galleries SET needs_rebuild = 1, updated_at = ? WHERE id = ?',
+    [Date.now(), req.params.id]
+  );
+  try { await audit(req.studioId, req.userId, 'photo.delete', 'gallery', req.params.id, { filename: safe }); } catch {}
   res.json({ ok: true });
 });
 
 // PUT /api/galleries/:id/photos/order — save explicit photo order
-router.put('/:id/photos/order', (req, res) => {
-  const gallery = ensureGalleryBelongsToStudio(req, res);
+router.put('/:id/photos/order', async (req, res) => {
+  const gallery = await ensureGalleryBelongsToStudio(req, res);
   if (!gallery) return;
-  const galleryRole = getGalleryRole(req.userId, gallery.id);
+  const galleryRole = await getGalleryRole(req.userId, gallery.id);
   if (!can(req.user, 'upload', 'photo', { studioRole: req.studioRole, galleryRole })) {
     return res.status(403).json({ error: 'Forbidden' });
   }
@@ -229,36 +229,36 @@ router.put('/:id/photos/order', (req, res) => {
   const { order } = req.body || {};
   if (!Array.isArray(order)) return res.status(400).json({ error: 'order must be an array of filenames' });
 
-  // Persist the order in the DB (photo_order column) — no sidecar file
   const cleanOrder = order.map(f => path.basename(f));
-  getDb().prepare('UPDATE galleries SET photo_order = ?, cover_photo = ?, needs_rebuild = 1, updated_at = ? WHERE id = ?')
-    .run(JSON.stringify(cleanOrder), cleanOrder[0] || null, Date.now(), req.params.id);
+  await query(
+    'UPDATE galleries SET photo_order = ?, cover_photo = ?, needs_rebuild = 1, updated_at = ? WHERE id = ?',
+    [JSON.stringify(cleanOrder), cleanOrder[0] || null, Date.now(), req.params.id]
+  );
 
   res.json({ ok: true });
 });
 
 // POST /api/galleries/:id/photos/upload-done — photographer signals they're done uploading
-router.post('/:id/photos/upload-done', (req, res) => {
-  const gallery = ensureGalleryBelongsToStudio(req, res);
+router.post('/:id/photos/upload-done', async (req, res) => {
+  const gallery = await ensureGalleryBelongsToStudio(req, res);
   if (!gallery) return;
 
-  const galleryRole = getGalleryRole(req.userId, gallery.id);
+  const galleryRole = await getGalleryRole(req.userId, gallery.id);
   if (!can(req.user, 'upload', 'photo', { studioRole: req.studioRole, galleryRole })) {
     return res.status(403).json({ error: 'Forbidden' });
   }
 
-  // Collect editors/admins to notify: gallery editors + studio editors/admins/owners
-  const galleryEditors = listGalleryMembers(gallery.id)
-    .filter(m => m.role === 'editor');
-  const studioEditors = listStudioMembers(req.studioId)
-    .filter(m => ['editor', 'admin', 'owner'].includes(m.role));
+  // Collect editors/admins to notify
+  const galleryEditors = (await listGalleryMembers(gallery.id)).filter(m => m.role === 'editor');
+  const studioEditors  = (await listStudioMembers(req.studioId))
+    .filter(m => ['collaborator', 'admin', 'owner'].includes(m.role));
 
   const allEmails = [...new Set([
     ...galleryEditors.map(m => m.email),
     ...studioEditors.map(m => m.user.email),
   ])].filter(Boolean);
 
-  const s = getSettings(req.studioId);
+  const s = await getSettings(req.studioId);
   const base = (s?.base_url || process.env.BASE_URL || 'http://localhost:4000').replace(/\/$/, '');
   const galleryUrl = `${base}/admin/#/galleries/${gallery.id}`;
   const uploaderName = req.user.name || req.user.email;

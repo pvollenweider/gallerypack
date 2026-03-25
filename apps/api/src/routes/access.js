@@ -1,6 +1,6 @@
 // apps/api/src/routes/access.js — gallery viewer access control
-import { Router }  from 'express';
-import { getDb }   from '../db/database.js';
+import { Router } from 'express';
+import { query }  from '../db/database.js';
 import {
   verifyPassword, createViewerToken, verifyViewerToken,
 } from '../db/helpers.js';
@@ -9,10 +9,12 @@ const router = Router();
 
 // ── POST /api/galleries/:id/verify-password ───────────────────────────────────
 // Public route: verify viewer password and set a short-lived viewer cookie.
-router.post('/:id/verify-password', (req, res) => {
-  const gallery = getDb()
-    .prepare('SELECT id, access, password_hash FROM galleries WHERE id = ?')
-    .get(req.params.id);
+router.post('/:id/verify-password', async (req, res) => {
+  const [rows] = await query(
+    'SELECT id, access, password_hash FROM galleries WHERE id = ?',
+    [req.params.id]
+  );
+  const gallery = rows[0];
 
   if (!gallery) return res.status(404).json({ error: 'Gallery not found' });
   if (gallery.access !== 'password') return res.status(400).json({ error: 'Gallery is not password-protected' });
@@ -37,16 +39,15 @@ router.post('/:id/verify-password', (req, res) => {
 
 // ── GET /api/galleries/:id/view ───────────────────────────────────────────────
 // Public route: return gallery data if authorized.
-// - access=public → always allowed
-// - access=password → requires valid viewer cookie
-// - access=private → only studio members (use requireAuth elsewhere; 403 here)
-router.get('/:id/view', (req, res) => {
-  const gallery = getDb()
-    .prepare(`SELECT id, slug, title, subtitle, author, author_email, date, location,
-                     locale, access, cover_photo, allow_download_image, allow_download_gallery,
-                     build_status, built_at
-              FROM galleries WHERE id = ?`)
-    .get(req.params.id);
+router.get('/:id/view', async (req, res) => {
+  const [rows] = await query(
+    `SELECT id, slug, title, subtitle, author, author_email, date, location,
+            locale, access, cover_photo, allow_download_image, allow_download_gallery,
+            build_status, built_at
+     FROM galleries WHERE id = ?`,
+    [req.params.id]
+  );
+  const gallery = rows[0];
 
   if (!gallery) return res.status(404).json({ error: 'Gallery not found' });
 
@@ -55,7 +56,7 @@ router.get('/:id/view', (req, res) => {
   }
 
   if (gallery.access === 'password') {
-    const cookieToken = req.cookies?.[`viewer_${gallery.id}`];
+    const cookieToken         = req.cookies?.[`viewer_${gallery.id}`];
     const authorizedGalleryId = verifyViewerToken(cookieToken);
     if (authorizedGalleryId !== gallery.id) {
       return res.status(401).json({ error: 'Password required', requiresPassword: true });

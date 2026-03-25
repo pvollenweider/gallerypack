@@ -1,11 +1,10 @@
 // apps/api/src/services/email.js — email provider abstraction + transactional templates
-import { getDb } from '../db/database.js';
+import { query }  from '../db/database.js';
 import { genId, getSettings } from '../db/helpers.js';
 
 // ── Provider factory ──────────────────────────────────────────────────────────
 
 function createSmtpProvider(config) {
-  // Lazy-load nodemailer to avoid startup cost when EMAIL_PROVIDER=null
   let transporter = null;
   async function getTransporter() {
     if (!transporter) {
@@ -41,12 +40,10 @@ function createNullProvider() {
 /**
  * Resolve the SMTP provider for a given studio.
  * DB settings take priority over environment variables.
- * A new transporter is created each call so DB changes take effect immediately.
  */
-function getProvider(studioId) {
-  // 1. Try DB settings for this studio
+async function getProvider(studioId) {
   if (studioId) {
-    const s = getSettings(studioId);
+    const s = await getSettings(studioId);
     if (s?.smtp_host && s?.smtp_user && s?.smtp_pass) {
       return createSmtpProvider({
         host:   s.smtp_host,
@@ -58,7 +55,6 @@ function getProvider(studioId) {
       });
     }
   }
-  // 2. Fall back to environment variables
   const driver = process.env.EMAIL_PROVIDER || 'null';
   if (driver === 'smtp') {
     return createSmtpProvider({
@@ -75,12 +71,13 @@ function getProvider(studioId) {
 
 // ── Log helpers ───────────────────────────────────────────────────────────────
 
-function logEmail({ studioId, to, subject, template, status, error }) {
+async function logEmail({ studioId, to, subject, template, status, error }) {
   try {
-    getDb().prepare(`
-      INSERT INTO email_log (id, studio_id, to_address, subject, template, status, error, sent_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(genId(), studioId || null, to, subject, template || null, status, error || null, Date.now());
+    await query(
+      `INSERT INTO email_log (id, studio_id, to_address, subject, template, status, error, sent_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [genId(), studioId || null, to, subject, template || null, status, error || null, Date.now()]
+    );
   } catch (e) {
     console.error('[email] failed to write log:', e.message);
   }
@@ -93,7 +90,9 @@ function logEmail({ studioId, to, subject, template, status, error }) {
  * @param {{ studioId?, to, subject, html, text, template? }} opts
  */
 export function sendEmail({ studioId, to, subject, html, text, template }) {
-  getProvider(studioId).send(to, subject, html, text).then(() => {
+  getProvider(studioId).then(provider =>
+    provider.send(to, subject, html, text)
+  ).then(() => {
     logEmail({ studioId, to, subject, template, status: 'sent' });
   }).catch(err => {
     console.error('[email] send failed:', err.message);
@@ -103,68 +102,38 @@ export function sendEmail({ studioId, to, subject, html, text, template }) {
 
 // ── Templates ─────────────────────────────────────────────────────────────────
 
-/**
- * Send an invite email.
- * @param {{ studioId, to, studioName, galleryTitle?, inviteUrl }} opts
- */
 export function sendInviteEmail({ studioId, to, studioName, galleryTitle, inviteUrl }) {
-  const title = galleryTitle ? `the gallery "${galleryTitle}"` : 'a photo gallery';
+  const title   = galleryTitle ? `the gallery "${galleryTitle}"` : 'a photo gallery';
   const subject = `You've been invited to upload photos`;
-  const text = `Hi,\n\nYou've been invited to upload photos to ${title} for ${studioName}.\n\nUse this link to upload:\n${inviteUrl}\n\nThis link may expire — use it as soon as possible.\n`;
-  const html = `<p>Hi,</p>
-<p>You've been invited to upload photos to <strong>${title}</strong> for ${studioName}.</p>
-<p><a href="${inviteUrl}">Click here to upload photos</a></p>
-<p>This link may expire — use it as soon as possible.</p>`;
-
+  const text    = `Hi,\n\nYou've been invited to upload photos to ${title} for ${studioName}.\n\nUse this link to upload:\n${inviteUrl}\n\nThis link may expire — use it as soon as possible.\n`;
+  const html    = `<p>Hi,</p><p>You've been invited to upload photos to <strong>${title}</strong> for ${studioName}.</p><p><a href="${inviteUrl}">Click here to upload photos</a></p><p>This link may expire — use it as soon as possible.</p>`;
   sendEmail({ studioId, to, subject, html, text, template: 'invite' });
 }
 
-/**
- * Send a magic login link (passwordless, 5-min TTL).
- * @param {{ studioId, to, magicUrl }} opts
- */
 export function sendMagicLinkEmail({ studioId, to, magicUrl }) {
   const subject = 'Votre lien de connexion (valable 5 min)';
-  const text = `Bonjour,\n\nCliquez sur ce lien pour vous connecter :\n${magicUrl}\n\nCe lien est valable 5 minutes et ne peut être utilisé qu'une seule fois.\nSi vous n'avez pas demandé ce lien, ignorez cet email.`;
-  const html = `<p>Bonjour,</p><p>Cliquez sur ce lien pour vous connecter :</p><p><a href="${magicUrl}">${magicUrl}</a></p><p>Ce lien est <strong>valable 5 minutes</strong> et ne peut être utilisé qu'une seule fois.</p><p>Si vous n'avez pas demandé ce lien, ignorez cet email.</p>`;
+  const text    = `Bonjour,\n\nCliquez sur ce lien pour vous connecter :\n${magicUrl}\n\nCe lien est valable 5 minutes et ne peut être utilisé qu'une seule fois.\nSi vous n'avez pas demandé ce lien, ignorez cet email.`;
+  const html    = `<p>Bonjour,</p><p>Cliquez sur ce lien pour vous connecter :</p><p><a href="${magicUrl}">${magicUrl}</a></p><p>Ce lien est <strong>valable 5 minutes</strong> et ne peut être utilisé qu'une seule fois.</p><p>Si vous n'avez pas demandé ce lien, ignorez cet email.</p>`;
   sendEmail({ studioId, to, subject, html, text, template: 'magic-link' });
 }
 
-/**
- * Notify admins that a photographer has finished uploading.
- * @param {{ studioId, to, photographerName, galleryTitle, galleryAdminUrl }} opts
- */
 export function sendPhotosReadyEmail({ studioId, to, photographerName, galleryTitle, galleryAdminUrl }) {
   const subject = `Photos prêtes — ${galleryTitle}`;
-  const text = `Bonjour,\n\n${photographerName} a indiqué que les photos de la galerie "${galleryTitle}" sont prêtes à publier.\n\nGérer la galerie :\n${galleryAdminUrl}\n`;
-  const html = `<p>Bonjour,</p><p><strong>${photographerName}</strong> a indiqué que les photos de la galerie <strong>${galleryTitle}</strong> sont prêtes à publier.</p><p><a href="${galleryAdminUrl}">Gérer la galerie</a></p>`;
+  const text    = `Bonjour,\n\n${photographerName} a indiqué que les photos de la galerie "${galleryTitle}" sont prêtes à publier.\n\nGérer la galerie :\n${galleryAdminUrl}\n`;
+  const html    = `<p>Bonjour,</p><p><strong>${photographerName}</strong> a indiqué que les photos de la galerie <strong>${galleryTitle}</strong> sont prêtes à publier.</p><p><a href="${galleryAdminUrl}">Gérer la galerie</a></p>`;
   sendEmail({ studioId, to, subject, html, text, template: 'photos-ready' });
 }
 
-/**
- * Send a "gallery ready" notification to the author.
- * @param {{ studioId, to, galleryTitle, galleryUrl }} opts
- */
 export function sendGalleryReadyEmail({ studioId, to, galleryTitle, galleryUrl }) {
   const subject = `Your gallery "${galleryTitle}" is published`;
-  const text = `Hi,\n\nYour gallery "${galleryTitle}" has been built and is now published.\n\nView it here:\n${galleryUrl}\n`;
-  const html = `<p>Hi,</p>
-<p>Your gallery <strong>${galleryTitle}</strong> has been built and is now published.</p>
-<p><a href="${galleryUrl}">View gallery</a></p>`;
-
+  const text    = `Hi,\n\nYour gallery "${galleryTitle}" has been built and is now published.\n\nView it here:\n${galleryUrl}\n`;
+  const html    = `<p>Hi,</p><p>Your gallery <strong>${galleryTitle}</strong> has been built and is now published.</p><p><a href="${galleryUrl}">View gallery</a></p>`;
   sendEmail({ studioId, to, subject, html, text, template: 'gallery-ready' });
 }
 
-/**
- * Send an access / management link resend.
- * @param {{ studioId, to, galleryTitle, managementUrl }} opts
- */
 export function sendAccessResendEmail({ studioId, to, galleryTitle, managementUrl }) {
   const subject = `Your management link for "${galleryTitle}"`;
-  const text = `Hi,\n\nHere is your management link for the gallery "${galleryTitle}":\n${managementUrl}\n`;
-  const html = `<p>Hi,</p>
-<p>Here is your management link for the gallery <strong>${galleryTitle}</strong>:</p>
-<p><a href="${managementUrl}">${managementUrl}</a></p>`;
-
+  const text    = `Hi,\n\nHere is your management link for the gallery "${galleryTitle}":\n${managementUrl}\n`;
+  const html    = `<p>Hi,</p><p>Here is your management link for the gallery <strong>${galleryTitle}</strong>:</p><p><a href="${managementUrl}">${managementUrl}</a></p>`;
   sendEmail({ studioId, to, subject, html, text, template: 'access-resend' });
 }

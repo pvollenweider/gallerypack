@@ -1,58 +1,48 @@
 // apps/api/src/routes/auth.js — login / logout
 import { Router } from 'express';
 import { createHash } from 'crypto';
-
-function sha256(raw) { return createHash('sha256').update(raw).digest('hex'); }
 import {
   getUserByEmail, createSession, deleteSession,
   getSession, getUserById, hashPassword, verifyPassword, getStudioRole,
   createPasswordResetToken, getPasswordResetToken, usePasswordResetToken,
   createMagicLink, useMagicLink,
 } from '../db/helpers.js';
-import { getDb } from '../db/database.js';
+import { query } from '../db/database.js';
 import { requireAuth } from '../middleware/auth.js';
 import { sendEmail, sendMagicLinkEmail } from '../services/email.js';
 
 const router = Router();
 
-// Legacy SHA-256 hash (for backward-compat migration only)
-function legacySha256(pwd) {
-  return createHash('sha256').update(pwd).digest('hex');
-}
+function sha256(raw) { return createHash('sha256').update(raw).digest('hex'); }
 
 // POST /api/auth/login
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   const { email, password } = req.body || {};
   if (!email || !password) return res.status(400).json({ error: 'email and password required' });
 
-  const user = getUserByEmail(email);
+  const user = await getUserByEmail(email);
   if (!user) return res.status(401).json({ error: 'Invalid credentials' });
 
   const stored = user.password_hash;
   let authenticated = false;
 
-  if (stored && stored.startsWith('$scrypt$')) {
-    // New scrypt format
+  if (stored && (stored.startsWith('$scrypt$') || stored.startsWith('scrypt:'))) {
     authenticated = verifyPassword(password, stored);
-  } else if (stored && stored.startsWith('scrypt:')) {
-    // Old scrypt format (scrypt:<salt>:<hash>)
-    authenticated = verifyPassword(password, stored);
-  } else {
+  } else if (stored) {
     // Legacy SHA-256 — verify then re-hash with scrypt on success
-    const legacyHash = legacySha256(password);
+    const legacyHash = sha256(password);
     if (stored === legacyHash) {
       authenticated = true;
-      // Re-hash with scrypt and persist
-      const newHash = hashPassword(password);
-      getDb()
-        .prepare('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?')
-        .run(newHash, Date.now(), user.id);
+      await query(
+        'UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?',
+        [hashPassword(password), Date.now(), user.id]
+      );
     }
   }
 
   if (!authenticated) return res.status(401).json({ error: 'Invalid credentials' });
 
-  const token = createSession(user.id);
+  const token = await createSession(user.id);
   res.cookie('session', token, {
     httpOnly: true,
     sameSite: 'strict',
@@ -63,29 +53,29 @@ router.post('/login', (req, res) => {
 });
 
 // POST /api/auth/logout
-router.post('/logout', (req, res) => {
+router.post('/logout', async (req, res) => {
   const token = req.cookies?.session;
-  if (token) deleteSession(token);
+  if (token) await deleteSession(token);
   res.clearCookie('session');
   res.json({ ok: true });
 });
 
 // GET /api/auth/me
-router.get('/me', (req, res) => {
+router.get('/me', async (req, res) => {
   const token = req.cookies?.session;
   if (!token) return res.status(401).json({ error: 'Not authenticated' });
-  const session = getSession(token);
+  const session = await getSession(token);
   if (!session) return res.status(401).json({ error: 'Session expired' });
-  const user = getUserById(session.user_id);
+  const user = await getUserById(session.user_id);
   if (!user) return res.status(401).json({ error: 'User not found' });
-  const studioRole = user.studio_id ? getStudioRole(user.id, user.studio_id) : null;
+  const studioRole = user.studio_id ? await getStudioRole(user.id, user.studio_id) : null;
   res.json({ id: user.id, email: user.email, role: user.role, name: user.name, studioId: user.studio_id, studioRole, locale: user.locale || null });
 });
 
-// PATCH /api/auth/me — update own profile (name, password)
-router.patch('/me', requireAuth, (req, res) => {
+// PATCH /api/auth/me — update own profile (name, password, locale)
+router.patch('/me', requireAuth, async (req, res) => {
   const { name, currentPassword, newPassword, locale } = req.body || {};
-  const user = getUserById(req.userId);
+  const user = await getUserById(req.userId);
 
   if (newPassword !== undefined) {
     if (!currentPassword) return res.status(400).json({ error: 'currentPassword is required' });
@@ -93,34 +83,34 @@ router.patch('/me', requireAuth, (req, res) => {
       return res.status(401).json({ error: 'Mot de passe actuel incorrect' });
     if (newPassword.length < 8)
       return res.status(400).json({ error: 'Le nouveau mot de passe doit faire au moins 8 caractères' });
-    getDb().prepare('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?')
-      .run(hashPassword(newPassword), Date.now(), req.userId);
+    await query(
+      'UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?',
+      [hashPassword(newPassword), Date.now(), req.userId]
+    );
   }
 
   if (name !== undefined) {
-    getDb().prepare('UPDATE users SET name = ?, updated_at = ? WHERE id = ?')
-      .run(name || null, Date.now(), req.userId);
+    await query('UPDATE users SET name = ?, updated_at = ? WHERE id = ?', [name || null, Date.now(), req.userId]);
   }
 
   if (locale !== undefined) {
-    getDb().prepare('UPDATE users SET locale = ?, updated_at = ? WHERE id = ?')
-      .run(locale || null, Date.now(), req.userId);
+    await query('UPDATE users SET locale = ?, updated_at = ? WHERE id = ?', [locale || null, Date.now(), req.userId]);
   }
 
-  const updated = getUserById(req.userId);
-  const studioRole = updated.studio_id ? getStudioRole(updated.id, updated.studio_id) : null;
+  const updated    = await getUserById(req.userId);
+  const studioRole = updated.studio_id ? await getStudioRole(updated.id, updated.studio_id) : null;
   res.json({ id: updated.id, email: updated.email, role: updated.role, name: updated.name, studioId: updated.studio_id, studioRole, locale: updated.locale || null });
 });
 
 // GET /api/auth/me/galleries — list galleries the current user has explicit access to
-router.get('/me/galleries', requireAuth, (req, res) => {
-  const rows = getDb().prepare(`
+router.get('/me/galleries', requireAuth, async (req, res) => {
+  const [rows] = await query(`
     SELECT g.id, g.title, g.slug, gm.role
     FROM gallery_memberships gm
     JOIN galleries g ON g.id = gm.gallery_id
     WHERE gm.user_id = ?
     ORDER BY g.title
-  `).all(req.userId);
+  `, [req.userId]);
   res.json(rows);
 });
 
@@ -129,10 +119,10 @@ router.post('/forgot', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'email is required' });
 
-  const user = getUserByEmail(email);
+  const user = await getUserByEmail(email);
   if (!user) return res.json({ ok: true }); // don't reveal whether email exists
 
-  const resetRow = createPasswordResetToken(user.id);
+  const resetRow = await createPasswordResetToken(user.id);
   const base     = (process.env.BASE_URL || 'http://localhost:4000').replace(/\/$/, '');
   const resetUrl = `${base}/admin/reset-password/${resetRow.token}`;
 
@@ -151,28 +141,28 @@ router.post('/forgot', async (req, res) => {
 });
 
 // GET /api/auth/reset/:token — check token validity (public)
-router.get('/reset/:token', (req, res) => {
-  const row = getPasswordResetToken(req.params.token);
+router.get('/reset/:token', async (req, res) => {
+  const row = await getPasswordResetToken(req.params.token);
   if (!row || row.used_at || row.expires_at < Date.now())
     return res.status(404).json({ error: 'Lien invalide ou expiré' });
-  const user = getUserById(row.user_id);
+  const user = await getUserById(row.user_id);
   res.json({ email: user?.email });
 });
 
 // POST /api/auth/reset/:token — set new password (public)
-router.post('/reset/:token', (req, res) => {
+router.post('/reset/:token', async (req, res) => {
   const { password } = req.body || {};
   if (!password || password.length < 8)
     return res.status(400).json({ error: 'Le mot de passe doit faire au moins 8 caractères' });
   let user;
   try {
-    user = usePasswordResetToken(req.params.token, password);
+    user = await usePasswordResetToken(req.params.token, password);
   } catch (err) {
     return res.status(err.status || 400).json({ error: err.message });
   }
-  const sessionToken = createSession(user.id);
+  const sessionToken = await createSession(user.id);
   res.cookie('session', sessionToken, {
-    httpOnly: true, sameSite: 'lax',
+    httpOnly: true, sameSite: 'strict',
     secure: process.env.NODE_ENV === 'production',
     maxAge: 30 * 24 * 60 * 60 * 1000,
   });
@@ -184,10 +174,10 @@ router.post('/magic', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'email is required' });
 
-  const user = getUserByEmail(email);
+  const user = await getUserByEmail(email);
   if (!user) return res.json({ ok: true, emailSent: false }); // don't reveal whether email exists
 
-  const row  = createMagicLink(user.id);
+  const row  = await createMagicLink(user.id);
   const base = (process.env.BASE_URL || 'http://localhost:4000').replace(/\/$/, '');
   const magicUrl = `${base}/magic-login/${row.token}`;
 
@@ -202,27 +192,30 @@ router.post('/magic', async (req, res) => {
 
 // GET /api/auth/magic/:token — validate token without consuming it
 // Safe for mail scanner prefetch: no session created, no state changed.
-router.get('/magic/:token', (req, res) => {
-  const db = getDb();
-  const row = db.prepare('SELECT * FROM magic_links WHERE token_hash = ?').get(sha256(req.params.token));
+router.get('/magic/:token', async (req, res) => {
+  const [rows] = await query(
+    'SELECT * FROM magic_links WHERE token_hash = ?',
+    [sha256(req.params.token)]
+  );
+  const row = rows[0];
   if (!row)          return res.status(404).json({ error: 'Invalid link' });
   if (row.used_at)   return res.status(409).json({ error: 'Link already used' });
   if (row.expires_at < Date.now()) return res.status(410).json({ error: 'Link expired' });
-  const user = getUserById(row.user_id);
+  const user = await getUserById(row.user_id);
   res.json({ ok: true, email: user?.email || null });
 });
 
 // POST /api/auth/magic/:token — consume token and open a session
-router.post('/magic/:token', (req, res) => {
+router.post('/magic/:token', async (req, res) => {
   let user;
   try {
-    user = useMagicLink(req.params.token);
+    user = await useMagicLink(req.params.token);
   } catch (err) {
     return res.status(err.status || 400).json({ error: err.message });
   }
-  const sessionToken = createSession(user.id);
+  const sessionToken = await createSession(user.id);
   res.cookie('session', sessionToken, {
-    httpOnly: true, sameSite: 'lax',
+    httpOnly: true, sameSite: 'strict',
     secure: process.env.NODE_ENV === 'production',
     maxAge: 30 * 24 * 60 * 60 * 1000,
   });
@@ -230,15 +223,15 @@ router.post('/magic/:token', (req, res) => {
 });
 
 // POST /api/auth/admin/reset-link — admin generates a reset link for any member (admin+)
-router.post('/admin/reset-link', requireAuth, (req, res) => {
+router.post('/admin/reset-link', requireAuth, async (req, res) => {
   if (!['owner', 'admin'].includes(req.studioRole))
     return res.status(403).json({ error: 'Forbidden' });
   const { userId } = req.body || {};
   if (!userId) return res.status(400).json({ error: 'userId is required' });
-  const user = getUserById(userId);
+  const user = await getUserById(userId);
   if (!user || user.studio_id !== req.studioId)
     return res.status(404).json({ error: 'User not found' });
-  const resetRow = createPasswordResetToken(userId);
+  const resetRow = await createPasswordResetToken(userId);
   const base     = (process.env.BASE_URL || 'http://localhost:4000').replace(/\/$/, '');
   res.json({ resetUrl: `${base}/admin/reset-password/${resetRow.token}` });
 });

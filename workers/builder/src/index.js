@@ -2,7 +2,7 @@
 // Polls build_jobs for queued jobs and executes them one at a time.
 // Runs as a standalone process alongside the API server.
 import fs           from 'fs';
-import { getDb }    from '../../../apps/api/src/db/database.js';
+import { query }    from '../../../apps/api/src/db/database.js';
 import { runJob }   from './runner.js';
 import { runWatchdog } from './watchdog.js';
 import { runMigrations } from '../../../apps/api/src/db/migrations/run.js';
@@ -12,17 +12,14 @@ const WATCHDOG_INTERVAL_MS = 60000; // run watchdog every 60s
 
 let busy = false;
 
-// ── Bootstrap ─────────────────────────────────────────────────────────────────
-runMigrations();
-console.log('\n  ✓  GalleryPack builder worker started\n');
-
 // ── Main poll loop ────────────────────────────────────────────────────────────
 async function poll() {
   if (busy) return;
 
-  const job = getDb()
-    .prepare("SELECT id FROM build_jobs WHERE status = 'queued' ORDER BY created_at ASC LIMIT 1")
-    .get();
+  const [rows] = await query(
+    "SELECT id FROM build_jobs WHERE status = 'queued' ORDER BY created_at ASC LIMIT 1"
+  );
+  const job = rows[0];
 
   if (!job) return;
 
@@ -39,20 +36,30 @@ async function poll() {
 }
 
 // ── Watchdog ──────────────────────────────────────────────────────────────────
-function watchdog() {
-  const n = runWatchdog();
+async function watchdog() {
+  const n = await runWatchdog();
   if (n > 0) console.log(`  ⚠  Watchdog recovered ${n} stuck job(s)`);
 }
 
-// ── Start ─────────────────────────────────────────────────────────────────────
-setInterval(poll, POLL_INTERVAL_MS);
-setInterval(watchdog, WATCHDOG_INTERVAL_MS);
+// ── Bootstrap then start ──────────────────────────────────────────────────────
+(async () => {
+  try {
+    await runMigrations();
+    console.log('\n  ✓  GalleryPack builder worker started\n');
 
-// Write a liveness file for the Docker HEALTHCHECK every 30s
-const ALIVE_FILE = '/tmp/worker.alive';
-function touchAlive() { try { fs.writeFileSync(ALIVE_FILE, String(Date.now())); } catch {} }
-touchAlive();
-setInterval(touchAlive, 30_000);
+    setInterval(poll, POLL_INTERVAL_MS);
+    setInterval(watchdog, WATCHDOG_INTERVAL_MS);
+
+    // Write a liveness file for the Docker HEALTHCHECK every 30s
+    const ALIVE_FILE = '/tmp/worker.alive';
+    function touchAlive() { try { fs.writeFileSync(ALIVE_FILE, String(Date.now())); } catch {} }
+    touchAlive();
+    setInterval(touchAlive, 30_000);
+  } catch (err) {
+    console.error('Fatal worker startup error:', err);
+    process.exit(1);
+  }
+})();
 
 // Graceful shutdown
 process.on('SIGTERM', () => { console.log('Worker shutting down…'); process.exit(0); });
