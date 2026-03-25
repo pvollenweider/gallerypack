@@ -24,9 +24,27 @@ export async function requireAuth(req, res, next) {
   // (hostname context is set by resolveStudioContext middleware in multi mode)
   if (!req.studioId) req.studioId = user.studio_id;
 
-  // Attach studio role for the resolved studio
+  // Attach studio role for the resolved studio.
+  // In single-mode the context resolver always picks the default studio, which may
+  // differ from a non-admin user's own studio (e.g. a photographer in a non-default
+  // studio).  When the user has no membership in the resolved studio, fall back to
+  // their own home studio so API calls resolve to the correct dataset.
   if (req.studioId) {
     req.studioRole = (await getStudioRole(user.id, req.studioId)) || null;
+
+    // If the user has no role in the resolved studio and the studio wasn't
+    // explicitly chosen (via studio_override cookie or multi-mode hostname),
+    // fall back to the user's own home studio.
+    // Do NOT apply this fallback when a superadmin has switched studio context.
+    const hasOverride = !!req.cookies?.studio_override;
+    if (!req.studioRole && !hasOverride && user.studio_id && user.studio_id !== req.studioId) {
+      req.studioId   = user.studio_id;
+      req.studioRole = (await getStudioRole(user.id, user.studio_id)) || null;
+    }
+
+    if (!req.studioRole && req.platformRole === 'superadmin') {
+      req.studioRole = 'owner';
+    }
   }
 
   next();

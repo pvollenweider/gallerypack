@@ -36,7 +36,14 @@ export default function AcceptInvite() {
       await api.acceptInvite(token, password);
       const me = await api.me();
       setUser(me);
-      navigate('/', { replace: true });
+      if (invite?.galleryId) {
+        navigate(`/galleries/${invite.galleryId}`, { replace: true });
+      } else if (me?.role === 'photographer') {
+        const galleries = await api.myGalleries().catch(() => []);
+        navigate(galleries[0] ? `/galleries/${galleries[0].id}` : '/', { replace: true });
+      } else {
+        navigate('/', { replace: true });
+      }
     } catch (e) {
       setError(e.message);
       setSubmitting(false);
@@ -83,6 +90,9 @@ export default function AcceptInvite() {
             {ROLE_LABELS[invite?.role] || invite?.role}
           </span>
         </p>
+        {invite?.galleryTitle && (
+          <p style={s.sub}>{t('invite_for_gallery', { gallery: invite.galleryTitle })}</p>
+        )}
         <p style={s.email}>{invite?.email}</p>
 
         <form onSubmit={handleSubmit} style={s.form}>

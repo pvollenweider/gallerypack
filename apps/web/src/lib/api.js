@@ -47,9 +47,11 @@ export const api = {
   uploadDone:     (galleryId)         => req('POST',   `/galleries/${galleryId}/photos/upload-done`),
 
   // Settings
-  getSettings:  ()     => req('GET',   '/settings'),
-  saveSettings: (data) => req('PATCH', '/settings', data),
-  smtpTest:     ()     => req('POST',  '/settings/smtp-test'),
+  getSettings:    ()     => req('GET',   '/settings'),
+  saveSettings:   (data) => req('PATCH', '/settings', data),
+  smtpTest:       ()     => req('POST',  '/settings/smtp-test'),
+  getMyStudio:    ()     => req('GET',   '/settings/studio'),
+  updateMyStudio: (data) => req('PATCH', '/settings/studio', data),
 
   // Photographer ready notification
   notifyReady: (galleryId) => req('POST', `/galleries/${galleryId}/notify-ready`),
@@ -83,11 +85,13 @@ export const api = {
   acceptInvite:     (token, password) => req('POST',   `/invitations/accept/${token}`, { password }),
 
   // Projects
-  listProjects:   ()          => req('GET',    '/projects'),
-  getProject:     (id)        => req('GET',    `/projects/${id}`),
-  createProject:  (data)      => req('POST',   '/projects', data),
-  updateProject:  (id, data)  => req('PATCH',  `/projects/${id}`, data),
-  deleteProject:  (id)        => req('DELETE', `/projects/${id}`),
+  listProjects:        ()          => req('GET',    '/projects'),
+  getProject:          (id)        => req('GET',    `/projects/${id}`),
+  createProject:       (data)      => req('POST',   '/projects', data),
+  updateProject:       (id, data)  => req('PATCH',  `/projects/${id}`, data),
+  deleteProject:       (id)        => req('DELETE', `/projects/${id}`),
+  getProjectGalleries: (projectId) => req('GET',    `/projects/${projectId}/galleries`),
+  createProjectGallery:(projectId, data) => req('POST', `/projects/${projectId}/galleries`, data),
 
   // Platform (superadmin)
   listPlatformStudios:  ()            => req('GET',    '/platform/studios'),

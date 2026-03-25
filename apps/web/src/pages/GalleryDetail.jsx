@@ -10,14 +10,15 @@ import { Toast }        from '../components/Toast.jsx';
 const LOCALES  = ['fr','en','de','es','it','pt'];
 const ACCESS   = ['public','private','password'];
 
-const EDITOR_ROLES = ['editor', 'admin', 'owner'];
+const EDITOR_ROLES = ['collaborator', 'admin', 'owner'];
 
 export default function GalleryDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const t = useT();
   const { user } = useAuth();
-  const CAN_BUILD = ['editor', 'admin', 'owner'].includes(user?.studioRole);
+  const CAN_BUILD = ['collaborator', 'admin', 'owner'].includes(user?.studioRole) || user?.platformRole === 'superadmin';
+  const canManageAccess = EDITOR_ROLES.includes(user?.studioRole) || user?.platformRole === 'superadmin';
 
   const [gallery,      setGallery]      = useState(null);
   const [photos,       setPhotos]       = useState([]);
@@ -80,7 +81,7 @@ export default function GalleryDetail() {
         formData.coverPhoto || !formData.allowDownloadImage ||
         formData.allowDownloadGallery
       ));
-    } catch { navigate('/'); }
+    } catch (e) { setToast(`${t('error')}: ${e.message}`); }
   }
 
   async function saveSettings(e) {
@@ -134,33 +135,38 @@ export default function GalleryDetail() {
   }
 
   async function loadAccess() {
-    try {
-      const [m, vt, inv, sm] = await Promise.all([
-        api.getGalleryMembers(id),
-        api.getViewerTokens(id),
-        api.getInvitations(),
-        api.listStudioMembers(),
-      ]);
-      setMembers(m);
-      setViewerTokens(vt);
-      setInvitations(inv);
-      setStudioMembers(sm);
-      const firstPhotographer = sm.find(s => s.role === 'photographer');
-      if (firstPhotographer) setAddUserId(firstPhotographer.user.id);
-    } catch {}
+    const [mRes, vtRes, invRes, smRes] = await Promise.allSettled([
+      api.getGalleryMembers(id),
+      api.getViewerTokens(id),
+      api.getInvitations(),
+      api.listStudioMembers(),
+    ]);
+    if (mRes.status   === 'fulfilled') setMembers(mRes.value);
+    if (vtRes.status  === 'fulfilled') setViewerTokens(vtRes.value);
+    if (invRes.status === 'fulfilled') setInvitations(invRes.value);
+    if (smRes.status  === 'fulfilled') {
+      setStudioMembers(smRes.value);
+      const first = smRes.value.find(s => s.role === 'photographer');
+      if (first) setAddUserId(first.user.id);
+    }
+    const errors = [mRes, vtRes, invRes, smRes]
+      .filter(r => r.status === 'rejected')
+      .map(r => r.reason?.message)
+      .filter(Boolean);
+    if (errors.length) setToast(errors.join(' · '));
   }
 
   async function handleMemberRoleChange(userId, role) {
     try {
       await api.putGalleryMember(id, userId, role);
-      setMembers(ms => ms.map(m => m.user_id === userId ? { ...m, role } : m));
+      setMembers(ms => ms.map(m => m.user?.id === userId ? { ...m, role } : m));
     } catch (e) { setToast(`${t('error')}: ${e.message}`); }
   }
 
   async function handleRemoveMember(userId) {
     try {
       await api.deleteGalleryMember(id, userId);
-      setMembers(ms => ms.filter(m => m.user_id !== userId));
+      setMembers(ms => ms.filter(m => m.user?.id !== userId));
     } catch (e) { setToast(`${t('error')}: ${e.message}`); }
   }
 
@@ -208,11 +214,17 @@ export default function GalleryDetail() {
     setSendingInvite(true);
     try {
       const inv = await api.createInvitation({ email: inviteEmail.trim(), role: 'photographer', galleryId: id, galleryRole: 'contributor' });
-      setInvitations(is => [inv, ...is]);
-      const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-      setInviteLink(`${window.location.origin}${base}/invite/${inv.token}`);
       setInviteEmail('');
-      setToast(t('access_invite_sent'));
+      if (inv.existing) {
+        // User already has an account — they've been re-added to the gallery directly
+        setToast(t('access_member_readded'));
+        await loadAccess();
+      } else {
+        setInvitations(is => [inv, ...is]);
+        const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+        setInviteLink(`${window.location.origin}${base}/invite/${inv.token}`);
+        setToast(t('access_invite_sent'));
+      }
     } catch (e) { setToast(`${t('error')}: ${e.message}`); }
     finally { setSendingInvite(false); }
   }
@@ -256,14 +268,22 @@ export default function GalleryDetail() {
 
   if (!gallery) return <div style={s.center}>{t('loading')}</div>;
 
+  // Public URL path mirrors runner.js distNameOverride logic:
+  // project galleries get /{project-slug}/{gallery-slug}/, others get /{slug}/
+  const publicPath = (gallery.breadcrumb?.project?.slug && gallery.access !== 'password' && gallery.access !== 'private')
+    ? `/${gallery.breadcrumb.project.slug}/${gallery.slug}`
+    : `/${gallery.slug}`;
+
   return (
     <div style={s.page}>
       <header style={s.header}>
-        <Link to="/" style={s.back}>← {t('galleries')}</Link>
+        <Link to={gallery.projectId ? `/projects/${gallery.projectId}` : '/studio'} style={s.back}>
+          ← {gallery.breadcrumb?.project?.name || t('studio_back')}
+        </Link>
         <span style={s.title}>{gallery.title || gallery.slug}</span>
         <div style={s.headerActions}>
           {gallery.buildStatus === 'done' && (
-            <a href={`/${gallery.slug}/`} target="_blank" rel="noreferrer" style={s.viewBtn}>
+            <a href={`${publicPath}/`} target="_blank" rel="noreferrer" style={s.viewBtn}>
               {t('view_gallery_btn')}
             </a>
           )}
@@ -280,7 +300,7 @@ export default function GalleryDetail() {
 
       {/* Tabs */}
       <div style={s.tabs}>
-        {['photos','settings','jobs', ...(EDITOR_ROLES.includes(user?.studioRole) ? ['access'] : [])].map(tabKey => (
+        {['photos','settings','jobs', ...(canManageAccess ? ['access'] : [])].map(tabKey => (
           <button key={tabKey} style={{ ...s.tab, ...(tab === tabKey ? s.tabActive : {}) }}
             onClick={() => { setTab(tabKey); if (tabKey === 'access') loadAccess(); }}>
             {t(`tab_${tabKey}`)}
@@ -340,7 +360,7 @@ export default function GalleryDetail() {
                 >
                   <img
                     src={p.thumb
-                      ? `/${gallery.slug}/img/grid/${p.thumb}.webp`
+                      ? `${publicPath}/img/grid/${p.thumb}.webp`
                       : `/api/galleries/${id}/photos/${encodeURIComponent(p.file)}/preview`}
                     style={s.thumb} alt={p.file} />
                   <div style={s.photoName}>{p.file}</div>
@@ -419,7 +439,7 @@ export default function GalleryDetail() {
                           >
                             <img
                               src={p.thumb
-                                ? `/${gallery.slug}/img/grid/${p.thumb}.webp`
+                                ? `${publicPath}/img/grid/${p.thumb}.webp`
                                 : `/api/galleries/${id}/photos/${encodeURIComponent(p.file)}/preview`}
                               style={s.coverThumbImg} alt={p.file} />
                             {form.coverPhoto === p.file && <div style={s.coverCheck}>✓</div>}
@@ -453,7 +473,7 @@ export default function GalleryDetail() {
                     <input
                       style={s.input}
                       value={newSlug}
-                      onChange={e => setNewSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
+                      onChange={e => setNewSlug(slugify(e.target.value) || e.target.value.toLowerCase())}
                       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleRenameSlug(e); } }}
                     />
                   </Row>
@@ -498,7 +518,7 @@ export default function GalleryDetail() {
           </div>
         )}
         {/* ── ACCESS ── */}
-        {tab === 'access' && EDITOR_ROLES.includes(user?.role) && (
+        {tab === 'access' && canManageAccess && (
           <div style={{ maxWidth: 620 }}>
 
             {/* A. Membres de la galerie */}
@@ -507,7 +527,7 @@ export default function GalleryDetail() {
 
             {/* Ajouter un photographe du studio */}
             {(() => {
-              const available = studioMembers.filter(sm => sm.role === 'photographer' && !members.some(m => m.user_id === sm.user.id));
+              const available = studioMembers.filter(sm => sm.role === 'photographer' && !members.some(m => m.user?.id === sm.user.id));
               if (available.length === 0) return null;
               return (
                 <form onSubmit={handleAddMember} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -533,10 +553,10 @@ export default function GalleryDetail() {
               ? <p style={s.dim}>{t('access_no_members')}</p>
               : <div style={s.accessList}>
                   {members.map(m => (
-                    <div key={m.user_id} style={s.accessRow}>
-                      <span style={s.accessEmail}>{m.email}</span>
+                    <div key={m.user?.id} style={s.accessRow}>
+                      <span style={s.accessEmail}>{m.user?.name || m.user?.email}</span>
                       <span style={{ fontSize: '0.8rem', color: '#666', flex: 'none' }}>{t('access_member_photographer_label')}</span>
-                      <button style={s.accessDangerBtn} onClick={() => handleRemoveMember(m.user_id)}>
+                      <button style={s.accessDangerBtn} onClick={() => handleRemoveMember(m.user?.id)}>
                         {t('access_remove')}
                       </button>
                     </div>

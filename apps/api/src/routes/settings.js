@@ -1,7 +1,7 @@
 // apps/api/src/routes/settings.js — admin global settings
 import { Router } from 'express';
 import { requireAdmin } from '../middleware/auth.js';
-import { getSettings, upsertSettings, audit } from '../db/helpers.js';
+import { getSettings, upsertSettings, getStudio, updateStudio, getStudioBySlug, audit } from '../db/helpers.js';
 import { sendEmail } from '../services/email.js';
 
 const router = Router();
@@ -109,6 +109,64 @@ router.post('/smtp-test', async (req, res) => {
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
+});
+
+// GET /api/settings/studio — current studio info
+router.get('/studio', async (req, res) => {
+  const studio = await getStudio(req.studioId);
+  if (!studio) return res.status(404).json({ error: 'Studio not found' });
+  res.json({
+    id:      studio.id,
+    name:    studio.name,
+    slug:    studio.slug,
+    locale:  studio.locale  || null,
+    country: studio.country || null,
+    plan:    studio.plan,
+  });
+});
+
+// PATCH /api/settings/studio — update studio (admin+)
+// name/locale/country: any admin; slug rename: owner or superadmin only
+router.patch('/studio', async (req, res) => {
+  const { name, locale, country, slug } = req.body || {};
+  const updates = {};
+
+  if (name    !== undefined) updates.name    = name;
+  if (locale  !== undefined) updates.locale  = locale  || null;
+  if (country !== undefined) updates.country = country || null;
+
+  // Slug rename is a dangerous operation — owner or superadmin only
+  if (slug !== undefined) {
+    const isOwner      = req.studioRole === 'owner';
+    const isSuperadmin = req.platformRole === 'superadmin';
+    if (!isOwner && !isSuperadmin) {
+      return res.status(403).json({ error: 'Only owner or superadmin can rename the studio slug' });
+    }
+    if (!/^[a-z0-9-]+$/.test(slug)) {
+      return res.status(400).json({ error: 'Slug must be lowercase letters, numbers and hyphens only' });
+    }
+    const conflict = await getStudioBySlug(slug);
+    if (conflict && conflict.id !== req.studioId) {
+      return res.status(409).json({ error: 'This slug is already taken' });
+    }
+    updates.slug = slug;
+  }
+
+  if (!Object.keys(updates).length) {
+    const studio = await getStudio(req.studioId);
+    return res.json({ id: studio.id, name: studio.name, slug: studio.slug, locale: studio.locale || null, country: studio.country || null, plan: studio.plan });
+  }
+
+  const updated = await updateStudio(req.studioId, updates);
+  try { await audit(req.studioId, req.userId, 'studio.updated', 'studio', req.studioId, { fields: Object.keys(updates) }); } catch {}
+  res.json({
+    id:      updated.id,
+    name:    updated.name,
+    slug:    updated.slug,
+    locale:  updated.locale  || null,
+    country: updated.country || null,
+    plan:    updated.plan,
+  });
 });
 
 export default router;

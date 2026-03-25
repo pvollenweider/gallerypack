@@ -95,9 +95,16 @@ export async function runJob(jobId) {
     await downloadVendors();
     const fontCss = await downloadFonts();
 
+    // For public galleries in a project, build to {project-slug}/{gallery-slug}/
+    // Private galleries keep their hash-based distName for security.
+    const galCfg = galleryToProjectConfig(gallery);
+    const distNameOverride = (gallery.project_slug && gallery.access !== 'password' && galCfg.private !== true)
+      ? `${gallery.project_slug}/${gallery.slug}`
+      : undefined;
+
     const result = await buildGallery(
       gallery.slug,
-      { build: buildCfg, project: galleryToProjectConfig(gallery) },
+      { build: buildCfg, project: galCfg, distName: distNameOverride },
       fontCss,
       {
         force:              !!job.force,
@@ -107,9 +114,23 @@ export async function runJob(jobId) {
     );
 
     // Verify artifact exists via storage adapter (works for both local and S3)
-    const manifestKey = `dist/${result?.distName || gallery.slug}/photos.json`;
-    const artifactOk  = await storage.exists(manifestKey);
+    const finalDistName = result?.distName || gallery.slug;
+    const manifestKey   = `dist/${finalDistName}/photos.json`;
+    const artifactOk    = await storage.exists(manifestKey);
     if (!artifactOk) throw new Error(`Build completed but manifest not found: ${manifestKey}`);
+
+    // Clean up old flat dist directory if the gallery moved to a project-scoped path
+    if (finalDistName !== gallery.slug) {
+      const oldDistDir = path.join(ROOT, 'dist', gallery.slug);
+      try {
+        if (fs.existsSync(oldDistDir)) {
+          fs.rmSync(oldDistDir, { recursive: true, force: true });
+          await appendEvent(jobId, 'log', `Removed old dist directory: dist/${gallery.slug}`);
+        }
+      } catch (e) {
+        await appendEvent(jobId, 'log', `Warning: could not remove old dist dir: ${e.message}`);
+      }
+    }
 
     // Persist artifact metadata back to the gallery row
     await query(
@@ -131,7 +152,7 @@ export async function runJob(jobId) {
         studioId:     gallery.studio_id,
         to:           gallery.author_email,
         galleryTitle: gallery.title || gallery.slug,
-        galleryUrl:   `${baseUrl}/${gallery.slug}/`,
+        galleryUrl:   `${baseUrl}/${result?.distName || gallery.slug}/`,
       });
     }
   } catch (err) {

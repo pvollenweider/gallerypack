@@ -176,8 +176,8 @@ router.post('/', async (req, res) => {
   } = req.body || {};
 
   if (!slug) return res.status(400).json({ error: 'slug is required' });
-  if (!/^[a-z0-9-]+$/.test(slug)) {
-    return res.status(400).json({ error: 'slug must be lowercase letters, numbers and hyphens only' });
+  if (!/^[a-z0-9-]+(\/[a-z0-9-]+)*$/.test(slug)) {
+    return res.status(400).json({ error: 'slug must be lowercase letters, numbers, hyphens and forward slashes only' });
   }
 
   const [existingRows] = await query(
@@ -260,8 +260,8 @@ router.patch('/:id', resolveGallery, async (req, res) => {
     updates[col] = boolCols.has(col) ? (val ? 1 : 0) : val;
   }
 
-  if (updates.password) {
-    updates.password_hash = hashPassword(updates.password);
+  if ('password' in updates) {
+    if (updates.password) updates.password_hash = hashPassword(updates.password);
     delete updates.password;
   }
   if (!Object.keys(updates).length) return res.json(await rowToGalleryAsync(req.gallery));
@@ -286,8 +286,8 @@ router.post('/:id/rename', resolveGallery, async (req, res) => {
   }
 
   const { slug } = req.body || {};
-  if (!slug || !/^[a-z0-9-]+$/.test(slug)) {
-    return res.status(400).json({ error: 'slug must be lowercase letters, numbers and hyphens only' });
+  if (!slug || !/^[a-z0-9-]+(\/[a-z0-9-]+)*$/.test(slug)) {
+    return res.status(400).json({ error: 'slug must be lowercase letters, numbers, hyphens and forward slashes only' });
   }
   const [conflictRows] = await query(
     'SELECT id FROM galleries WHERE studio_id = ? AND slug = ? AND id != ?',

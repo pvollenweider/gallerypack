@@ -22,8 +22,8 @@ import jobsRoutes        from './routes/jobs.js';
 import invitesRoutes     from './routes/invites.js';
 import invitationsRouter from './routes/invitations.js';
 import scopedInvitesRouter from './routes/scopedInvites.js';
-import publicRoutes, { getPublicGalleries } from './routes/public.js';
-import { renderLanding } from './views/landing.js';
+import publicRoutes, { getPublicGalleries, getCoverName, getPublicPhotoCount, getPublicDateRange } from './routes/public.js';
+import { renderLanding, renderProjectListing } from './views/landing.js';
 import settingsRoutes  from './routes/settings.js';
 import studiosRoutes   from './routes/studios.js';
 import projectsRoutes  from './routes/projects.js';
@@ -103,11 +103,64 @@ app.use('/api/platform',            platformRoutes);
 
 // ── Built galleries — static files (fallback when no reverse proxy in front) ──
 app.use(express.static(DIST_DIR, { index: 'index.html' }));
+
+// ── Shared vendor/fonts fallback for project-scoped galleries ─────────────────
+// Galleries at /{project}/{gallery}/ use relative ../vendor/ and ../fonts/ paths
+// which resolve to /{project}/vendor/ and /{project}/fonts/ — serve from dist root.
+app.use(/^\/[^/]+\/(vendor|fonts)(\/.*)?$/, (req, res, next) => {
+  const rel = req.path.replace(/^\/[^/]+/, ''); // strip leading /{project}
+  const file = path.join(DIST_DIR, rel);
+  if (fs.existsSync(file) && fs.statSync(file).isFile()) return res.sendFile(file);
+  next();
+});
 app.get(/^\/([^/]+)\/?$/, (req, res, next) => {
   const slug      = req.params[0];
   const indexHtml = path.join(DIST_DIR, slug, 'index.html');
   if (fs.existsSync(indexHtml)) return res.sendFile(indexHtml);
   next();
+});
+
+// ── Project gallery listing — /:projectSlug/ ─────────────────────────────────
+// Handles the back-button target from project-scoped gallery URLs.
+app.get(/^\/([^/]+)\/?$/, async (req, res, next) => {
+  const projectSlug = req.params[0];
+  // Only intercept if there's no built index.html at this path (handled earlier)
+  const indexHtml = path.join(DIST_DIR, projectSlug, 'index.html');
+  if (fs.existsSync(indexHtml)) return next();
+
+  const [projRows] = await query(
+    'SELECT id, name FROM projects WHERE slug = ? LIMIT 1',
+    [projectSlug]
+  );
+  const project = projRows[0];
+  if (!project) return next();
+
+  const [galRows] = await query(
+    `SELECT g.slug, g.title, g.date, g.location, g.cover_photo
+     FROM galleries g
+     WHERE g.project_id = ? AND g.access = 'public' AND g.build_status = 'done'
+     ORDER BY g.date DESC, g.created_at DESC`,
+    [project.id]
+  );
+
+  const galleries = await Promise.all(galRows.map(async g => {
+    const distSlug = `${projectSlug}/${g.slug}`;
+    const [coverName, photoCount, dateRange] = await Promise.all([
+      getCoverName(g, distSlug),
+      getPublicPhotoCount(g.slug),
+      getPublicDateRange(distSlug),
+    ]);
+    return { slug: g.slug, title: g.title, date: g.date, location: g.location, coverName, photoCount, dateRange };
+  }));
+
+  const [studioRows] = await query('SELECT id FROM studios LIMIT 1');
+  const settings = studioRows[0] ? await getSettings(studioRows[0].id) : null;
+  const siteTitle = settings?.site_title || 'GalleryPack';
+  const token = req.cookies?.session;
+  const isLoggedIn = token ? !!(await getSession(token)) : false;
+
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(renderProjectListing(projectSlug, project.name, galleries, siteTitle, isLoggedIn));
 });
 
 // ── Public gallery listing ────────────────────────────────────────────────────

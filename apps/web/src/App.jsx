@@ -1,20 +1,18 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './lib/auth.jsx';
 import { I18nProvider } from './lib/I18nContext.jsx';
-import Login        from './pages/Login.jsx';
-import Dashboard    from './pages/Dashboard.jsx';
-import GalleryDetail from './pages/GalleryDetail.jsx';
-import BuildStatus  from './pages/BuildStatus.jsx';
-import Settings     from './pages/Settings.jsx';
-import Team         from './pages/Team.jsx';
-import MemberProfile from './pages/MemberProfile.jsx';
-import Projects       from './pages/Projects.jsx';
-import Platform       from './pages/Platform.jsx';
-import AcceptInvite    from './pages/AcceptInvite.jsx';
-import ForgotPassword  from './pages/ForgotPassword.jsx';
-import ResetPassword   from './pages/ResetPassword.jsx';
-import MagicLogin      from './pages/MagicLogin.jsx';
-import { Footer }   from './components/Footer.jsx';
+import StudiosPage    from './pages/StudiosPage.jsx';
+import StudioHome     from './pages/StudioHome.jsx';
+import ProjectDetail  from './pages/ProjectDetail.jsx';
+import GalleryDetail  from './pages/GalleryDetail.jsx';
+import BuildStatus    from './pages/BuildStatus.jsx';
+import Settings       from './pages/Settings.jsx';
+import MemberProfile  from './pages/MemberProfile.jsx';
+import AcceptInvite   from './pages/AcceptInvite.jsx';
+import ForgotPassword from './pages/ForgotPassword.jsx';
+import ResetPassword  from './pages/ResetPassword.jsx';
+import MagicLogin     from './pages/MagicLogin.jsx';
+import { Footer }     from './components/Footer.jsx';
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth();
@@ -23,7 +21,6 @@ function RequireAuth({ children }) {
   return children;
 }
 
-// Wrap authenticated pages in a layout that includes the sticky footer
 function AuthLayout({ children }) {
   return (
     <RequireAuth>
@@ -35,24 +32,31 @@ function AuthLayout({ children }) {
   );
 }
 
+// Lazy import of Login to avoid circular deps with auth context
+import Login from './pages/Login.jsx';
+
 export default function App() {
   return (
     <I18nProvider>
     <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/" element={<AuthLayout><Dashboard /></AuthLayout>} />
-      <Route path="/galleries/:id" element={<AuthLayout><GalleryDetail /></AuthLayout>} />
-      <Route path="/jobs/:jobId"   element={<AuthLayout><BuildStatus /></AuthLayout>} />
-      <Route path="/settings"      element={<AuthLayout><Settings /></AuthLayout>} />
-      <Route path="/team"          element={<AuthLayout><Team /></AuthLayout>} />
-      <Route path="/team/:userId"  element={<AuthLayout><MemberProfile /></AuthLayout>} />
-      <Route path="/projects"      element={<AuthLayout><Projects /></AuthLayout>} />
-      <Route path="/platform"      element={<AuthLayout><Platform /></AuthLayout>} />
-      <Route path="/invite/:token"           element={<AcceptInvite />} />
-      <Route path="/forgot-password"          element={<ForgotPassword />} />
-      <Route path="/reset-password/:token"    element={<ResetPassword />} />
-      <Route path="/magic-login/:token"       element={<MagicLogin />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="/login"                       element={<Login />} />
+      {/* Studios list — main entry point */}
+      <Route path="/"                            element={<AuthLayout><StudiosPage /></AuthLayout>} />
+      {/* Studio home — projects + team */}
+      <Route path="/studio"                      element={<AuthLayout><StudioHome /></AuthLayout>} />
+      {/* Project detail — galleries */}
+      <Route path="/projects/:id"                element={<AuthLayout><ProjectDetail /></AuthLayout>} />
+      {/* Gallery detail */}
+      <Route path="/galleries/:id"               element={<AuthLayout><GalleryDetail /></AuthLayout>} />
+      <Route path="/jobs/:jobId"                 element={<AuthLayout><BuildStatus /></AuthLayout>} />
+      <Route path="/settings"                    element={<AuthLayout><Settings /></AuthLayout>} />
+      <Route path="/team/:userId"                element={<AuthLayout><MemberProfile /></AuthLayout>} />
+      {/* Public / unauthenticated */}
+      <Route path="/invite/:token"               element={<AcceptInvite />} />
+      <Route path="/forgot-password"             element={<ForgotPassword />} />
+      <Route path="/reset-password/:token"       element={<ResetPassword />} />
+      <Route path="/magic-login/:token"          element={<MagicLogin />} />
+      <Route path="*"                            element={<Navigate to="/" replace />} />
     </Routes>
     </I18nProvider>
   );

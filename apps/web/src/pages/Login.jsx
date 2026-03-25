@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../lib/auth.jsx';
+import { api } from '../lib/api.js';
 import { useT } from '../lib/I18nContext.jsx';
 
 export default function Login() {
@@ -17,8 +18,13 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
-      await login(email, password);
-      navigate('/');
+      const user = await login(email, password);
+      if (user?.role === 'photographer') {
+        const galleries = await api.myGalleries().catch(() => []);
+        navigate(galleries[0] ? `/galleries/${galleries[0].id}` : '/');
+      } else {
+        navigate('/');
+      }
     } catch (err) {
       setError(err.message || t('login_failed'));
     } finally {

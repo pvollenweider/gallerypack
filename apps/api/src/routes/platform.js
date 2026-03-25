@@ -4,9 +4,9 @@ import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import {
   listAllStudios, getStudio, createStudio, updateStudio, deleteStudio,
-  createUser, getUserByEmail, hashPassword, upsertStudioMembership,
-  getStudioBySlug,
+  getStudioBySlug, createInvitation, getSettings,
 } from '../db/helpers.js';
+import { sendInviteEmail } from '../services/email.js';
 import { query } from '../db/database.js';
 
 const router = Router();
@@ -45,9 +45,9 @@ router.get('/studios', async (req, res) => {
   res.json(studios);
 });
 
-// POST /api/platform/studios — create a new studio + optional first owner
+// POST /api/platform/studios — create a new studio + optional owner invitation
 router.post('/studios', async (req, res) => {
-  const { name, slug, plan = 'free', ownerEmail, ownerPassword, ownerName } = req.body || {};
+  const { name, slug, plan = 'free', ownerEmail } = req.body || {};
   if (!name) return res.status(400).json({ error: 'name is required' });
   if (!slug)  return res.status(400).json({ error: 'slug is required' });
   if (!/^[a-z0-9-]+$/.test(slug))
@@ -58,22 +58,26 @@ router.post('/studios', async (req, res) => {
 
   const studio = await createStudio({ name, slug, plan });
 
-  let owner = null;
+  let inviteToken = null;
   if (ownerEmail) {
-    if (!ownerPassword || ownerPassword.length < 8)
-      return res.status(400).json({ error: 'ownerPassword must be at least 8 characters' });
-    const existingUser = await getUserByEmail(ownerEmail);
-    owner = existingUser || await createUser({
-      studioId:     studio.id,
-      email:        ownerEmail,
-      passwordHash: hashPassword(ownerPassword),
-      role:         'admin',
-      name:         ownerName || ownerEmail,
-    });
-    await upsertStudioMembership(studio.id, owner.id, 'owner');
+    // Create an invitation — the owner sets their own password via the invite link
+    const invitation = await createInvitation(studio.id, ownerEmail, 'owner', req.userId);
+    inviteToken = invitation.token;
+
+    // Send invite email (fire-and-forget)
+    try {
+      const s = await getSettings(studio.id);
+      const base = (s?.base_url || process.env.BASE_URL || 'http://localhost:4000').replace(/\/$/, '');
+      sendInviteEmail({
+        studioId:   studio.id,
+        to:         ownerEmail,
+        studioName: studio.name,
+        inviteUrl:  `${base}/admin/invite/${inviteToken}`,
+      });
+    } catch {}
   }
 
-  res.status(201).json({ ...studio, owner: owner ? { id: owner.id, email: owner.email } : null });
+  res.status(201).json({ ...studio, inviteToken, ownerEmail: ownerEmail || null });
 });
 
 // PATCH /api/platform/studios/:id

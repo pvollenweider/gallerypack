@@ -10,9 +10,9 @@ const fileStorage = createStorage();
 
 const IMG_EXTS = new Set(['.jpg','.jpeg','.png','.tiff','.tif','.heic','.heif','.avif']);
 
-async function getPublicDateRange(slug) {
+export async function getPublicDateRange(distSlug) {
   try {
-    const buf = await fileStorage.read(`dist/${slug}/photos.json`);
+    const buf = await fileStorage.read(`dist/${distSlug}/photos.json`);
     const manifest = JSON.parse(buf.toString('utf8'));
     const dates = Object.values(manifest.photos || {})
       .map(p => p.exif?.date).filter(Boolean).map(d => new Date(d)).sort((a, b) => a - b);
@@ -21,9 +21,9 @@ async function getPublicDateRange(slug) {
   } catch { return null; }
 }
 
-function getPublicPhotoCount(slug) {
+export function getPublicPhotoCount(srcSlug) {
   try {
-    const dir = path.join(ROOT, 'src', slug, 'photos');
+    const dir = path.join(ROOT, 'src', srcSlug, 'photos');
     if (!fs.existsSync(dir)) return 0;
     return fs.readdirSync(dir).filter(f => IMG_EXTS.has(path.extname(f).toLowerCase())).length;
   } catch { return 0; }
@@ -58,9 +58,10 @@ router.get('/galleries', async (req, res) => {
   res.json(await getPublicGalleries());
 });
 
-async function getCoverName(row) {
+export async function getCoverName(row, distSlug) {
+  const slug = distSlug || row.slug;
   try {
-    const buf = await fileStorage.read(`dist/${row.slug}/photos.json`);
+    const buf = await fileStorage.read(`dist/${slug}/photos.json`);
     const manifest = JSON.parse(buf.toString('utf8'));
     const photos = manifest.photos || {};
     if (row.cover_photo && photos[row.cover_photo]) return photos[row.cover_photo].name;
