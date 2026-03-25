@@ -63,7 +63,7 @@ export default function Dashboard() {
   }
 
   const previewSlug = newTitle.trim() ? slugify(newTitle.trim()) : '';
-  const CAN_CREATE_ROLES = ['editor', 'admin', 'owner'];
+  const CAN_CREATE_ROLES = ['collaborator', 'admin', 'owner'];
   const canCreate = CAN_CREATE_ROLES.includes(user?.studioRole);
 
   const FILTER_ICONS = {
@@ -87,7 +87,9 @@ export default function Dashboard() {
         <div style={s.headerRight}>
           <span style={s.userLabel}>{user?.email}</span>
           <a href="/" target="_blank" rel="noreferrer" style={s.outlineBtn}>{t('public_site')}</a>
+          {['admin','owner'].includes(user?.studioRole) && <Link to="/projects" style={s.outlineBtn}>{t('nav_projects')}</Link>}
           {['admin','owner'].includes(user?.studioRole) && <Link to="/team" style={s.outlineBtn}>{t('nav_team')}</Link>}
+          {user?.platformRole === 'superadmin' && <Link to="/platform" style={{ ...s.outlineBtn, borderColor: '#7c3aed', color: '#7c3aed' }}>{t('nav_platform')}</Link>}
           <Link to="/settings" style={s.outlineBtn}>{t('settings')}</Link>
           <button style={s.outlineBtn} onClick={logout}>{t('sign_out')}</button>
         </div>

@@ -69,7 +69,7 @@ router.get('/me', async (req, res) => {
   const user = await getUserById(session.user_id);
   if (!user) return res.status(401).json({ error: 'User not found' });
   const studioRole = user.studio_id ? await getStudioRole(user.id, user.studio_id) : null;
-  res.json({ id: user.id, email: user.email, role: user.role, name: user.name, studioId: user.studio_id, studioRole, locale: user.locale || null });
+  res.json({ id: user.id, email: user.email, role: user.role, name: user.name, studioId: user.studio_id, studioRole, locale: user.locale || null, platformRole: user.platform_role || null });
 });
 
 // PATCH /api/auth/me — update own profile (name, password, locale)
@@ -99,7 +99,7 @@ router.patch('/me', requireAuth, async (req, res) => {
 
   const updated    = await getUserById(req.userId);
   const studioRole = updated.studio_id ? await getStudioRole(updated.id, updated.studio_id) : null;
-  res.json({ id: updated.id, email: updated.email, role: updated.role, name: updated.name, studioId: updated.studio_id, studioRole, locale: updated.locale || null });
+  res.json({ id: updated.id, email: updated.email, role: updated.role, name: updated.name, studioId: updated.studio_id, studioRole, locale: updated.locale || null, platformRole: updated.platform_role || null });
 });
 
 // GET /api/auth/me/galleries — list galleries the current user has explicit access to

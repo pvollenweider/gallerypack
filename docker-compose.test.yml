@@ -1,19 +1,44 @@
 name: gallerypack-test
 
 services:
+  db:
+    image: mariadb:11
+    restart: "no"
+    volumes:
+      - db_test_data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: "testroot"
+      MYSQL_DATABASE:      "gallerypack"
+      MYSQL_USER:          "gallerypack"
+      MYSQL_PASSWORD:      "testpass"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
   api:
     build:
       context: .
       dockerfile: Dockerfile.api
     restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
     volumes:
-      - /tmp/gallerypack-test/data:/app/data
       - /tmp/gallerypack-test/src:/app/src
       - /tmp/gallerypack-test/dist:/app/dist
     environment:
       PORT:           "4000"
       NODE_ENV:       "production"
-      DATA_DIR:       "/app/data"
+      PLATFORM_MODE:  "single"
+      DB_HOST:        "db"
+      DB_PORT:        "3306"
+      DB_NAME:        "gallerypack"
+      DB_USER:        "gallerypack"
+      DB_PASS:        "testpass"
+      ADMIN_EMAIL:    "admin@localhost"
       ADMIN_PASSWORD: "test1234"
       SESSION_SECRET: "test-secret-not-for-production"
       BASE_URL:       "http://localhost:4001"
@@ -23,7 +48,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 15s
+      start_period: 20s
 
   worker:
     build:
@@ -34,13 +59,16 @@ services:
       api:
         condition: service_healthy
     volumes:
-      - /tmp/gallerypack-test/data:/app/data
       - /tmp/gallerypack-test/src:/app/src
       - /tmp/gallerypack-test/dist:/app/dist
     environment:
-      NODE_ENV: "production"
-      DATA_DIR: "/app/data"
-      BASE_URL: "http://localhost:4001"
+      NODE_ENV:  "production"
+      DB_HOST:   "db"
+      DB_PORT:   "3306"
+      DB_NAME:   "gallerypack"
+      DB_USER:   "gallerypack"
+      DB_PASS:   "testpass"
+      BASE_URL:  "http://localhost:4001"
 
   proxy:
     image: caddy:2-alpine
@@ -50,8 +78,14 @@ services:
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - /tmp/gallerypack-test/dist:/srv/galleries:ro
-      - /tmp/gallerypack-test-caddy:/data
+      - caddy_test_data:/data
+      - caddy_test_config:/config
     environment:
       DOMAIN: "http://localhost"
     depends_on:
       - api
+
+volumes:
+  db_test_data:
+  caddy_test_data:
+  caddy_test_config:

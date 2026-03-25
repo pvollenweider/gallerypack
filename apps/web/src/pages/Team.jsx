@@ -4,8 +4,8 @@ import { api } from '../lib/api.js';
 import { useT } from '../lib/I18nContext.jsx';
 import { Toast } from '../components/Toast.jsx';
 
-const STUDIO_ROLES = ['photographer', 'editor', 'admin', 'owner'];
-const ROLE_COLORS  = { owner: '#7c3aed', admin: '#2563eb', editor: '#0891b2', photographer: '#059669' };
+const STUDIO_ROLES = ['photographer', 'collaborator', 'admin', 'owner'];
+const ROLE_COLORS  = { owner: '#7c3aed', admin: '#2563eb', collaborator: '#0891b2', photographer: '#059669' };
 const GALLERY_ROLE_COLORS = { viewer: '#888', contributor: '#059669', editor: '#0891b2' };
 
 export default function Team() {
@@ -16,7 +16,7 @@ export default function Team() {
   const [toast,       setToast]       = useState('');
 
   const [invEmail,   setInvEmail]   = useState('');
-  const [invRole,    setInvRole]    = useState('editor');
+  const [invRole,    setInvRole]    = useState('collaborator');
   const [inviting,   setInviting]   = useState(false);
   const [inviteLink, setInviteLink] = useState('');
 
@@ -98,13 +98,13 @@ export default function Team() {
 
   const STUDIO_ROLE_LABELS = {
     photographer: t('role_photographer'),
-    editor:       t('role_editor'),
+    collaborator: t('role_collaborator'),
     admin:        t('role_admin'),
     owner:        t('role_owner'),
   };
   const STUDIO_ROLE_DESC = {
     photographer: t('role_photographer_desc'),
-    editor:       t('role_editor_desc'),
+    collaborator: t('role_collaborator_desc'),
     admin:        t('role_admin_desc'),
     owner:        t('role_owner_desc'),
   };
@@ -238,7 +238,7 @@ export default function Team() {
               />
               <div style={{ flex:'none' }}>
                 <select style={{ ...s.input, width: 155 }} value={invRole} onChange={e => setInvRole(e.target.value)}>
-                  {['editor', 'admin', 'owner'].map(r => (
+                  {['collaborator', 'admin', 'owner'].map(r => (
                     <option key={r} value={r}>{STUDIO_ROLE_LABELS[r]}</option>
                   ))}
                 </select>
