@@ -3,7 +3,7 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import {
-  listAllStudios, getStudio, createStudio, updateStudio, deleteStudio,
+  listAllStudios, getStudio, createStudio, updateStudio, deleteStudio, setDefaultStudio,
   getStudioBySlug, createInvitation, getSettings,
 } from '../db/helpers.js';
 import { sendInviteEmail } from '../services/email.js';
@@ -93,6 +93,14 @@ router.patch('/studios/:id', async (req, res) => {
   }
 
   const updated = await updateStudio(req.params.id, { name, slug, plan });
+  res.json(updated);
+});
+
+// POST /api/platform/studios/:id/set-default
+router.post('/studios/:id/set-default', async (req, res) => {
+  const studio = await getStudio(req.params.id);
+  if (!studio) return res.status(404).json({ error: 'Studio not found' });
+  const updated = await setDefaultStudio(req.params.id);
   res.json(updated);
 });
 

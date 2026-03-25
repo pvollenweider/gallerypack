@@ -98,6 +98,7 @@ export const api = {
   createPlatformStudio: (data)        => req('POST',   '/platform/studios', data),
   updatePlatformStudio: (id, data)    => req('PATCH',  `/platform/studios/${id}`, data),
   deletePlatformStudio: (id)          => req('DELETE', `/platform/studios/${id}`),
+  setDefaultStudio:     (id)          => req('POST',   `/platform/studios/${id}/set-default`),
   switchStudio:         (studioId)    => req('POST',   `/platform/switch/${studioId}`),
   exitStudioSwitch:     ()            => req('DELETE', '/platform/switch'),
   listPlatformUsers:    ()            => req('GET',    '/platform/users'),

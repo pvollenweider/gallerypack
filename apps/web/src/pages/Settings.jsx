@@ -25,12 +25,15 @@ export default function Settings() {
   const [currentSlug,   setCurrentSlug]   = useState('');
   const [studioSaving,  setStudioSaving]  = useState(false);
   const [slugSaving,    setSlugSaving]    = useState(false);
+  const [isDefault,     setIsDefault]     = useState(false);
+  const [settingDefault, setSettingDefault] = useState(false);
 
   useEffect(() => {
     api.getMyStudio().then(s => {
       setStudioForm({ name: s.name || '', locale: s.locale || '', country: s.country || '' });
       setSlugForm(s.slug || '');
       setCurrentSlug(s.slug || '');
+      setIsDefault(!!s.is_default);
     }).catch(() => {});
   }, []);
 
@@ -154,7 +157,7 @@ export default function Settings() {
           </button>
         </form>
 
-        {/* ── Danger zone — slug rename (owner/superadmin only) ── */}
+        {/* ── Danger zone — slug rename + set default (owner/superadmin only) ── */}
         {isOwner && (
           <form onSubmit={handleSlugRename} style={{ ...s.form, marginBottom: '2rem' }}>
             <Section label={t('section_danger')}>
@@ -173,6 +176,33 @@ export default function Settings() {
               {slugSaving ? t('saving') : t('field_studio_slug')}
             </button>
           </form>
+        )}
+
+        {/* ── Set as default studio (superadmin only, non-default studios) ── */}
+        {user?.platformRole === 'superadmin' && !isDefault && (
+          <div style={{ ...s.form, marginBottom: '2rem' }}>
+            <Section label={t('section_platform')}>
+              <p style={{ fontSize: '0.85rem', color: '#555', margin: '0 0 0.75rem' }}>
+                {t('studio_set_default_hint')}
+              </p>
+              <button
+                style={{ ...s.btn, background: '#2563eb', alignSelf: 'flex-start' }}
+                disabled={settingDefault}
+                onClick={async () => {
+                  setSettingDefault(true);
+                  try {
+                    await api.setDefaultStudio(user.studioId);
+                    setIsDefault(true);
+                    setToast(t('studios_toast_set_default'));
+                  } catch (e) { setToast(e.message); }
+                  finally { setSettingDefault(false); }
+                }}
+                type="button"
+              >
+                {settingDefault ? t('saving') : t('studios_set_default')}
+              </button>
+            </Section>
+          </div>
         )}
 
         <form onSubmit={handleSave} style={s.form}>

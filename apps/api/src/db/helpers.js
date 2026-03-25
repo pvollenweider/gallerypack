@@ -65,6 +65,12 @@ export async function deleteStudio(id) {
   await query('DELETE FROM studios WHERE id = ?', [id]);
 }
 
+export async function setDefaultStudio(id) {
+  await query('UPDATE studios SET is_default = 0');
+  await query('UPDATE studios SET is_default = 1 WHERE id = ?', [id]);
+  return getStudio(id);
+}
+
 export async function createStudio({ name, slug, plan = 'free', isDefault = false }) {
   const id  = genId();
   const now = Date.now();
