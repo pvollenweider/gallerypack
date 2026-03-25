@@ -109,8 +109,8 @@ app.get(/^\/([^/]+)\/?$/, (req, res, next) => {
 });
 
 // ── Public gallery listing (served when Caddy falls back for missing /index.html) ──
-app.get('/', (req, res) => {
-  const galleries  = getPublicGalleries();
+app.get('/', async (req, res) => {
+  const galleries  = await getPublicGalleries();
   const studioRow  = getDb().prepare('SELECT id FROM studios LIMIT 1').get();
   const settings   = studioRow ? getSettings(studioRow.id) : null;
   const siteTitle  = settings?.site_title || 'GalleryPack';

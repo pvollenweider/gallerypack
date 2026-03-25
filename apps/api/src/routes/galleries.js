@@ -8,6 +8,9 @@ import { requireAdmin, requireStudioRole, requireAuth } from '../middleware/auth
 import { sendPhotosReadyEmail } from '../services/email.js';
 import { can } from '../authorization/index.js';
 import { ROOT } from '../../../../packages/engine/src/fs.js';
+import { createStorage } from '../../../../packages/shared/src/storage/index.js';
+
+const fileStorage = createStorage();
 
 const IMG_EXTS = new Set(['.jpg','.jpeg','.png','.tiff','.tif','.heic','.heif','.avif']);
 
@@ -55,9 +58,10 @@ function getDiskSize(slug) {
   return total;
 }
 
-function getDateRange(slug) {
+async function getDateRange(slug) {
   try {
-    const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'dist', slug, 'photos.json'), 'utf8'));
+    const buf = await fileStorage.read(`dist/${slug}/photos.json`);
+    const manifest = JSON.parse(buf.toString('utf8'));
     const dates = Object.values(manifest.photos || {})
       .map(p => p.exif?.date).filter(Boolean).map(d => new Date(d)).sort((a, b) => a - b);
     if (!dates.length) return null;
@@ -70,7 +74,7 @@ router.use(requireAuth);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function rowToGallery(row) {
+function rowToGallery(row, { dateRange = null } = {}) {
   if (!row) return null;
   return {
     id:                   row.id,
@@ -97,25 +101,31 @@ function rowToGallery(row) {
     updatedAt:            row.updated_at,
     description:          row.description,
     firstPhoto:           row.cover_photo || getFirstPhoto(row.slug),
-    dateRange:            row.build_status === 'done' ? getDateRange(row.slug) : null,
+    dateRange,                                      // pre-fetched via storage adapter
     needsRebuild:         row.needs_rebuild === 1 || getNeedsRebuild(row),
     photoCount:           getPhotoCount(row.slug),
     diskSize:             getDiskSize(row.slug),
   };
 }
 
+/** rowToGallery with async dateRange fetch via storage adapter. */
+async function rowToGalleryAsync(row) {
+  const dateRange = row.build_status === 'done' ? await getDateRange(row.slug) : null;
+  return rowToGallery(row, { dateRange });
+}
+
 // ── Routes ────────────────────────────────────────────────────────────────────
 
 // GET /api/galleries
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   const rows = getDb()
     .prepare('SELECT * FROM galleries WHERE studio_id = ? ORDER BY created_at DESC')
     .all(req.studioId);
-  res.json(rows.map(rowToGallery));
+  res.json(await Promise.all(rows.map(rowToGalleryAsync)));
 });
 
 // GET /api/galleries/:id
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   const row = getDb()
     .prepare('SELECT * FROM galleries WHERE id = ? AND studio_id = ?')
     .get(req.params.id, req.studioId);
@@ -124,11 +134,11 @@ router.get('/:id', (req, res) => {
   if (!can(req.user, 'read', 'gallery', { gallery: row, studioRole: req.studioRole, galleryRole })) {
     return res.status(403).json({ error: 'Forbidden' });
   }
-  res.json(rowToGallery(row));
+  res.json(await rowToGalleryAsync(row));
 });
 
 // POST /api/galleries
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   if (!can(req.user, 'publish', 'gallery', { studioRole: req.studioRole })) {
     return res.status(403).json({ error: 'Forbidden' });
   }
@@ -179,11 +189,11 @@ router.post('/', (req, res) => {
 
   const row = getDb().prepare('SELECT * FROM galleries WHERE id = ?').get(id);
   try { audit(req.studioId, req.userId, 'gallery.create', 'gallery', id, { slug }); } catch {}
-  res.status(201).json(rowToGallery(row));
+  res.status(201).json(await rowToGalleryAsync(row));
 });
 
 // PATCH /api/galleries/:id
-router.patch('/:id', (req, res) => {
+router.patch('/:id', async (req, res) => {
   const row = getDb()
     .prepare('SELECT * FROM galleries WHERE id = ? AND studio_id = ?')
     .get(req.params.id, req.studioId);
@@ -230,7 +240,7 @@ router.patch('/:id', (req, res) => {
     updates.private = updates.access === 'public' ? 0 : 1;
   }
 
-  if (!Object.keys(updates).length) return res.json(rowToGallery(row));
+  if (!Object.keys(updates).length) return res.json(await rowToGalleryAsync(row));
 
   updates.updated_at = Date.now();
   updates.needs_rebuild = 1;
@@ -239,11 +249,11 @@ router.patch('/:id', (req, res) => {
   getDb().prepare(`UPDATE galleries SET ${sets} WHERE id = ?`).run(...vals);
 
   const updated = getDb().prepare('SELECT * FROM galleries WHERE id = ?').get(req.params.id);
-  res.json(rowToGallery(updated));
+  res.json(await rowToGalleryAsync(updated));
 });
 
 // POST /api/galleries/:id/rename — rename slug (renames folder on disk)
-router.post('/:id/rename', (req, res) => {
+router.post('/:id/rename', async (req, res) => {
   const row = getDb()
     .prepare('SELECT * FROM galleries WHERE id = ? AND studio_id = ?')
     .get(req.params.id, req.studioId);
@@ -275,7 +285,7 @@ router.post('/:id/rename', (req, res) => {
     .run(slug, Date.now(), req.params.id);
 
   const updated = getDb().prepare('SELECT * FROM galleries WHERE id = ?').get(req.params.id);
-  res.json(rowToGallery(updated));
+  res.json(await rowToGalleryAsync(updated));
 });
 
 // DELETE /api/galleries/:id — removes from DB only, keeps built files on disk

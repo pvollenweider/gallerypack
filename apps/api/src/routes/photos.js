@@ -108,12 +108,25 @@ router.get('/:id/photos', async (req, res) => {
   const allFiles = fs.readdirSync(dir)
     .filter(f => EXTS.has(path.extname(f).toLowerCase()));
 
-  // Apply saved order from photo_order.json
-  const orderFile = path.join(ROOT, 'src', gallery.slug, 'photo_order.json');
+  // Apply saved order from DB (photo_order column).
+  // Lazy migration: if DB column is NULL but legacy file exists, import once then remove file.
   let savedOrder = null;
-  try {
-    if (fs.existsSync(orderFile)) savedOrder = JSON.parse(fs.readFileSync(orderFile, 'utf8'));
-  } catch {}
+  const galleryRow = getDb().prepare('SELECT photo_order FROM galleries WHERE id = ?').get(gallery.id);
+  if (galleryRow?.photo_order) {
+    try { savedOrder = JSON.parse(galleryRow.photo_order); } catch {}
+  } else {
+    // Legacy fallback — read from disk and migrate to DB
+    const orderFile = path.join(ROOT, 'src', gallery.slug, 'photo_order.json');
+    try {
+      if (fs.existsSync(orderFile)) {
+        savedOrder = JSON.parse(fs.readFileSync(orderFile, 'utf8'));
+        // Persist to DB and delete sidecar file
+        getDb().prepare('UPDATE galleries SET photo_order = ? WHERE id = ?')
+          .run(JSON.stringify(savedOrder), gallery.id);
+        try { fs.unlinkSync(orderFile); } catch {}
+      }
+    } catch {}
+  }
 
   let sortedNames;
   if (savedOrder && Array.isArray(savedOrder)) {
@@ -216,15 +229,10 @@ router.put('/:id/photos/order', (req, res) => {
   const { order } = req.body || {};
   if (!Array.isArray(order)) return res.status(400).json({ error: 'order must be an array of filenames' });
 
-  // Persist the order as photo_order.json in the gallery source directory
-  const galleryDir = path.join(ROOT, 'src', gallery.slug);
-  fs.mkdirSync(galleryDir, { recursive: true });
-  const orderFile = path.join(galleryDir, 'photo_order.json');
-  fs.writeFileSync(orderFile, JSON.stringify(order.map(f => path.basename(f))));
-
-  // Mark gallery as needing rebuild and update cover_photo to first photo
-  getDb().prepare('UPDATE galleries SET cover_photo = ?, needs_rebuild = 1, updated_at = ? WHERE id = ?')
-    .run(order[0] ? path.basename(order[0]) : null, Date.now(), req.params.id);
+  // Persist the order in the DB (photo_order column) — no sidecar file
+  const cleanOrder = order.map(f => path.basename(f));
+  getDb().prepare('UPDATE galleries SET photo_order = ?, cover_photo = ?, needs_rebuild = 1, updated_at = ? WHERE id = ?')
+    .run(JSON.stringify(cleanOrder), cleanOrder[0] || null, Date.now(), req.params.id);
 
   res.json({ ok: true });
 });
