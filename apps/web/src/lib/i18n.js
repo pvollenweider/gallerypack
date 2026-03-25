@@ -289,7 +289,9 @@ export const translations = {
     reset_submit: 'Reset password',
 
     // Magic login
-    magic_loading: 'Logging in…',
+    magic_loading:      'Logging in…',
+    magic_confirm_btn:  'Log in',
+    magic_request_new:  'Request a new link',
   },
 
   fr: {
@@ -556,7 +558,9 @@ export const translations = {
     reset_confirm_placeholder: 'Confirmer le mot de passe',
     reset_submit: 'Réinitialiser le mot de passe',
 
-    magic_loading: 'Connexion en cours…',
+    magic_loading:     'Connexion en cours…',
+    magic_confirm_btn: 'Me connecter',
+    magic_request_new: 'Demander un nouveau lien',
   },
 
   de: {

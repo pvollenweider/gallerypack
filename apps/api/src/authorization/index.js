@@ -1,4 +1,13 @@
 // apps/api/src/authorization/index.js — centralized authorization engine
+//
+// Permission model (Option A — documented decision):
+//   Any studio member can read any gallery in their studio.
+//   Write/publish/delete/upload are restricted by role.
+//
+// Studio roles (ascending): photographer < editor < admin < owner
+// Gallery roles (ascending): viewer < contributor < editor
+//
+// See docs/permissions.md for the full matrix.
 
 const STUDIO_ROLES  = ['photographer', 'editor', 'admin', 'owner'];
 const GALLERY_ROLES = ['viewer', 'contributor', 'editor'];
@@ -6,22 +15,15 @@ const GALLERY_ROLES = ['viewer', 'contributor', 'editor'];
 /**
  * Determine whether a gallery is publicly accessible.
  * The `access` column is canonical; falls back to `!private` for legacy rows.
- * @param {object} gallery
- * @returns {boolean}
  */
 function isPublic(gallery) {
   if (gallery.access !== undefined) return gallery.access === 'public';
-  return !gallery.private;
+  return !gallery.private; // TODO(#63): remove once all rows have access column
 }
 
 function hasStudioRole(studioRole, minRole) {
   if (!studioRole) return false;
   return STUDIO_ROLES.indexOf(studioRole) >= STUDIO_ROLES.indexOf(minRole);
-}
-
-function hasGalleryRole(galleryRole, minRole) {
-  if (!galleryRole) return false;
-  return GALLERY_ROLES.indexOf(galleryRole) >= GALLERY_ROLES.indexOf(minRole);
 }
 
 function isValidStudioRole(role) {
@@ -36,9 +38,9 @@ function isValidGalleryRole(role) {
  * Centralized authorization check.
  *
  * @param {object} user     - The request user object ({ id, studio_id, role })
- * @param {string} action   - 'read' | 'write' | 'delete' | 'manage' | 'publish' | 'upload'
+ * @param {string} action   - 'read' | 'write' | 'delete' | 'manage' | 'publish' | 'upload' | 'notify'
  * @param {string} resource - 'gallery' | 'photo' | 'studio' | 'member'
- * @param {object} context  - Extra info: { gallery, studioRole, galleryRole, viewerToken? }
+ * @param {object} context  - { gallery?, studioRole?, galleryRole?, viewerToken? }
  * @returns {boolean}
  */
 export function can(user, action, resource, context = {}) {
@@ -59,8 +61,8 @@ export function can(user, action, resource, context = {}) {
   if (resource === 'gallery' && action === 'read') {
     if (!gallery) return false;
     if (isPublic(gallery)) return true;
-    if (viewerToken) return true;  // valid viewer token grants read-only access
-    if (isValidStudioRole(studioRole)) return true;
+    if (viewerToken) return true;           // viewer link grants read-only
+    if (isValidStudioRole(studioRole)) return true; // Option A: any studio member reads all galleries
     if (isValidGalleryRole(galleryRole)) return true;
     return false;
   }
@@ -76,14 +78,23 @@ export function can(user, action, resource, context = {}) {
   }
 
   if (resource === 'gallery' && action === 'publish') {
-    return hasStudioRole(studioRole, 'editor');
+    if (hasStudioRole(studioRole, 'editor')) return true;
+    if (galleryRole === 'editor') return true; // gallery editor can trigger builds
+    return false;
+  }
+
+  // notify = photographer signals "photos are ready" to studio admins
+  if (resource === 'gallery' && action === 'notify') {
+    if (galleryRole === 'contributor' || galleryRole === 'editor') return true;
+    if (isValidStudioRole(studioRole)) return true; // studio members can also notify
+    return false;
   }
 
   // ── Photo-level actions ─────────────────────────────────────────────────────
 
   if (resource === 'photo' && action === 'upload') {
-    if (hasStudioRole(studioRole, 'editor')) return true;  // editor/admin/owner → anywhere
-    if (galleryRole === 'contributor' || galleryRole === 'editor') return true;  // photographer → only where granted
+    if (hasStudioRole(studioRole, 'editor')) return true;
+    if (galleryRole === 'contributor' || galleryRole === 'editor') return true;
     return false;
   }
 

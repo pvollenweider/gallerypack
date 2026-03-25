@@ -15,7 +15,7 @@ router.post('/', requireAuth, (req, res) => {
   const { galleryId, email, label, expiresIn, singleUse } = req.body;
 
   const invite = createInvite({
-    studioId:  req.user.studioId,
+    studioId:  req.studioId,
     galleryId: galleryId || null,
     email:     email     || null,
     label:     label     || null,
@@ -25,13 +25,13 @@ router.post('/', requireAuth, (req, res) => {
 
   // Send invite email if an address was provided
   if (invite.email) {
-    const studio = getStudio(req.user.studioId);
+    const studio = getStudio(req.studioId);
     const gallery = invite.gallery_id
       ? getDb().prepare('SELECT title, slug FROM galleries WHERE id = ?').get(invite.gallery_id)
       : null;
     const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 4000}`;
     sendInviteEmail({
-      studioId:     req.user.studioId,
+      studioId:     req.studioId,
       to:           invite.email,
       studioName:   studio?.name || 'GalleryPack',
       galleryTitle: gallery?.title || null,
@@ -45,7 +45,7 @@ router.post('/', requireAuth, (req, res) => {
 
 // ── GET /api/invites — list invites for studio ────────────────────────────────
 router.get('/', requireAuth, (req, res) => {
-  const invites = listInvites(req.user.studioId);
+  const invites = listInvites(req.studioId);
   res.json(invites.map(sanitize));
 });
 
@@ -86,7 +86,7 @@ router.post('/:id/revoke', requireAuth, (req, res) => {
   const invite = getInviteById(req.params.id);
 
   if (!invite) return res.status(404).json({ error: 'Invite not found' });
-  if (invite.studio_id !== req.user.studioId) return res.status(403).json({ error: 'Forbidden' });
+  if (invite.studio_id !== req.studioId) return res.status(403).json({ error: 'Forbidden' });
 
   revokeInvite(invite.id);
   res.json({ ok: true });

@@ -77,21 +77,13 @@ export function resolveViewerToken(req, res, next) {
 }
 
 /**
- * Require admin access.
- * A user qualifies as admin if their studio membership role is 'owner' or 'admin'.
- * Falls back to checking the legacy users.role column for backward compat.
+ * Require admin access (owner or admin studio role).
  */
 export function requireAdmin(req, res, next) {
   requireAuth(req, res, () => {
-    const studioRole = req.studioRole;
-    const legacyRole = req.user?.role;
-
-    const isAdmin =
-      studioRole === 'owner' ||
-      studioRole === 'admin' ||
-      legacyRole === 'admin'; // backward compat for existing sessions pre-memberships
-
-    if (!isAdmin) return res.status(403).json({ error: 'Forbidden' });
+    if (req.studioRole !== 'owner' && req.studioRole !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     next();
   });
 }
