@@ -164,7 +164,7 @@ const s = {
   center:      { padding: '3rem', textAlign: 'center', color: '#888' },
   pageTitle:   { margin: '0 0 1.5rem', fontSize: '1.4rem', fontWeight: 600, color: '#eee' },
   section:     { marginBottom: '2rem' },
-  sectionTitle:{ margin: '0 0 0.75rem', fontSize: '1rem', fontWeight: 600, color: '#ccc', textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.8rem' },
+  sectionTitle:{ margin: '0 0 0.75rem', fontSize: '0.8rem', fontWeight: 600, color: '#ccc', textTransform: 'uppercase', letterSpacing: '0.05em' },
   statRow:     { display: 'flex', gap: '1rem', flexWrap: 'wrap' },
   stat:        { background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 8, padding: '1rem 1.25rem', minWidth: 100, textAlign: 'center' },
   statValue:   { display: 'block', fontSize: '1.75rem', fontWeight: 700, lineHeight: 1 },
