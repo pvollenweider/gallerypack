@@ -340,6 +340,49 @@ describe('cross-studio denial', () => {
   });
 });
 
+// ── Sprint 22: orgRole alias ──────────────────────────────────────────────────
+// orgRole is the canonical name for studioRole as of Sprint 22.
+// Both should produce identical results when passed to can().
+
+describe('orgRole alias (Sprint 22)', () => {
+  test('orgRole owner grants gallery.delete just like studioRole owner', () => {
+    assert.equal(can(user, 'delete', 'gallery', { orgRole: 'owner' }), true);
+  });
+  test('orgRole admin grants studio.manage', () => {
+    assert.equal(can(user, 'manage', 'studio', { orgRole: 'admin' }), true);
+  });
+  test('orgRole photographer cannot write gallery', () => {
+    assert.equal(can(user, 'write', 'gallery', { orgRole: 'photographer' }), false);
+  });
+  test('orgRole collaborator can write gallery', () => {
+    assert.equal(can(user, 'write', 'gallery', { orgRole: 'collaborator' }), true);
+  });
+  test('orgRole and studioRole behave identically for all studio actions', () => {
+    const actions = ['read', 'manage', 'manageSettings', 'manageMembers', 'manageProjects'];
+    const roles   = ['photographer', 'collaborator', 'admin', 'owner'];
+    for (const action of actions) {
+      for (const role of roles) {
+        assert.equal(
+          can(user, action, 'studio', { studioRole: role }),
+          can(user, action, 'studio', { orgRole: role }),
+          `action=${action} role=${role}`
+        );
+      }
+    }
+  });
+  test('orgRole takes precedence when both are passed', () => {
+    // orgRole = owner should win even if studioRole = photographer
+    // (in practice they should never differ — this just tests precedence)
+    assert.equal(
+      can(user, 'delete', 'gallery', { studioRole: 'photographer', orgRole: 'owner' }),
+      true
+    );
+  });
+  test('studioRole takes precedence when orgRole is not set', () => {
+    assert.equal(can(user, 'delete', 'gallery', { studioRole: 'owner' }), true);
+  });
+});
+
 // ── Unknown action / resource ─────────────────────────────────────────────────
 
 describe('unknown action/resource', () => {

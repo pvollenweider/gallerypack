@@ -128,6 +128,19 @@ export const api = {
   inspectorDashboard:       ()                     => req('GET',    `/inspector/dashboard`),
   inspectorAnomalies:       (params = {})          => req('GET',    `/inspector/anomalies?${new URLSearchParams(params)}`),
 
+  // Organizations (Sprint 22 canonical API)
+  listOrganizations:        ()            => req('GET',    '/organizations'),
+  getOrganization:          (id)          => req('GET',    `/organizations/${id}`),
+  createOrganization:       (data)        => req('POST',   '/organizations', data),
+  updateOrganization:       (id, data)    => req('PATCH',  `/organizations/${id}`, data),
+  deleteOrganization:       (id)          => req('DELETE', `/organizations/${id}`),
+  listOrgMembers:           (id)          => req('GET',    `/organizations/${id}/members`),
+  upsertOrgMember:          (id, userId, role) => req('PUT', `/organizations/${id}/members/${userId}`, { role }),
+  removeOrgMember:          (id, userId)  => req('DELETE', `/organizations/${id}/members/${userId}`),
+  listOrgDomains:           (id)          => req('GET',    `/organizations/${id}/domains`),
+  addOrgDomain:             (id, domain, isPrimary) => req('POST', `/organizations/${id}/domains`, { domain, isPrimary }),
+  removeOrgDomain:          (id, domain)  => req('DELETE', `/organizations/${id}/domains/${encodeURIComponent(domain)}`),
+
   // Platform (superadmin)
   listPlatformStudios:  ()            => req('GET',    '/platform/studios'),
   createPlatformStudio: (data)        => req('POST',   '/platform/studios', data),

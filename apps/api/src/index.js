@@ -35,9 +35,10 @@ import settingsRoutes  from './routes/settings.js';
 import studiosRoutes   from './routes/studios.js';
 import projectsRoutes  from './routes/projects.js';
 import platformRoutes  from './routes/platform.js';
-import uploadRoutes    from './routes/upload.js';
-import dashboardRoutes  from './routes/dashboard.js';
-import inspectorRoutes from './routes/inspector.js';
+import uploadRoutes       from './routes/upload.js';
+import dashboardRoutes    from './routes/dashboard.js';
+import inspectorRoutes    from './routes/inspector.js';
+import organizationsRoutes from './routes/organizations.js';
 
 const __DIR      = path.dirname(fileURLToPath(import.meta.url));
 const PORT       = process.env.PORT || 4000;
@@ -108,6 +109,7 @@ app.use('/api/invites',             scopedInvitesRouter); // canonical scoped in
 app.use('/api/invites/v1',          invitesRoutes);       // legacy gallery viewer invite links
 app.use('/api/invitations',         invitationsRouter);   // legacy studio invitations (Sprint 9 cleanup)
 app.use('/api/studios',             studiosRoutes);
+app.use('/api/organizations',       organizationsRoutes); // Sprint 22 — canonical org endpoint
 app.use('/api/projects',            projectsRoutes);
 app.use('/api/platform',            platformRoutes);
 app.use('/upload',                  uploadRateLimit, uploadRoutes);

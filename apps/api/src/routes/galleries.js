@@ -87,7 +87,8 @@ function rowToGallery(row, { dateRange = null } = {}) {
   if (!row) return null;
   return {
     id:                   row.id,
-    studioId:             row.studio_id,
+    organizationId:       row.organization_id ?? row.studio_id,  // canonical (Sprint 22)
+    studioId:             row.studio_id,                          // legacy alias
     projectId:            row.project_id ?? null,
     slug:                 row.slug,
     title:                row.title,

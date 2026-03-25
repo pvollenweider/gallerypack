@@ -31,9 +31,10 @@ router.use(requireAuth);
 function projectToJson(p) {
   if (!p) return null;
   return {
-    id:          p.id,
-    studioId:    p.studio_id,
-    slug:        p.slug,
+    id:             p.id,
+    organizationId: p.organization_id ?? p.studio_id,  // canonical (Sprint 22)
+    studioId:       p.studio_id,                        // legacy alias
+    slug:           p.slug,
     name:        p.name,
     description: p.description,
     visibility:  p.visibility,

@@ -65,8 +65,9 @@ function hasGalleryRole(galleryRole, minRole) {
  * @returns {boolean}
  */
 export function can(user, action, resource, context = {}) {
-  // orgRole is the canonical name (Sprint 22); studioRole is the legacy alias — accept either
-  const studioRole = context.studioRole ?? context.orgRole ?? null;
+  // orgRole is the canonical name (Sprint 22); studioRole is the legacy alias — accept either.
+  // orgRole takes precedence so that new callers using the canonical name aren't overridden by old code.
+  const studioRole = context.orgRole ?? context.studioRole ?? null;
   const { projectRole, galleryRole, gallery, viewerToken } = context;
 
   // ── Platform superadmin bypasses all checks ───────────────────────────────
