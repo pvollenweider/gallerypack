@@ -1,3 +1,7 @@
+-- Copyright (c) 2026 Philippe Vollenweider
+-- This file is part of the GalleryPack commercial platform.
+-- Proprietary and confidential. All rights reserved.
+
 -- Migration 14: hardening — drop legacy tables and columns
 -- Prerequisites: all previous migrations (001–008) must be applied.
 -- This migration removes tables/columns that were kept during the multi-studio

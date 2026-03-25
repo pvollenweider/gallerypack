@@ -1,3 +1,7 @@
+-- Copyright (c) 2026 Philippe Vollenweider
+-- This file is part of the GalleryPack commercial platform.
+-- Proprietary and confidential. All rights reserved.
+
 -- GalleryPack — MariaDB baseline schema
 -- Consolidates all 21 SQLite migrations (001–021) into one clean MariaDB-compatible file.
 -- Applied to fresh installs only. Existing SQLite data must be migrated separately.

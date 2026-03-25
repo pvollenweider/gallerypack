@@ -1,3 +1,7 @@
+-- Copyright (c) 2026 Philippe Vollenweider
+-- This file is part of the GalleryPack commercial platform.
+-- Proprietary and confidential. All rights reserved.
+
 -- 020_clean_password_column.sql
 -- Erase any residual plain-text passwords from the galleries.password column.
 -- Context: before this fix, POST /galleries stored plain-text passwords in the

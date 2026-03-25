@@ -1,3 +1,7 @@
+-- Copyright (c) 2026 Philippe Vollenweider
+-- This file is part of the GalleryPack commercial platform.
+-- Proprietary and confidential. All rights reserved.
+
 -- GalleryPack — gallery memberships
 -- Grants a user explicit access to a specific gallery
 -- Roles: viewer (read-only), contributor (can upload), editor (can edit metadata)

@@ -1,0 +1,43 @@
+GalleryPack — Dual License Notice
+===================================
+
+Copyright (c) 2026 Philippe Vollenweider. All rights reserved.
+
+GalleryPack uses a dual-licensing model.
+
+OPEN SOURCE COMPONENTS (AGPL-3.0)
+----------------------------------
+
+The following components are free software, licensed under the
+GNU Affero General Public License v3.0 (AGPL-3.0):
+
+  packages/engine/    — Gallery build engine
+  packages/shared/    — Storage abstraction and shared utilities
+
+You may use, modify, and distribute these components under the terms of
+the AGPL-3.0. The full license text is in LICENSES/AGPL-3.0.txt.
+
+If you use these components to provide a network service, you must make
+the complete source code of your modified version available to users of
+that service, under the same license.
+
+PROPRIETARY COMPONENTS
+-----------------------
+
+The following components are proprietary and confidential:
+
+  apps/api/           — Platform API server
+  apps/web/           — Admin web application
+  workers/builder/    — Build job worker
+
+Use of these components requires a valid commercial license agreement.
+See LICENSES/COMMERCIAL.txt.
+
+COMMERCIAL LICENSING
+---------------------
+
+If you want to use GalleryPack in a proprietary product, build a SaaS
+on top of it, or use it without the AGPL obligations, a commercial
+license is available.
+
+Contact: https://github.com/pvollenweider/gallerypack

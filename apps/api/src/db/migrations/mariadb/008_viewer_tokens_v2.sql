@@ -1,3 +1,7 @@
+-- Copyright (c) 2026 Philippe Vollenweider
+-- This file is part of the GalleryPack commercial platform.
+-- Proprietary and confidential. All rights reserved.
+
 -- Migration 12: viewer tokens v2 — project | gallery scope
 -- Renames old gallery-only table to viewer_tokens_legacy, creates new scoped
 -- table, and backfills existing gallery tokens.

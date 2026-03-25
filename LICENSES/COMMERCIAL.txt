@@ -1,0 +1,30 @@
+GALLERYPACK COMMERCIAL LICENSE
+
+Copyright (c) 2026 Philippe Vollenweider. All rights reserved.
+
+This license applies to the proprietary components of GalleryPack, including
+but not limited to: apps/api, apps/web, and workers/builder.
+
+TERMS
+
+1. This source code is proprietary and confidential.
+
+2. Use, reproduction, modification, or distribution of this code requires
+   a valid commercial license agreement with Philippe Vollenweider.
+
+3. You may not use this code to operate a competing service, resell access
+   to it, or incorporate it into a product without a written license.
+
+4. Evaluation use for internal review is permitted; production use is not.
+
+OBTAINING A COMMERCIAL LICENSE
+
+For licensing inquiries, pricing, and terms, contact:
+  Philippe Vollenweider
+  https://github.com/pvollenweider/gallerypack
+
+DISCLAIMER
+
+THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
+IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY ARISING FROM USE OF THIS SOFTWARE.

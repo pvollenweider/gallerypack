@@ -1,6 +1,7 @@
 {
   "name": "@gallerypack/web",
   "version": "0.0.1",
+  "license": "UNLICENSED",
   "description": "GalleryPack SaaS web frontend (admin + photographer portal)",
   "type": "module",
   "scripts": {

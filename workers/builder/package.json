@@ -1,6 +1,7 @@
 {
   "name": "@gallerypack/worker-builder",
   "version": "0.0.1",
+  "license": "UNLICENSED",
   "description": "Build queue worker — dequeues jobs and delegates to the engine",
   "type": "module",
   "main": "src/index.js",

@@ -1,3 +1,7 @@
+-- Copyright (c) 2026 Philippe Vollenweider
+-- This file is part of the GalleryPack commercial platform.
+-- Proprietary and confidential. All rights reserved.
+
 -- Migration 8 — create default "Legacy Import" projects for existing galleries
 -- One project per studio that has galleries without a project_id.
 -- The INSERT ... SELECT with GROUP BY ensures one row per studio, not one per gallery.

@@ -1,3 +1,10 @@
+// Copyright (c) 2026 Philippe Vollenweider
+//
+// This file is part of the GalleryPack commercial platform.
+// This source code is proprietary and confidential.
+// Use, reproduction, or distribution requires a valid commercial license.
+// Unauthorized use is strictly prohibited.
+
 // apps/api/src/middleware/studioContext.js — resolve studio from request hostname
 //
 // Must be mounted BEFORE requireAuth so that req.studioId is set from hostname
