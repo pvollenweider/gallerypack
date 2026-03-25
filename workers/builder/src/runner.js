@@ -55,7 +55,12 @@ export async function runJob(jobId) {
   // Mark as running
   await updateJobStatus(jobId, 'running', { started_at: Date.now() });
 
-  const [galleryRows] = await query('SELECT * FROM galleries WHERE id = ?', [job.gallery_id]);
+  const [galleryRows] = await query(`
+    SELECT g.*, p.slug AS project_slug, p.name AS project_name
+    FROM galleries g
+    LEFT JOIN projects p ON p.id = g.project_id
+    WHERE g.id = ?
+  `, [job.gallery_id]);
   const gallery = galleryRows[0];
   if (!gallery) {
     await updateJobStatus(jobId, 'error', { error_msg: 'Gallery not found' });
