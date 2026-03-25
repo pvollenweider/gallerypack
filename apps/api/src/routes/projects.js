@@ -2,6 +2,7 @@
 // Projects sit between Studio and Gallery in the hierarchy.
 import { Router } from 'express';
 import { requireAuth, requireStudioRole } from '../middleware/auth.js';
+import galleryRouter from './projectGalleries.js';
 import {
   getProject, getProjectBySlug, listProjectsByStudio,
   createProject, updateProject, archiveProject,
@@ -171,5 +172,10 @@ router.delete('/:id/members/:userId', async (req, res) => {
   try { await audit(req.studioId, req.userId, 'project.member_removed', 'project', project.id, { userId: req.params.userId }); } catch {}
   res.json({ ok: true });
 });
+
+// ── Nested gallery routes ──────────────────────────────────────────────────────
+// GET/POST /api/projects/:projectId/galleries
+// GET/PATCH/DELETE /api/projects/:projectId/galleries/:id
+router.use('/:projectId/galleries', galleryRouter);
 
 export default router;
