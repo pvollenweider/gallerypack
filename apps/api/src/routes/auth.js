@@ -198,16 +198,28 @@ router.post('/magic', async (req, res) => {
   res.json({ ok: true, emailSent });
 });
 
-// GET /api/auth/magic/:token — consume magic link, open session
+// GET /api/auth/magic/:token — validate token without consuming it
+// Safe for mail scanner prefetch: no session created, no state changed.
 router.get('/magic/:token', (req, res) => {
+  const db = getDb();
+  const row = db.prepare('SELECT * FROM magic_links WHERE token = ?').get(req.params.token);
+  if (!row)          return res.status(404).json({ error: 'Invalid link' });
+  if (row.used_at)   return res.status(409).json({ error: 'Link already used' });
+  if (row.expires_at < Date.now()) return res.status(410).json({ error: 'Link expired' });
+  const user = getUserById(row.user_id);
+  res.json({ ok: true, email: user?.email || null });
+});
+
+// POST /api/auth/magic/:token — consume token and open a session
+router.post('/magic/:token', (req, res) => {
   let user;
   try {
     user = useMagicLink(req.params.token);
   } catch (err) {
     return res.status(err.status || 400).json({ error: err.message });
   }
-  const token = createSession(user.id);
-  res.cookie('session', token, {
+  const sessionToken = createSession(user.id);
+  res.cookie('session', sessionToken, {
     httpOnly: true, sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
     maxAge: 30 * 24 * 60 * 60 * 1000,
