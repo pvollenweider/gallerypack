@@ -25,7 +25,7 @@ export default function BuildStatus() {
   return (
     <div style={s.page}>
       <header style={s.header}>
-        <Link to="/" style={s.back}>← Dashboard</Link>
+        <Link to={job ? `/galleries/${job.galleryId}` : '/studio'} style={s.back}>← Galerie</Link>
         <span style={s.title}>Build {jobId.slice(-8)}</span>
       </header>
 
@@ -43,11 +43,16 @@ export default function BuildStatus() {
         {done && job && (
           <div style={s.actions}>
             <Link to={`/galleries/${job.galleryId}`} style={s.btn}>Back to gallery</Link>
-            {gallery && (
-              <a href={`/${gallery.slug}/`} target="_blank" rel="noreferrer" style={s.viewBtn}>
-                View gallery ↗
-              </a>
-            )}
+            {gallery && (() => {
+              const publicPath = (gallery.breadcrumb?.project?.slug && gallery.access !== 'password' && gallery.access !== 'private')
+                ? `/${gallery.breadcrumb.project.slug}/${gallery.slug}`
+                : `/${gallery.slug}`;
+              return (
+                <a href={`${publicPath}/`} target="_blank" rel="noreferrer" style={s.viewBtn}>
+                  View gallery ↗
+                </a>
+              );
+            })()}
           </div>
         )}
       </main>

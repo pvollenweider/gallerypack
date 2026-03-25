@@ -108,7 +108,7 @@ export function buildDeliveryMessage(project, summary, authInfo) {
  * @param {import('@gallerypack/shared').BuildOptions} [options]
  * @returns {Promise<import('@gallerypack/shared').BuildOutput|null>}
  */
-export async function buildGallery(srcName, { build, project: projectOverride }, fontCss, options = {}) {
+export async function buildGallery(srcName, { build, project: projectOverride, distName: distNameOverride }, fontCss, options = {}) {
   const {
     force             = FORCE,
     generateApacheAuth = false,
@@ -123,7 +123,7 @@ export async function buildGallery(srcName, { build, project: projectOverride },
   }
   galCfg.build  = build;
 
-  const distName = galleryDistName(galCfg.project, srcName);
+  const distName = distNameOverride || galleryDistName(galCfg.project, srcName);
   const paths    = galleryPaths(srcName, distName);
 
   if (galCfg.project.private) {

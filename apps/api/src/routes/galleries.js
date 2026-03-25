@@ -141,7 +141,10 @@ router.get('/', async (req, res) => {
 // GET /api/galleries/:id
 router.get('/:id', async (req, res) => {
   const [rows] = await query(
-    'SELECT * FROM galleries WHERE id = ? AND studio_id = ?',
+    `SELECT g.*, p.id AS proj_id, p.slug AS proj_slug, p.name AS proj_name
+     FROM galleries g
+     LEFT JOIN projects p ON p.id = g.project_id
+     WHERE g.id = ? AND g.studio_id = ?`,
     [req.params.id, req.studioId]
   );
   const row = rows[0];
@@ -150,7 +153,11 @@ router.get('/:id', async (req, res) => {
   if (!can(req.user, 'read', 'gallery', { gallery: row, studioRole: req.studioRole, galleryRole })) {
     return res.status(403).json({ error: 'Forbidden' });
   }
-  res.json(await rowToGalleryAsync(row));
+  const g = await rowToGalleryAsync(row);
+  if (row.proj_id) {
+    g.breadcrumb = { project: { id: row.proj_id, slug: row.proj_slug, name: row.proj_name } };
+  }
+  res.json(g);
 });
 
 // POST /api/galleries
@@ -250,8 +257,8 @@ router.patch('/:id', async (req, res) => {
     updates[col] = boolCols.has(col) ? (val ? 1 : 0) : val;
   }
 
-  if (updates.password) {
-    updates.password_hash = hashPassword(updates.password);
+  if ('password' in updates) {
+    if (updates.password) updates.password_hash = hashPassword(updates.password);
     delete updates.password;
   }
 

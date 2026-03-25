@@ -58,10 +58,11 @@ function hasGalleryRole(galleryRole, minRole) {
  * @returns {boolean}
  */
 export function can(user, action, resource, context = {}) {
-  const { platformRole, studioRole, projectRole, galleryRole, gallery, viewerToken } = context;
+  const { studioRole, projectRole, galleryRole, gallery, viewerToken } = context;
 
   // ── Platform superadmin bypasses all checks ───────────────────────────────
-
+  // Accept platformRole from context (legacy callers) or directly from user object
+  const platformRole = context.platformRole ?? user?.platform_role ?? null;
   if (platformRole === 'superadmin') return true;
 
   // ── Studio-level actions ──────────────────────────────────────────────────

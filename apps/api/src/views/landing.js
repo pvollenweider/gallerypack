@@ -106,6 +106,69 @@ export function renderLanding(galleries, siteTitle = 'GalleryPack', isLoggedIn =
 </html>`;
 }
 
+export function renderProjectListing(projectSlug, projectName, galleries, siteTitle = 'GalleryPack', isLoggedIn = false) {
+  const cards = galleries.length === 0
+    ? '<p style="color:#666;text-align:center;padding:3rem 0;grid-column:1/-1">No galleries published yet.</p>'
+    : galleries.map(g => {
+        const href  = `/${projectSlug}/${g.slug}/`;
+        const thumb = g.coverName
+          ? `<img src="${href}img/grid/${g.coverName}.webp" style="width:100%;height:100%;object-fit:cover;display:block" alt="" onerror="this.style.display='none'">`
+          : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2.5rem;color:#555">&#128247;</div>`;
+        const dateLabel  = fmtDateRange(g.dateRange, g.date);
+        const photoLabel = g.photoCount === 1 ? '1 photo' : `${g.photoCount || 0} photos`;
+        const inner = `
+          <div style="position:relative;height:180px;background:#2a2a2a;overflow:hidden">${thumb}</div>
+          <div style="padding:0.75rem 1rem 0.85rem">
+            <h3 style="margin:0 0 0.15rem;font-size:0.95rem;font-weight:600;color:#eee">${esc(g.title || g.slug)}</h3>
+            ${dateLabel ? `<p style="margin:0 0 0.15rem;font-size:0.78rem;color:#aaa">${esc(dateLabel)}</p>` : ''}
+            ${g.location ? `<p style="margin:0 0 0.15rem;font-size:0.78rem;color:#aaa">${esc(g.location)}</p>` : ''}
+            <p style="margin:0;font-size:0.75rem;color:#666">${photoLabel}</p>
+          </div>`;
+        return `<a href="${href}" style="background:#272727;border-radius:10px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,0.3);text-decoration:none;display:block;transition:box-shadow 0.15s" onmouseover="this.style.boxShadow='0 4px 20px rgba(0,0,0,0.5)'" onmouseout="this.style.boxShadow='0 1px 6px rgba(0,0,0,0.3)'">${inner}</a>`;
+      }).join('');
+
+  const adminBtn = isLoggedIn ? `<a class="admin-link" href="/admin/">Admin</a>` : '';
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>${esc(projectName)} — ${esc(siteTitle)}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#1c1c1c;min-height:100vh}
+    header{background:#222;border-bottom:1px solid #333;padding:0 1.5rem;height:52px;display:flex;align-items:center;justify-content:space-between;gap:1rem}
+    .back{font-size:0.82rem;color:#aaa;text-decoration:none}
+    .back:hover{color:#fff}
+    .logo{font-weight:700;letter-spacing:-0.02em;font-size:1rem;color:#fff;text-decoration:none;flex:1;text-align:center}
+    .admin-link{font-size:0.82rem;color:#aaa;text-decoration:none;padding:0.3rem 0.75rem;border:1px solid #444;border-radius:5px}
+    main{max-width:1100px;width:100%;margin:0 auto;padding:1.5rem}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem}
+    footer{border-top:1px solid #333;padding:0.75rem 1.5rem;display:flex;align-items:center;gap:0.5rem;font-size:0.78rem;color:#555}
+    footer a{color:#555;text-decoration:none}
+    footer .brand{font-weight:600;color:#777;letter-spacing:-0.01em}
+    footer .sep{color:#444}
+  </style>
+</head>
+<body style="display:flex;flex-direction:column;min-height:100vh">
+  <header>
+    <a class="back" href="/">← ${esc(siteTitle)}</a>
+    <span class="logo">${esc(projectName)}</span>
+    ${adminBtn}
+  </header>
+  <main style="flex:1">
+    <div class="grid">${cards}</div>
+  </main>
+  <footer>
+    <span class="brand">GalleryPack</span>
+    <span class="sep">·</span>
+    <a href="/admin/">Admin</a>
+  </footer>
+</body>
+</html>`;
+}
+
 function esc(s) {
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }

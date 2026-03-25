@@ -12,6 +12,8 @@ import {
   getSettings,
   createSession,
   audit,
+  getUserByEmail,
+  upsertGalleryRoleAssignment,
 } from '../db/helpers.js';
 import { sendInviteEmail } from '../services/email.js';
 
@@ -36,6 +38,17 @@ router.post('/', requireAuth, async (req, res) => {
   const VALID_GALLERY_ROLES = ['contributor', 'editor'];
   if (galleryId && (!galleryRole || !VALID_GALLERY_ROLES.includes(galleryRole))) {
     return res.status(400).json({ error: 'galleryRole must be one of: contributor, editor' });
+  }
+
+  // If the user already exists in this studio, just (re-)assign the gallery role directly
+  // instead of sending a new invitation (covers the "revoked then re-added" case).
+  const existingUser = await getUserByEmail(email);
+  if (existingUser && existingUser.studio_id === req.studioId) {
+    if (galleryId && galleryRole) {
+      await upsertGalleryRoleAssignment(galleryId, existingUser.id, galleryRole, req.userId);
+      try { await audit(req.studioId, req.userId, 'gallery.member_added', 'gallery', galleryId, { userId: existingUser.id, role: galleryRole, via: 'reinvite' }); } catch {}
+    }
+    return res.status(200).json({ ok: true, existing: true, userId: existingUser.id });
   }
 
   let invitation;
@@ -96,10 +109,21 @@ router.get('/accept/:token', async (req, res) => {
 
   const studio = await getStudio(inv.studio_id);
 
+  let galleryTitle = null;
+  if (inv.gallery_id) {
+    try {
+      const { query } = await import('../db/database.js');
+      const [[gRow]] = await query('SELECT title, slug FROM galleries WHERE id = ?', [inv.gallery_id]);
+      galleryTitle = gRow ? (gRow.title || gRow.slug) : null;
+    } catch {}
+  }
+
   res.json({
     email:           inv.email,
     role:            inv.role,
     studioName:      studio ? studio.name : null,
+    galleryId:       inv.gallery_id  || null,
+    galleryTitle,
     expiresAt:       inv.expires_at,
     alreadyAccepted: !!inv.accepted_at,
   });

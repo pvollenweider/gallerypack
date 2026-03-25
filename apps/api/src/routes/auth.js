@@ -49,7 +49,8 @@ router.post('/login', async (req, res) => {
     secure: process.env.NODE_ENV === 'production',
     maxAge: 30 * 24 * 60 * 60 * 1000,
   });
-  res.json({ ok: true, user: { id: user.id, email: user.email, role: user.role, name: user.name } });
+  const studioRole = user.studio_id ? await getStudioRole(user.id, user.studio_id) : null;
+  res.json({ ok: true, user: { id: user.id, email: user.email, role: user.role, name: user.name, studioId: user.studio_id, studioRole, locale: user.locale || null, platformRole: user.platform_role || null } });
 });
 
 // POST /api/auth/logout

@@ -46,12 +46,14 @@ export async function listAllStudios() {
   return rows;
 }
 
-export async function updateStudio(id, { name, slug, plan }) {
+export async function updateStudio(id, { name, slug, plan, locale, country }) {
   const sets = [];
   const vals = [];
-  if (name  !== undefined) { sets.push('name = ?');  vals.push(name); }
-  if (slug  !== undefined) { sets.push('slug = ?');  vals.push(slug); }
-  if (plan  !== undefined) { sets.push('plan = ?');  vals.push(plan); }
+  if (name    !== undefined) { sets.push('name = ?');    vals.push(name); }
+  if (slug    !== undefined) { sets.push('slug = ?');    vals.push(slug); }
+  if (plan    !== undefined) { sets.push('plan = ?');    vals.push(plan); }
+  if (locale  !== undefined) { sets.push('locale = ?');  vals.push(locale); }
+  if (country !== undefined) { sets.push('country = ?'); vals.push(country); }
   if (!sets.length) return getStudio(id);
   sets.push('updated_at = ?'); vals.push(Date.now());
   vals.push(id);
@@ -540,9 +542,9 @@ export async function listStudioMembers(studioId) {
   `, [studioId]);
 
   const [galleryAccess] = await query(`
-    SELECT gm.user_id, gm.role AS gallery_role, g.id AS gallery_id, g.title AS gallery_title
-    FROM gallery_memberships gm
-    JOIN galleries g ON g.id = gm.gallery_id
+    SELECT gra.user_id, gra.role AS gallery_role, g.id AS gallery_id, g.title AS gallery_title
+    FROM gallery_role_assignments gra
+    JOIN galleries g ON g.id = gra.gallery_id
     WHERE g.studio_id = ?
     ORDER BY g.title ASC
   `, [studioId]);

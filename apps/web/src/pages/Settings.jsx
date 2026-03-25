@@ -2,18 +2,61 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useT, useLocale } from '../lib/I18nContext.jsx';
+import { slugify } from '../lib/i18n.js';
 import { useAuth } from '../lib/auth.jsx';
 import { Toast } from '../components/Toast.jsx';
 
-const LOCALES = ['fr','en','de','es','it','pt'];
-const ACCESS  = ['public','private','password'];
+const LOCALES   = ['fr','en','de','es','it','pt'];
+const COUNTRIES = ['FR','BE','CH','CA','US','GB','DE','ES','IT','PT','NL','AU','JP',''];
+const ACCESS    = ['public','private','password'];
 
 export default function Settings() {
   const t = useT();
   const { user, setUser } = useAuth();
-  const isAdmin = ['admin', 'owner'].includes(user?.studioRole);
+  const isAdmin     = ['admin', 'owner'].includes(user?.studioRole) || user?.platformRole === 'superadmin';
+  const isOwner     = user?.studioRole === 'owner' || user?.platformRole === 'superadmin';
 
   if (!isAdmin) return <ProfilePage user={user} setUser={setUser} />;
+
+  // Studio settings
+  const [studioForm,    setStudioForm]    = useState({ name: '', locale: '', country: '' });
+  const [slugForm,      setSlugForm]      = useState('');
+  const [slugConfirm,   setSlugConfirm]   = useState('');
+  const [currentSlug,   setCurrentSlug]   = useState('');
+  const [studioSaving,  setStudioSaving]  = useState(false);
+  const [slugSaving,    setSlugSaving]    = useState(false);
+
+  useEffect(() => {
+    api.getMyStudio().then(s => {
+      setStudioForm({ name: s.name || '', locale: s.locale || '', country: s.country || '' });
+      setSlugForm(s.slug || '');
+      setCurrentSlug(s.slug || '');
+    }).catch(() => {});
+  }, []);
+
+  async function handleStudioSave(e) {
+    e.preventDefault();
+    setStudioSaving(true);
+    try {
+      await api.updateMyStudio({ name: studioForm.name, locale: studioForm.locale || null, country: studioForm.country || null });
+      setToast(t('studio_settings_saved'));
+    } catch (err) { setToast(err.message); }
+    finally { setStudioSaving(false); }
+  }
+
+  async function handleSlugRename(e) {
+    e.preventDefault();
+    if (slugConfirm !== currentSlug) { setToast(t('studio_slug_confirm')); return; }
+    setSlugSaving(true);
+    try {
+      const updated = await api.updateMyStudio({ slug: slugForm });
+      setCurrentSlug(updated.slug);
+      setSlugForm(updated.slug);
+      setSlugConfirm('');
+      setToast(t('studio_settings_saved'));
+    } catch (err) { setToast(err.message); }
+    finally { setSlugSaving(false); }
+  }
 
   const [form,   setForm]   = useState({
     siteTitle: '',
@@ -81,10 +124,57 @@ export default function Settings() {
   return (
     <div style={s.page}>
       <header style={s.header}>
-        <Link to="/" style={s.back}>{t('back_to_galleries')}</Link>
+        <Link to="/studio" style={s.back}>← {t('studio_back')}</Link>
         <span style={s.title}>{t('global_settings')}</span>
       </header>
       <main style={s.main}>
+        {/* ── Studio settings ── */}
+        <form onSubmit={handleStudioSave} style={{ ...s.form, marginBottom: '2rem' }}>
+          <Section label={t('section_studio')}>
+            <Row label={t('field_studio_name')}>
+              <input style={s.input} value={studioForm.name}
+                onChange={e => setStudioForm(f => ({ ...f, name: e.target.value }))} />
+            </Row>
+            <Row label={t('field_studio_locale')}>
+              <select style={{ ...s.input, maxWidth: 140 }} value={studioForm.locale}
+                onChange={e => setStudioForm(f => ({ ...f, locale: e.target.value }))}>
+                <option value="">—</option>
+                {LOCALES.map(l => <option key={l} value={l}>{l}</option>)}
+              </select>
+            </Row>
+            <Row label={t('field_studio_country')}>
+              <select style={{ ...s.input, maxWidth: 140 }} value={studioForm.country}
+                onChange={e => setStudioForm(f => ({ ...f, country: e.target.value }))}>
+                {COUNTRIES.map(c => <option key={c} value={c}>{c || '—'}</option>)}
+              </select>
+            </Row>
+          </Section>
+          <button style={s.btn} type="submit" disabled={studioSaving}>
+            {studioSaving ? t('saving') : t('save')}
+          </button>
+        </form>
+
+        {/* ── Danger zone — slug rename (owner/superadmin only) ── */}
+        {isOwner && (
+          <form onSubmit={handleSlugRename} style={{ ...s.form, marginBottom: '2rem' }}>
+            <Section label={t('section_danger')}>
+              <Row label={t('field_studio_slug')}>
+                <input style={{ ...s.input, fontFamily: 'monospace' }} value={slugForm}
+                  onChange={e => setSlugForm(slugify(e.target.value) || e.target.value.toLowerCase())} />
+              </Row>
+              <p style={s.hint}>{t('studio_slug_hint')}</p>
+              <Row label={t('studio_slug_confirm')}>
+                <input style={{ ...s.input, fontFamily: 'monospace' }} value={slugConfirm}
+                  placeholder={currentSlug}
+                  onChange={e => setSlugConfirm(e.target.value)} />
+              </Row>
+            </Section>
+            <button style={{ ...s.btn, background: '#c00' }} type="submit" disabled={slugSaving || slugForm === currentSlug}>
+              {slugSaving ? t('saving') : t('field_studio_slug')}
+            </button>
+          </form>
+        )}
+
         <form onSubmit={handleSave} style={s.form}>
 
           <Section label={t('section_site')}>
@@ -262,7 +352,7 @@ function ProfilePage({ user, setUser }) {
   return (
     <div style={s.page}>
       <header style={s.header}>
-        <Link to="/" style={s.back}>{t('back_to_galleries')}</Link>
+        <Link to="/studio" style={s.back}>← {t('studio_back')}</Link>
         <span style={s.title}>{t('profile_title')}</span>
       </header>
       <main style={s.main}>
