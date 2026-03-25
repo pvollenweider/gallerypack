@@ -44,7 +44,7 @@ function galleryToProjectConfig(g) {
   if (g.description)        proj.description        = g.description;
   if (g.cover_photo)        proj.coverPhoto         = g.cover_photo;
   if (g.slideshow_interval) proj.autoplay           = { slideshowInterval: g.slideshow_interval };
-  proj.private              = !!g.private;
+  proj.private              = g.access !== 'public'; // derived from access (canonical after migration 013)
   proj.standalone           = !!g.standalone;
   // Explicit false only when column is 0 (disabled); NULL = use engine default (enabled)
   if (g.allow_download_image   !== null) proj.allowDownloadImage   = g.allow_download_image   !== 0;

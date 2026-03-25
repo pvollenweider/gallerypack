@@ -276,23 +276,36 @@ router.post('/:id/rename', async (req, res) => {
     .get(req.studioId, slug, req.params.id);
   if (conflict) return res.status(409).json({ error: 'A gallery with this slug already exists' });
 
-  // Rename directories on disk
+  // Rename directories on disk.
+  // Note: this moves both src/<old_slug>/ and dist/<old_slug>/.
+  // This is safe for local deployments but is not atomic — a crash between the
+  // two renames could leave src and dist in inconsistent states.
+  // TODO(#60 v2): once storage keys are based on gallery.id (not slug),
+  // rename becomes a DB-only operation and this block disappears.
   for (const base of ['src', 'dist']) {
     const oldDir = path.join(ROOT, base, row.slug);
     const newDir = path.join(ROOT, base, slug);
     if (fs.existsSync(oldDir) && !fs.existsSync(newDir)) {
-      fs.renameSync(oldDir, newDir);
+      try { fs.renameSync(oldDir, newDir); } catch (err) {
+        // Non-fatal: if rename fails (e.g. cross-device), leave old dir in place.
+        // A rebuild will regenerate dist/<new_slug> on next build.
+        console.error(`[rename] failed to move ${base}/${row.slug} → ${base}/${slug}:`, err.message);
+      }
     }
   }
 
-  getDb().prepare('UPDATE galleries SET slug = ?, updated_at = ? WHERE id = ?')
+  getDb().prepare('UPDATE galleries SET slug = ?, needs_rebuild = 1, updated_at = ? WHERE id = ?')
     .run(slug, Date.now(), req.params.id);
+  try { audit(req.studioId, req.userId, 'gallery.rename', 'gallery', req.params.id, { from: row.slug, to: slug }); } catch {}
 
   const updated = getDb().prepare('SELECT * FROM galleries WHERE id = ?').get(req.params.id);
   res.json(await rowToGalleryAsync(updated));
 });
 
-// DELETE /api/galleries/:id — removes from DB only, keeps built files on disk
+// DELETE /api/galleries/:id
+// Removes the gallery from the DB and deletes source photos (src/<slug>/).
+// Built files (dist/<slug>/) are kept by default so the published gallery
+// remains accessible at its public URL. Pass ?purge=1 to also remove dist/.
 router.delete('/:id', (req, res) => {
   const row = getDb()
     .prepare('SELECT * FROM galleries WHERE id = ? AND studio_id = ?')
@@ -303,7 +316,18 @@ router.delete('/:id', (req, res) => {
   }
 
   getDb().prepare('DELETE FROM galleries WHERE id = ?').run(req.params.id);
-  try { audit(req.studioId, req.userId, 'gallery.delete', 'gallery', req.params.id, { slug: row.slug }); } catch {}
+
+  // Always clean up source photos — they are not publicly accessible and no longer needed
+  const srcDir = path.join(ROOT, 'src', row.slug);
+  try { if (fs.existsSync(srcDir)) fs.rmSync(srcDir, { recursive: true, force: true }); } catch {}
+
+  // Optionally purge built files — only if caller explicitly requests it
+  if (req.query.purge === '1') {
+    const distDir = path.join(ROOT, 'dist', row.slug);
+    try { if (fs.existsSync(distDir)) fs.rmSync(distDir, { recursive: true, force: true }); } catch {}
+  }
+
+  try { audit(req.studioId, req.userId, 'gallery.delete', 'gallery', req.params.id, { slug: row.slug, purge: req.query.purge === '1' }); } catch {}
   res.json({ ok: true });
 });
 
