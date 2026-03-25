@@ -60,6 +60,8 @@ export const translations = {
     tab_photos: 'Photos',
     tab_settings: 'Settings',
     tab_jobs: 'Jobs',
+    tab_upload: 'Upload links',
+    tab_inbox: 'Inbox',
 
     // Gallery detail — photos tab
     upload_photos: 'Upload photos',
@@ -437,6 +439,8 @@ export const translations = {
     tab_photos: 'Photos',
     tab_settings: 'Paramètres',
     tab_jobs: 'Publications',
+    tab_upload: 'Liens upload',
+    tab_inbox: 'Boîte de réception',
 
     upload_photos: 'Ajouter des photos',
     photos_changed_banner: 'Des modifications ont été apportées —',
@@ -792,6 +796,8 @@ export const translations = {
     tab_photos: 'Fotos',
     tab_settings: 'Einstellungen',
     tab_jobs: 'Aufträge',
+    tab_upload: 'Upload-Links',
+    tab_inbox: 'Posteingang',
     upload_photos: 'Fotos hochladen',
     photos_changed_banner: 'Fotos haben sich seit dem letzten Build geändert —',
     build_now: 'Jetzt erstellen',

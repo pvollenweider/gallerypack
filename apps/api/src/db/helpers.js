@@ -967,6 +967,106 @@ export async function listGalleryRoleAssignments(galleryId) {
   }));
 }
 
+// ── Gallery upload links ───────────────────────────────────────────────────────
+
+/**
+ * Create a new upload link for a gallery.
+ * Returns { id, token, tokenHash, galleryId, label, expiresAt, createdAt }
+ * The raw token is returned once — only the hash is stored.
+ */
+export async function createUploadLink(galleryId, createdByUserId, { label = null, expiresAt = null } = {}) {
+  const id         = randomUUID();
+  const rawToken   = genToken(32);
+  const tokenHash  = sha256(rawToken);
+  const expiresVal = expiresAt ? new Date(expiresAt) : null;
+  await query(
+    `INSERT INTO gallery_upload_links (id, gallery_id, token_hash, label, expires_at, created_by_user_id)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [id, galleryId, tokenHash, label, expiresVal, createdByUserId]
+  );
+  return { id, token: rawToken, tokenHash, galleryId, label, expiresAt: expiresVal, createdAt: new Date() };
+}
+
+/** Look up an upload link by raw token. Returns null if not found, expired, or revoked. */
+export async function getUploadLinkByToken(rawToken) {
+  const tokenHash = sha256(rawToken);
+  const [rows] = await query(
+    `SELECT ul.*, g.studio_id, g.organization_id, g.slug AS gallery_slug, g.title AS gallery_title
+     FROM gallery_upload_links ul
+     JOIN galleries g ON g.id = ul.gallery_id
+     WHERE ul.token_hash = ?
+       AND ul.revoked_at IS NULL
+       AND (ul.expires_at IS NULL OR ul.expires_at > NOW())`,
+    [tokenHash]
+  );
+  return rows[0] || null;
+}
+
+/** Get all upload links for a gallery. */
+export async function listUploadLinks(galleryId) {
+  const [rows] = await query(
+    `SELECT id, gallery_id, label, expires_at, revoked_at, created_by_user_id, created_at,
+            (revoked_at IS NULL AND (expires_at IS NULL OR expires_at > NOW())) AS active
+     FROM gallery_upload_links WHERE gallery_id = ? ORDER BY created_at DESC`,
+    [galleryId]
+  );
+  return rows;
+}
+
+/** Revoke an upload link by ID. */
+export async function revokeUploadLink(id) {
+  await query(`UPDATE gallery_upload_links SET revoked_at = NOW() WHERE id = ?`, [id]);
+}
+
+// ── Photo status helpers ───────────────────────────────────────────────────────
+
+/** Set photo status (uploaded | validated | published). */
+export async function setPhotoStatus(photoId, status) {
+  await query(`UPDATE photos SET status = ? WHERE id = ?`, [status, photoId]);
+}
+
+/** Bulk validate or reject photos. action = 'validate' | 'reject' */
+export async function bulkSetPhotoStatus(photoIds, status) {
+  if (!photoIds.length) return 0;
+  const placeholders = photoIds.map(() => '?').join(',');
+  const [result] = await query(
+    `UPDATE photos SET status = ? WHERE id IN (${placeholders})`,
+    [status, ...photoIds]
+  );
+  return result.affectedRows;
+}
+
+/** List photos for a gallery, optionally filtered by status. */
+export async function listPhotosByStatus(galleryId, status = null) {
+  const where = status ? 'AND p.status = ?' : '';
+  const params = status ? [galleryId, status] : [galleryId];
+  const [rows] = await query(
+    `SELECT p.*, ul.label AS upload_link_label
+     FROM photos p
+     LEFT JOIN gallery_upload_links ul ON ul.id = p.upload_link_id
+     WHERE p.gallery_id = ? ${where}
+     ORDER BY p.sort_order ASC, p.created_at ASC`,
+    params
+  );
+  return rows;
+}
+
+/** Get photo counts by status for a gallery. */
+export async function getPhotoStatusCounts(galleryId) {
+  const [rows] = await query(
+    `SELECT status, COUNT(*) AS cnt FROM photos WHERE gallery_id = ? GROUP BY status`,
+    [galleryId]
+  );
+  const counts = { uploaded: 0, validated: 0, published: 0 };
+  for (const r of rows) counts[r.status] = Number(r.cnt);
+  return counts;
+}
+
+/** Update gallery workflow status (draft | ready | published). */
+export async function setGalleryStatus(galleryId, status) {
+  await query(`UPDATE galleries SET workflow_status = ? WHERE id = ?`, [status, galleryId]);
+}
+
 // ── Audit log ─────────────────────────────────────────────────────────────────
 
 export async function audit(studioId, userId, action, targetType, targetId, meta = {}) {
