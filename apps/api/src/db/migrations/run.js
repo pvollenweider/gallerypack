@@ -35,10 +35,16 @@ export async function runMigrations() {
 
     // Split on statement boundaries so we can execute each statement separately.
     // mysql2 does not support multi-statement strings in pool.query() by default.
-    const statements = sql
+    // Strip full-line comments first so section headers don't get bundled with the
+    // next CREATE statement and cause the whole block to be filtered out.
+    const stripped = sql
+      .split('\n')
+      .filter(line => !line.trimStart().startsWith('--'))
+      .join('\n');
+    const statements = stripped
       .split(/;\s*\n/)
       .map(s => s.trim())
-      .filter(s => s.length > 0 && !s.startsWith('--'));
+      .filter(s => s.length > 0);
 
     for (const stmt of statements) {
       await pool.query(stmt);

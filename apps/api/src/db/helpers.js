@@ -157,7 +157,7 @@ export async function createJob({ galleryId, studioId, triggeredBy = 'admin', fo
   const id  = genId();
   const now = Date.now();
   await query(`
-    INSERT INTO build_jobs (id, gallery_id, studio_id, status, triggered_by, force, created_at)
+    INSERT INTO build_jobs (id, gallery_id, studio_id, status, triggered_by, \`force\`, created_at)
     VALUES (?, ?, ?, 'queued', ?, ?, ?)
   `, [id, galleryId, studioId, triggeredBy, force ? 1 : 0, now]);
   const [rows] = await query('SELECT * FROM build_jobs WHERE id = ?', [id]);

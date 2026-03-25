@@ -14,10 +14,10 @@ CREATE TABLE IF NOT EXISTS invites (
   expires_at          BIGINT       NOT NULL,
   used_at             BIGINT,
   revoked_at          BIGINT,
-  created_by_user_id  CHAR(64),
+  created_by_user_id  VARCHAR(32),
   created_at          BIGINT       NOT NULL,
   CONSTRAINT fk_invites_created_by FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON DELETE SET NULL
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE INDEX idx_invites_scope ON invites(scope_type, scope_id);
 CREATE INDEX idx_invites_email ON invites(email);

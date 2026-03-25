@@ -14,10 +14,10 @@ CREATE TABLE IF NOT EXISTS viewer_tokens (
   expires_at          BIGINT,
   revoked_at          BIGINT,
   last_used_at        BIGINT,
-  created_by_user_id  CHAR(64),
+  created_by_user_id  VARCHAR(32),
   created_at          BIGINT       NOT NULL,
   CONSTRAINT fk_vt_created_by FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON DELETE SET NULL
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE INDEX idx_viewer_tokens_scope ON viewer_tokens(scope_type, scope_id);
 

@@ -142,7 +142,7 @@ CREATE TABLE IF NOT EXISTS build_jobs (
   studio_id    VARCHAR(32)  NOT NULL,
   status       VARCHAR(32)  NOT NULL DEFAULT 'queued',  -- queued | running | done | error
   triggered_by VARCHAR(255),                            -- user_id or 'system' or 'upload'
-  force        TINYINT(1)   NOT NULL DEFAULT 0,
+  `force`      TINYINT(1)   NOT NULL DEFAULT 0,
   started_at   BIGINT,
   finished_at  BIGINT,
   error_msg    TEXT,
