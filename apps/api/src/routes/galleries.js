@@ -163,15 +163,13 @@ router.post('/', async (req, res) => {
   const defAccess  = st.default_access                || 'public';
   const defDlImg   = st.default_allow_download_image  !== 0;
   const defDlGal   = st.default_allow_download_gallery === 1;
-  const defPrivate = st.default_private               === 1;
-
   const {
     slug, title, description, subtitle,
     projectId = null,
     author      = st.default_author       || null,
     authorEmail = st.default_author_email || null,
     date, location,
-    locale = defLocale, access = defAccess, password, private: priv = defPrivate,
+    locale = defLocale, access = defAccess, password,
     standalone = false, allowDownloadImage = defDlImg, allowDownloadGallery = defDlGal,
     coverPhoto, slideshowInterval, copyright,
   } = req.body || {};
@@ -199,14 +197,14 @@ router.post('/', async (req, res) => {
   await query(`
     INSERT INTO galleries
       (id, studio_id, project_id, slug, title, description, subtitle, author, author_email, date, location,
-       locale, access, password_hash, private, standalone,
+       locale, access, password_hash, standalone,
        allow_download_image, allow_download_gallery, cover_photo,
        slideshow_interval, copyright, build_status, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
   `, [
     id, req.studioId, projectId ?? null, slug, title ?? slug, description ?? null, subtitle ?? null, author ?? null,
     authorEmail ?? null, date ?? null, location ?? null,
-    locale, access, passwordHash, priv ? 1 : 0, standalone ? 1 : 0,
+    locale, access, passwordHash, standalone ? 1 : 0,
     allowDownloadImage ? 1 : 0, allowDownloadGallery ? 1 : 0,
     coverPhoto ?? null, slideshowInterval ?? null, copyright ?? null,
     now, now,
@@ -243,7 +241,7 @@ router.patch('/:id', async (req, res) => {
     slideshowInterval: 'slideshow_interval',
   };
 
-  const boolCols = new Set(['private','standalone','allow_download_image','allow_download_gallery']);
+  const boolCols = new Set(['standalone','allow_download_image','allow_download_gallery']);
 
   const updates = {};
   for (const [key, val] of Object.entries(req.body || {})) {
@@ -255,10 +253,6 @@ router.patch('/:id', async (req, res) => {
   if (updates.password) {
     updates.password_hash = hashPassword(updates.password);
     delete updates.password;
-  }
-
-  if (updates.access !== undefined) {
-    updates.private = updates.access === 'public' ? 0 : 1;
   }
 
   if (!Object.keys(updates).length) return res.json(await rowToGalleryAsync(row));
