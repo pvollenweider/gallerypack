@@ -404,7 +404,7 @@ router.post('/:id/viewer-tokens', async (req, res) => {
   }
 
   const { label = null, expiresAt = null } = req.body || {};
-  const token = await createViewerTokenDb(row.id, req.userId, { label, expiresAt });
+  const token = await createViewerTokenDb('gallery', row.id, req.userId, { label, expiresAt });
   try { await audit(req.studioId, req.userId, 'viewer_token.created', 'gallery', row.id, { label }); } catch {}
   res.status(201).json(token);
 });
@@ -422,7 +422,7 @@ router.get('/:id/viewer-tokens', async (req, res) => {
     return res.status(403).json({ error: 'Forbidden' });
   }
 
-  res.json(await listViewerTokens(row.id));
+  res.json(await listViewerTokens('gallery', row.id));
 });
 
 router.delete('/:id/viewer-tokens/:tokenId', async (req, res) => {

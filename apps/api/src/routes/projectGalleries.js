@@ -375,7 +375,7 @@ router.post('/:id/viewer-tokens', resolveGallery, async (req, res) => {
     return res.status(403).json({ error: 'Forbidden' });
   }
   const { label = null, expiresAt = null } = req.body || {};
-  const token = await createViewerTokenDb(req.gallery.id, req.userId, { label, expiresAt });
+  const token = await createViewerTokenDb('gallery', req.gallery.id, req.userId, { label, expiresAt });
   try { await audit(req.studioId, req.userId, 'viewer_token.created', 'gallery', req.gallery.id, { label }); } catch {}
   res.status(201).json(token);
 });
@@ -385,7 +385,7 @@ router.get('/:id/viewer-tokens', resolveGallery, async (req, res) => {
   if (!can(req.user, 'write', 'gallery', { studioRole: req.studioRole, galleryRole })) {
     return res.status(403).json({ error: 'Forbidden' });
   }
-  res.json(await listViewerTokens(req.gallery.id));
+  res.json(await listViewerTokens('gallery', req.gallery.id));
 });
 
 router.delete('/:id/viewer-tokens/:tokenId', resolveGallery, async (req, res) => {
