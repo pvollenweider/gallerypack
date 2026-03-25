@@ -1,16 +1,20 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
+import { useAuth } from '../lib/auth.jsx';
 import { useT } from '../lib/I18nContext.jsx';
 import { Toast } from '../components/Toast.jsx';
 
 export default function Platform() {
-  const t = useT();
-  const [studios,   setStudios]   = useState([]);
-  const [loading,   setLoading]   = useState(true);
-  const [toast,     setToast]     = useState('');
-  const [creating,  setCreating]  = useState(false);
-  const [form, setForm] = useState({ name: '', slug: '', plan: 'free', ownerEmail: '', ownerPassword: '', ownerName: '' });
+  const t        = useT();
+  const navigate = useNavigate();
+  const { setUser } = useAuth();
+  const [studios,     setStudios]     = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [toast,       setToast]       = useState('');
+  const [creating,    setCreating]    = useState(false);
+  const [switching,   setSwitching]   = useState(null);
+  const [form, setForm] = useState({ name: '', slug: '', plan: 'free', ownerEmail: '', ownerPassword: '' });
   const [slugTouched, setSlugTouched] = useState(false);
 
   useEffect(() => { load(); }, []);
@@ -38,10 +42,22 @@ export default function Platform() {
       const studio = await api.createPlatformStudio(form);
       setStudios(ss => [...ss, studio]);
       setCreating(false);
-      setForm({ name: '', slug: '', plan: 'free', ownerEmail: '', ownerPassword: '', ownerName: '' });
+      setForm({ name: '', slug: '', plan: 'free', ownerEmail: '', ownerPassword: '' });
       setSlugTouched(false);
       setToast(t('platform_toast_created'));
     } catch (err) { setToast(err.message); }
+  }
+
+  async function handleManage(studioId) {
+    setSwitching(studioId);
+    try {
+      await api.switchStudio(studioId);
+      // Refresh user context (studioId/studioRole/studioName now reflect the switched studio)
+      const me = await api.me();
+      setUser(me);
+      navigate('/');
+    } catch (e) { setToast(e.message); }
+    finally { setSwitching(null); }
   }
 
   async function handleDelete(id) {
@@ -96,13 +112,15 @@ export default function Platform() {
                 value={form.ownerEmail}
                 onChange={e => setForm(f => ({ ...f, ownerEmail: e.target.value }))}
               />
-              <input
-                style={s.input}
-                type="password"
-                placeholder={t('platform_owner_password_placeholder')}
-                value={form.ownerPassword}
-                onChange={e => setForm(f => ({ ...f, ownerPassword: e.target.value }))}
-              />
+              {form.ownerEmail && (
+                <input
+                  style={s.input}
+                  type="password"
+                  placeholder={t('platform_owner_password_placeholder')}
+                  value={form.ownerPassword}
+                  onChange={e => setForm(f => ({ ...f, ownerPassword: e.target.value }))}
+                />
+              )}
             </div>
             <div style={{ display:'flex', gap:'0.5rem' }}>
               <button style={s.primaryBtn} type="submit">{t('platform_create_studio_btn')}</button>
@@ -138,14 +156,23 @@ export default function Platform() {
                   </td>
                   <td style={{ ...s.td, fontFamily: 'monospace', fontSize: '0.8rem', color: '#888' }}>{studio.slug}</td>
                   <td style={s.td}>
-                    <span style={{ ...s.planBadge, color: PLAN_COLORS[studio.plan] || '#888' }}>{studio.plan}</span>
+                    <span style={{ fontWeight: 600, fontSize: '0.78rem', textTransform: 'uppercase', color: PLAN_COLORS[studio.plan] || '#888' }}>{studio.plan}</span>
                   </td>
                   <td style={{ ...s.td, color: '#555', fontSize: '0.85rem' }}>{studio.member_count ?? 0}</td>
                   <td style={{ ...s.td, color: '#555', fontSize: '0.85rem' }}>{studio.gallery_count ?? 0}</td>
                   <td style={s.td}>
-                    {!studio.is_default && (
-                      <button style={s.dangerBtn} onClick={() => handleDelete(studio.id)}>{t('delete')}</button>
-                    )}
+                    <div style={{ display:'flex', gap:'0.4rem', justifyContent:'flex-end' }}>
+                      <button
+                        style={s.manageBtn}
+                        onClick={() => handleManage(studio.id)}
+                        disabled={switching === studio.id}
+                      >
+                        {switching === studio.id ? '…' : t('platform_manage_btn')}
+                      </button>
+                      {!studio.is_default && (
+                        <button style={s.dangerBtn} onClick={() => handleDelete(studio.id)}>{t('delete')}</button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -174,8 +201,8 @@ const s = {
   input:       { padding: '0.4rem 0.6rem', border: '1px solid #ddd', borderRadius: 5, fontSize: '0.875rem', outline: 'none', minWidth: 160, flex: '1 1 160px' },
   primaryBtn:  { padding: '0.4rem 1rem', background: '#111', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem', whiteSpace: 'nowrap' },
   outlineBtn:  { padding: '0.4rem 0.75rem', background: 'none', color: '#555', border: '1px solid #ddd', borderRadius: 6, cursor: 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap' },
-  dangerBtn:   { padding: '0.3rem 0.65rem', background: 'none', color: '#c00', border: '1px solid #fcc', borderRadius: 5, cursor: 'pointer', fontSize: '0.78rem' },
-  planBadge:   { fontWeight: 600, fontSize: '0.78rem', textTransform: 'uppercase' },
+  manageBtn:   { padding: '0.35rem 0.85rem', background: '#f0f7ff', color: '#2563eb', border: '1px solid #bfdbfe', borderRadius: 5, cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, whiteSpace: 'nowrap' },
+  dangerBtn:   { padding: '0.35rem 0.65rem', background: 'none', color: '#c00', border: '1px solid #fcc', borderRadius: 5, cursor: 'pointer', fontSize: '0.78rem' },
   defaultBadge:{ marginLeft: '0.4rem', fontSize: '0.7rem', background: '#f0f0f0', color: '#888', padding: '0.1rem 0.4rem', borderRadius: 3, fontWeight: 500 },
   dim:         { color: '#888', fontSize: '0.875rem' },
 };

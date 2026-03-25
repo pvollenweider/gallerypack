@@ -6,8 +6,14 @@ import { useT }                 from '../lib/I18nContext.jsx';
 import { slugify }              from '../lib/i18n.js';
 import { GalleryCard }          from '../components/GalleryCard.jsx';
 
+async function exitStudioSwitch(setUser) {
+  await api.exitStudioSwitch();
+  const me = await api.me();
+  setUser(me);
+}
+
 export default function Dashboard() {
-  const { user, logout }       = useAuth();
+  const { user, logout, setUser } = useAuth();
   const t                      = useT();
   const navigate               = useNavigate();
   const [galleries,  setGalleries]  = useState([]);
@@ -83,13 +89,21 @@ export default function Dashboard() {
   return (
     <div style={s.page}>
       <header style={s.header}>
-        <span style={s.logo}>{siteTitle}</span>
+        <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
+          <span style={s.logo}>{siteTitle}</span>
+          {user?.studioName && <span style={s.studioName}>{user.studioName}</span>}
+        </div>
         <div style={s.headerRight}>
           <span style={s.userLabel}>{user?.email}</span>
           <a href="/" target="_blank" rel="noreferrer" style={s.outlineBtn}>{t('public_site')}</a>
           {['admin','owner'].includes(user?.studioRole) && <Link to="/projects" style={s.outlineBtn}>{t('nav_projects')}</Link>}
           {['admin','owner'].includes(user?.studioRole) && <Link to="/team" style={s.outlineBtn}>{t('nav_team')}</Link>}
           {user?.platformRole === 'superadmin' && <Link to="/platform" style={{ ...s.outlineBtn, borderColor: '#7c3aed', color: '#7c3aed' }}>{t('nav_platform')}</Link>}
+          {user?.platformRole === 'superadmin' && user?.studioName && (
+            <button style={{ ...s.outlineBtn, borderColor: '#f59e0b', color: '#b45309' }} onClick={() => exitStudioSwitch(setUser)}>
+              {t('platform_exit_switch')}
+            </button>
+          )}
           <Link to="/settings" style={s.outlineBtn}>{t('settings')}</Link>
           <button style={s.outlineBtn} onClick={logout}>{t('sign_out')}</button>
         </div>
@@ -154,7 +168,8 @@ export default function Dashboard() {
 const s = {
   page:         { background: '#f8f8f8' },
   header:       { background: '#fff', borderBottom: '1px solid #eee', padding: '0 1.5rem', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
-  logo:         { fontWeight: 700, letterSpacing: '-0.02em' },
+  logo:         { fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.2 },
+  studioName:   { fontSize: '0.72rem', color: '#7c3aed', fontWeight: 600, letterSpacing: '0.02em' },
   headerRight:  { display: 'flex', alignItems: 'center', gap: '0.75rem' },
   userLabel:    { fontSize: '0.85rem', color: '#888' },
   main:         { maxWidth: 1100, margin: '0 auto', padding: '1.5rem' },

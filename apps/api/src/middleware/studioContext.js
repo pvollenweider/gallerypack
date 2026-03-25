@@ -8,6 +8,7 @@
 //                          that hit an unknown hostname.
 
 import { resolveStudioFromHostname } from '../services/contextResolver.js';
+import { getStudio } from '../db/helpers.js';
 
 const PLATFORM_MODE = process.env.PLATFORM_MODE || 'single';
 
@@ -24,18 +25,30 @@ function effectiveHostname(req) {
 /**
  * Resolve studio context and attach req.studio + req.studioId.
  * For API routes in multi-studio mode, rejects with 404 if no studio is found.
+ *
+ * A superadmin can override the studio context with the `studio_override` cookie
+ * (set via POST /api/platform/switch/:studioId).
  */
 export async function resolveStudioContext(req, res, next) {
+  // Superadmin studio override — skip hostname resolution
+  const override = req.cookies?.studio_override;
+  if (override) {
+    const overrideStudio = await getStudio(override);
+    if (overrideStudio) {
+      req.studio   = overrideStudio;
+      req.studioId = overrideStudio.id;
+      return next();
+    }
+    // stale cookie — ignore and fall through to normal resolution
+  }
+
   const hostname = effectiveHostname(req);
   const studio   = await resolveStudioFromHostname(hostname);
 
   if (!studio) {
     if (PLATFORM_MODE === 'multi' && req.path.startsWith('/api/')) {
-      // Every API request in multi mode needs a studio context.
-      // Platform-level routes (/api/platform/...) are handled before this.
       return res.status(404).json({ error: 'Studio not found for this domain' });
     }
-    // Single mode or non-API path: continue without studio context
     return next();
   }
 

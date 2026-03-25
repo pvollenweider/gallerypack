@@ -20,6 +20,25 @@ function requireSuperadmin(req, res, next) {
 }
 router.use(requireSuperadmin);
 
+// POST /api/platform/switch/:studioId — superadmin switches active studio
+router.post('/switch/:studioId', async (req, res) => {
+  const studio = await getStudio(req.params.studioId);
+  if (!studio) return res.status(404).json({ error: 'Studio not found' });
+  res.cookie('studio_override', studio.id, {
+    httpOnly: true,
+    sameSite: 'strict',
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 8 * 60 * 60 * 1000, // 8h
+  });
+  res.json({ ok: true, studio: { id: studio.id, name: studio.name, slug: studio.slug } });
+});
+
+// DELETE /api/platform/switch — return to default studio
+router.delete('/switch', (req, res) => {
+  res.clearCookie('studio_override');
+  res.json({ ok: true });
+});
+
 // GET /api/platform/studios
 router.get('/studios', async (req, res) => {
   const studios = await listAllStudios();

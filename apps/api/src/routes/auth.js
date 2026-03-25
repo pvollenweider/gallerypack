@@ -68,8 +68,11 @@ router.get('/me', async (req, res) => {
   if (!session) return res.status(401).json({ error: 'Session expired' });
   const user = await getUserById(session.user_id);
   if (!user) return res.status(401).json({ error: 'User not found' });
-  const studioRole = user.studio_id ? await getStudioRole(user.id, user.studio_id) : null;
-  res.json({ id: user.id, email: user.email, role: user.role, name: user.name, studioId: user.studio_id, studioRole, locale: user.locale || null, platformRole: user.platform_role || null });
+  // studioId: use the request-resolved studio (may differ from user.studio_id when override cookie is set)
+  const resolvedStudioId = req.studioId || user.studio_id;
+  const studioRole = resolvedStudioId ? await getStudioRole(user.id, resolvedStudioId) : null;
+  const studioName = req.studio?.name ?? null;
+  res.json({ id: user.id, email: user.email, role: user.role, name: user.name, studioId: resolvedStudioId, studioName, studioRole, locale: user.locale || null, platformRole: user.platform_role || null });
 });
 
 // PATCH /api/auth/me — update own profile (name, password, locale)

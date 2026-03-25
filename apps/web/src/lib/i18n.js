@@ -208,6 +208,8 @@ export const translations = {
     platform_confirm_delete: 'Delete this studio and all its data?',
     platform_users_section: 'Users',
     platform_default_badge: 'default',
+    platform_manage_btn: 'Manage →',
+    platform_exit_switch: '← All studios',
 
     // Gallery roles
     gallery_role_viewer: 'Viewer',
@@ -529,6 +531,8 @@ export const translations = {
     platform_confirm_delete: 'Supprimer ce studio et toutes ses données ?',
     platform_users_section: 'Utilisateurs',
     platform_default_badge: 'défaut',
+    platform_manage_btn: 'Gérer →',
+    platform_exit_switch: '← Tous les studios',
 
     gallery_role_viewer: 'Lecteur',
     gallery_role_contributor: 'Contributeur',
