@@ -80,12 +80,12 @@ router.get('/me', async (req, res) => {
   const resolvedStudioId = req.studioId || user.studio_id;
   const studioRole = resolvedStudioId ? await getStudioRole(user.id, resolvedStudioId) : null;
   const studioName = req.studio?.name ?? null;
-  res.json({ id: user.id, email: user.email, role: user.role, name: user.name, studioId: resolvedStudioId, studioName, studioRole, locale: user.locale || null, platformRole: user.platform_role || null });
+  res.json({ id: user.id, email: user.email, role: user.role, name: user.name, studioId: resolvedStudioId, studioName, studioRole, locale: user.locale || null, platformRole: user.platform_role || null, notifyOnUpload: user.notify_on_upload !== 0, notifyOnPublish: user.notify_on_publish !== 0 });
 });
 
-// PATCH /api/auth/me — update own profile (name, password, locale)
+// PATCH /api/auth/me — update own profile (name, password, locale, notification prefs)
 router.patch('/me', requireAuth, async (req, res) => {
-  const { name, currentPassword, newPassword, locale } = req.body || {};
+  const { name, currentPassword, newPassword, locale, notifyOnUpload, notifyOnPublish } = req.body || {};
   const user = await getUserById(req.userId);
 
   if (newPassword !== undefined) {
@@ -108,9 +108,17 @@ router.patch('/me', requireAuth, async (req, res) => {
     await query('UPDATE users SET locale = ?, updated_at = ? WHERE id = ?', [locale || null, Date.now(), req.userId]);
   }
 
+  if (notifyOnUpload !== undefined) {
+    await query('UPDATE users SET notify_on_upload = ?, updated_at = ? WHERE id = ?', [notifyOnUpload ? 1 : 0, Date.now(), req.userId]);
+  }
+
+  if (notifyOnPublish !== undefined) {
+    await query('UPDATE users SET notify_on_publish = ?, updated_at = ? WHERE id = ?', [notifyOnPublish ? 1 : 0, Date.now(), req.userId]);
+  }
+
   const updated    = await getUserById(req.userId);
   const studioRole = updated.studio_id ? await getStudioRole(updated.id, updated.studio_id) : null;
-  res.json({ id: updated.id, email: updated.email, role: updated.role, name: updated.name, studioId: updated.studio_id, studioRole, locale: updated.locale || null, platformRole: updated.platform_role || null });
+  res.json({ id: updated.id, email: updated.email, role: updated.role, name: updated.name, studioId: updated.studio_id, studioRole, locale: updated.locale || null, platformRole: updated.platform_role || null, notifyOnUpload: updated.notify_on_upload !== 0, notifyOnPublish: updated.notify_on_publish !== 0 });
 });
 
 // GET /api/auth/me/galleries — list galleries the current user has explicit access to

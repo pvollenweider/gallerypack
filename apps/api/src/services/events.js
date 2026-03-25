@@ -28,7 +28,9 @@ export const EVENTS = {
 
 async function getStudioEditors(studioId) {
   const [rows] = await query(`
-    SELECT u.email, u.name, sm.role
+    SELECT u.email, u.name, sm.role,
+           COALESCE(u.notify_on_upload,  1) AS notify_on_upload,
+           COALESCE(u.notify_on_publish, 1) AS notify_on_publish
     FROM studio_memberships sm
     JOIN users u ON u.id = sm.user_id
     WHERE sm.studio_id = ? AND sm.role IN ('collaborator', 'admin', 'owner')
@@ -53,6 +55,7 @@ async function onPhotoUploaded({ studioId, galleryId, galleryTitle, uploadLinkLa
   const source = uploadLinkLabel ? ` (via "${uploadLinkLabel}")` : '';
 
   for (const e of editors) {
+    if (!e.notify_on_upload) continue;
     sendEmail({
       studioId,
       to: e.email,
@@ -73,6 +76,7 @@ async function onGalleryPublished({ studioId, galleryId, galleryTitle, gallerySl
   const galleryUrl = `${base}/${gallerySlug}/`;
 
   for (const e of editors) {
+    if (!e.notify_on_publish) continue;
     sendEmail({
       studioId,
       to: e.email,

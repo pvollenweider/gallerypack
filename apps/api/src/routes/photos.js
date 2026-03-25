@@ -425,7 +425,12 @@ router.get('/:id/upload-links', async (req, res) => {
   if (!can(req.user, 'upload', 'photo', { studioRole: req.studioRole, galleryRole })) {
     return res.status(403).json({ error: 'Forbidden' });
   }
-  const links = await listUploadLinks(gallery.id);
+  const base  = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
+  const links = (await listUploadLinks(gallery.id)).map(l => ({
+    ...l,
+    uploadUrl: l.token ? `${base}/upload/${l.token}` : null,
+    token: undefined, // strip raw token from response body (URL is sufficient)
+  }));
   res.json(links);
 });
 

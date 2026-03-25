@@ -70,6 +70,7 @@ GPL/AGPL dependencies are acceptable here — GalleryPack holds copyright on the
 | `react` | * | MIT | UI framework |
 | `react-dom` | * | MIT | DOM renderer |
 | `react-router-dom` | * | MIT | Client-side routing |
+| `qrcode` | * | MIT | QR code generation for upload links |
 | `@vitejs/plugin-react` | * | MIT | Vite React plugin |
 | `vite` | * | MIT | Build tool (dev only) |
 

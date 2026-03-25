@@ -344,6 +344,11 @@ export const translations = {
     profile_section_language: 'Language',
     profile_language_label: 'Interface language',
     profile_language_desc: 'Used for the admin interface and email notifications.',
+    profile_section_notifications: 'Email notifications',
+    profile_notify_upload:         'New photos to review',
+    profile_notify_upload_desc:    'Notify me when a photographer uploads photos to the inbox',
+    profile_notify_publish:        'Gallery published',
+    profile_notify_publish_desc:   'Notify me when a gallery is published with new photos',
 
     // SMTP settings
     section_smtp: 'SMTP — Email',
@@ -714,6 +719,11 @@ export const translations = {
     profile_section_language: 'Langue',
     profile_language_label: 'Langue de l\'interface',
     profile_language_desc: 'Utilisée pour l\'interface d\'administration et les emails.',
+    profile_section_notifications: 'Notifications email',
+    profile_notify_upload:         'Nouvelles photos à valider',
+    profile_notify_upload_desc:    'Me notifier quand un photographe dépose des photos dans la boîte de réception',
+    profile_notify_publish:        'Galerie publiée',
+    profile_notify_publish_desc:   'Me notifier quand une galerie est publiée avec de nouvelles photos',
 
     section_smtp: 'SMTP — Email',
     smtp_host: 'Hôte',

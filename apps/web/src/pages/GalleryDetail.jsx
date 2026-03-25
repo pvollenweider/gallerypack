@@ -5,7 +5,7 @@
 // Use, reproduction, or distribution requires a valid commercial license.
 // Unauthorized use is strictly prohibited.
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api }          from '../lib/api.js';
 import { useT }         from '../lib/I18nContext.jsx';
@@ -13,6 +13,7 @@ import { slugify }      from '../lib/i18n.js';
 import { useAuth }      from '../lib/auth.jsx';
 import { UploadZone }   from '../components/UploadZone.jsx';
 import { Toast }        from '../components/Toast.jsx';
+import QRCode           from 'qrcode';
 
 const LOCALES  = ['fr','en','de','es','it','pt'];
 const ACCESS   = ['public','private','password'];
@@ -69,6 +70,17 @@ export default function GalleryDetail() {
   const [creatingLink,         setCreatingLink]         = useState(false);
   const [newLinkUrl,           setNewLinkUrl]           = useState('');
   const [shareModal,           setShareModal]           = useState(null); // { url, label }
+
+  // QR modal state
+  const [qrModal,              setQrModal]              = useState(null); // { url, label }
+  const qrCanvasRef = useRef(null);
+
+  useEffect(() => {
+    const target = qrModal || shareModal;
+    if (target?.url && qrCanvasRef.current) {
+      QRCode.toCanvas(qrCanvasRef.current, target.url, { width: 240, margin: 2 });
+    }
+  }, [qrModal, shareModal]);
 
   // Photographers state
   const [photographers,        setPhotographers]        = useState([]);
@@ -834,6 +846,9 @@ export default function GalleryDetail() {
                   <button style={s.accessBtn} onClick={() => { navigator.clipboard.writeText(newLinkUrl); setToast(t('access_copied')); }}>
                     Copy
                   </button>
+                  <button style={s.accessBtn} onClick={() => setShareModal({ url: newLinkUrl, label: gallery.title || gallery.slug })}>
+                    QR
+                  </button>
                 </div>
               </div>
             )}
@@ -851,9 +866,16 @@ export default function GalleryDetail() {
                         {l.active ? 'active' : 'revoked'}
                       </span>
                       {l.active && (
-                        <button style={s.accessDangerBtn} onClick={() => handleRevokeUploadLink(l.id)}>
-                          Revoke
-                        </button>
+                        <>
+                          {l.uploadUrl && (
+                            <button style={s.accessBtn} onClick={() => setQrModal({ url: l.uploadUrl, label: l.label || gallery.title || gallery.slug })}>
+                              QR
+                            </button>
+                          )}
+                          <button style={s.accessDangerBtn} onClick={() => handleRevokeUploadLink(l.id)}>
+                            Revoke
+                          </button>
+                        </>
                       )}
                     </div>
                   ))}
@@ -965,7 +987,7 @@ export default function GalleryDetail() {
       </main>
       <Toast message={toast} onDone={() => setToast('')} />
 
-      {/* Share upload link modal */}
+      {/* Share upload link modal (with QR code) */}
       {shareModal && (
         <div style={s.modalOverlay} onClick={() => setShareModal(null)}>
           <div style={s.modalBox} onClick={e => e.stopPropagation()}>
@@ -982,8 +1004,32 @@ export default function GalleryDetail() {
                 setToast(t('access_copied'));
               }}>Copy</button>
             </div>
+            <div style={{ marginTop: '1rem', textAlign: 'center' }}>
+              <canvas ref={qrCanvasRef} style={{ borderRadius: 6 }} />
+              <p style={{ margin: '0.4rem 0 0', fontSize: '0.75rem', color: '#666' }}>
+                Scan to open the upload page
+              </p>
+            </div>
             <div style={{ marginTop: '1rem', textAlign: 'right' }}>
               <button style={s.primaryBtn} onClick={() => setShareModal(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* QR-only modal (from upload links list) */}
+      {qrModal && (
+        <div style={s.modalOverlay} onClick={() => setQrModal(null)}>
+          <div style={{ ...s.modalBox, textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem', color: '#eee' }}>
+              QR code — {qrModal.label}
+            </h3>
+            <canvas ref={qrCanvasRef} style={{ borderRadius: 6 }} />
+            <p style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', color: '#666' }}>
+              Scan to open the upload page
+            </p>
+            <div style={{ marginTop: '1rem' }}>
+              <button style={s.primaryBtn} onClick={() => setQrModal(null)}>Close</button>
             </div>
           </div>
         </div>

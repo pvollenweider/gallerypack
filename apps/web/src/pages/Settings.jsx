@@ -330,8 +330,10 @@ const UI_LOCALES = ['fr', 'en', 'de', 'es', 'it', 'pt'];
 function ProfilePage({ user, setUser }) {
   const t = useT();
   const { setLocale } = useLocale();
-  const [name,      setName]      = useState(user?.name || '');
-  const [locale,    setLocaleSt]  = useState(user?.locale || '');
+  const [name,             setName]          = useState(user?.name || '');
+  const [locale,           setLocaleSt]      = useState(user?.locale || '');
+  const [notifyOnUpload,   setNotifyUpload]  = useState(user?.notifyOnUpload !== false);
+  const [notifyOnPublish,  setNotifyPublish] = useState(user?.notifyOnPublish !== false);
   const [saving,    setSaving]    = useState(false);
   const [toast,     setToast]     = useState('');
   const [galleries, setGalleries] = useState(null);
@@ -349,7 +351,7 @@ function ProfilePage({ user, setUser }) {
     e.preventDefault();
     setSaving(true);
     try {
-      const updated = await api.updateMe({ name, locale: locale || null });
+      const updated = await api.updateMe({ name, locale: locale || null, notifyOnUpload, notifyOnPublish });
       setUser(updated);
       if (locale) setLocale(locale);
       setToast(t('profile_saved'));
@@ -423,6 +425,21 @@ function ProfilePage({ user, setUser }) {
               </select>
             </Row>
             <p style={{ ...s.hint, marginLeft: 0 }}>{t('profile_language_desc')}</p>
+          </Section>
+
+          <Section label={t('profile_section_notifications')}>
+            <Row label={t('profile_notify_upload')}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                <input type="checkbox" checked={notifyOnUpload} onChange={e => setNotifyUpload(e.target.checked)} />
+                <span style={{ fontSize: '0.875rem', color: '#555' }}>{t('profile_notify_upload_desc')}</span>
+              </label>
+            </Row>
+            <Row label={t('profile_notify_publish')}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                <input type="checkbox" checked={notifyOnPublish} onChange={e => setNotifyPublish(e.target.checked)} />
+                <span style={{ fontSize: '0.875rem', color: '#555' }}>{t('profile_notify_publish_desc')}</span>
+              </label>
+            </Row>
           </Section>
 
           <button style={s.btn} type="submit" disabled={saving}>

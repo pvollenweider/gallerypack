@@ -987,9 +987,9 @@ export async function createUploadLink(galleryId, createdByUserId, { label = nul
   const tokenHash  = sha256(rawToken);
   const expiresVal = expiresAt ? new Date(expiresAt) : null;
   await query(
-    `INSERT INTO gallery_upload_links (id, gallery_id, token_hash, label, expires_at, created_by_user_id)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [id, galleryId, tokenHash, label, expiresVal, createdByUserId]
+    `INSERT INTO gallery_upload_links (id, gallery_id, token_hash, token, label, expires_at, created_by_user_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [id, galleryId, tokenHash, rawToken, label, expiresVal, createdByUserId]
   );
   return { id, token: rawToken, tokenHash, galleryId, label, expiresAt: expiresVal, createdAt: new Date() };
 }
@@ -1009,10 +1009,10 @@ export async function getUploadLinkByToken(rawToken) {
   return rows[0] || null;
 }
 
-/** Get all upload links for a gallery. */
+/** Get all upload links for a gallery, including the raw token for URL reconstruction. */
 export async function listUploadLinks(galleryId) {
   const [rows] = await query(
-    `SELECT id, gallery_id, label, expires_at, revoked_at, created_by_user_id, created_at,
+    `SELECT id, gallery_id, token, label, expires_at, revoked_at, created_by_user_id, created_at,
             (revoked_at IS NULL AND (expires_at IS NULL OR expires_at > NOW())) AS active
      FROM gallery_upload_links WHERE gallery_id = ? ORDER BY created_at DESC`,
     [galleryId]
