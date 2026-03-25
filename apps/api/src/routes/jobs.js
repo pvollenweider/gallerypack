@@ -1,7 +1,7 @@
 // apps/api/src/routes/jobs.js — build job queue + SSE progress stream
 import { Router } from 'express';
 import { getDb }  from '../db/database.js';
-import { createJob, getJob, listJobs, getEvents, getGalleryRole } from '../db/helpers.js';
+import { createJob, getJob, listJobs, getEvents, getGalleryRole, audit } from '../db/helpers.js';
 import { requireAuth } from '../middleware/auth.js';
 import { can } from '../authorization/index.js';
 
@@ -52,6 +52,7 @@ router.post('/:id/build', (req, res) => {
     force,
   });
 
+  try { audit(req.studioId, req.userId, 'gallery.build_triggered', 'gallery', gallery.id, { jobId: job.id, force }); } catch {}
   res.status(202).json(jobToJson(job));
 });
 

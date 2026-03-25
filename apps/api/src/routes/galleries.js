@@ -249,6 +249,10 @@ router.patch('/:id', async (req, res) => {
   getDb().prepare(`UPDATE galleries SET ${sets} WHERE id = ?`).run(...vals);
 
   const updated = getDb().prepare('SELECT * FROM galleries WHERE id = ?').get(req.params.id);
+  // Audit access mode changes (security-relevant)
+  if (updates.access !== undefined || updates.password_hash !== undefined) {
+    try { audit(req.studioId, req.userId, 'gallery.access_changed', 'gallery', req.params.id, { access: updates.access ?? row.access }); } catch {}
+  }
   res.json(await rowToGalleryAsync(updated));
 });
 
@@ -332,6 +336,7 @@ router.put('/:id/members/:userId', requireStudioRole('admin'), (req, res) => {
   if (!targetUser) return res.status(404).json({ error: 'User not found' });
 
   const membership = upsertGalleryMembership(req.params.id, req.params.userId, role);
+  try { audit(req.studioId, req.userId, 'gallery.member_added', 'gallery', req.params.id, { userId: req.params.userId, role }); } catch {}
   res.json(membership);
 });
 
@@ -343,6 +348,7 @@ router.delete('/:id/members/:userId', requireStudioRole('admin'), (req, res) => 
   if (!row) return res.status(404).json({ error: 'Gallery not found' });
 
   removeGalleryMembership(req.params.id, req.params.userId);
+  try { audit(req.studioId, req.userId, 'gallery.member_removed', 'gallery', req.params.id, { userId: req.params.userId }); } catch {}
   res.json({ ok: true });
 });
 
@@ -362,6 +368,7 @@ router.post('/:id/viewer-tokens', (req, res) => {
 
   const { label = null, expiresAt = null } = req.body || {};
   const token = createViewerTokenDb(row.id, req.userId, { label, expiresAt });
+  try { audit(req.studioId, req.userId, 'viewer_token.created', 'gallery', row.id, { label }); } catch {}
   res.status(201).json(token);
 });
 
@@ -394,6 +401,7 @@ router.delete('/:id/viewer-tokens/:tokenId', (req, res) => {
   }
 
   deleteViewerToken(req.params.tokenId);
+  try { audit(req.studioId, req.userId, 'viewer_token.revoked', 'gallery', req.params.id, { tokenId: req.params.tokenId }); } catch {}
   res.json({ ok: true });
 });
 
@@ -427,6 +435,7 @@ router.post('/:id/notify-ready', requireAuth, (req, res) => {
     });
   }
 
+  try { audit(req.studioId, req.userId, 'gallery.notify_ready', 'gallery', gallery.id, { notified: recipients.length }); } catch {}
   res.json({ ok: true, notified: recipients.length });
 });
 

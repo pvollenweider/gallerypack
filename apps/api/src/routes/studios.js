@@ -11,6 +11,7 @@ import {
   removeStudioMembership,
   getStudioMembership,
   ROLE_HIERARCHY,
+  audit,
 } from '../db/helpers.js';
 
 function countOwners(studioId) {
@@ -50,7 +51,9 @@ router.put('/members/:userId', requireStudioRole('admin'), (req, res) => {
   if (!existing) return res.status(404).json({ error: 'Membership not found' });
   if (existing.role === 'owner' && role !== 'owner' && countOwners(req.studioId) <= 1)
     return res.status(409).json({ error: 'Cannot demote the last owner. Assign another owner first.' });
-  res.json(upsertStudioMembership(req.studioId, userId, role));
+  const result = upsertStudioMembership(req.studioId, userId, role);
+  try { audit(req.studioId, req.userId, 'member.role_changed', 'user', userId, { from: existing.role, to: role }); } catch {}
+  res.json(result);
 });
 
 // DELETE /api/studios/members/:userId
@@ -61,6 +64,7 @@ router.delete('/members/:userId', requireStudioRole('owner'), (req, res) => {
   if (existing.role === 'owner' && countOwners(req.studioId) <= 1)
     return res.status(409).json({ error: 'Cannot remove the last owner. Assign another owner first.' });
   removeStudioMembership(req.studioId, userId);
+  try { audit(req.studioId, req.userId, 'member.removed', 'user', userId, { removedRole: existing.role }); } catch {}
   res.json({ ok: true });
 });
 

@@ -84,6 +84,7 @@ router.delete('/:id', requireAuth, (req, res) => {
   }
 
   deleteInvitation(req.params.id);
+  try { audit(req.studioId, req.userId, 'member.invite_revoked', 'invitation', req.params.id, {}); } catch {}
   res.json({ ok: true });
 });
 
@@ -121,11 +122,12 @@ router.post('/accept/:token', (req, res) => {
   const sessionToken = createSession(user.id);
   res.cookie('session', sessionToken, {
     httpOnly: true,
-    sameSite: 'lax',
+    sameSite: 'strict',
     secure: process.env.NODE_ENV === 'production',
     maxAge: 30 * 24 * 60 * 60 * 1000,
   });
 
+  try { audit(user.studio_id, user.id, 'member.invite_accepted', 'user', user.id, { email: user.email }); } catch {}
   res.status(201).json({
     ok:   true,
     user: { id: user.id, email: user.email, role: user.role, name: user.name },
