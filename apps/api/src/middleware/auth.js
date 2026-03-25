@@ -16,13 +16,16 @@ export async function requireAuth(req, res, next) {
   const user = await getUserById(session.user_id);
   if (!user) return res.status(401).json({ error: 'User not found' });
 
-  req.user     = user;
-  req.userId   = user.id;
-  req.studioId = user.studio_id;
+  req.user   = user;
+  req.userId = user.id;
 
-  // Attach studio role if the user belongs to a studio
-  if (user.studio_id) {
-    req.studioRole = (await getStudioRole(user.id, user.studio_id)) || null;
+  // studioId precedence: hostname-resolved context > user's home studio
+  // (hostname context is set by resolveStudioContext middleware in multi mode)
+  if (!req.studioId) req.studioId = user.studio_id;
+
+  // Attach studio role for the resolved studio
+  if (req.studioId) {
+    req.studioRole = (await getStudioRole(user.id, req.studioId)) || null;
   }
 
   next();
