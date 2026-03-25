@@ -1,292 +1,345 @@
 // apps/api/src/authorization/can.test.js — unit tests for the can() engine
+// Studio roles: photographer < collaborator < admin < owner
+// Project roles: contributor < editor < manager
+// Gallery roles: viewer < contributor < editor
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { can } from './index.js';
 
 const user = { id: 'u1', studio_id: 's1', role: 'admin' };
 
-// ── Studio-level: manage studio ───────────────────────────────────────────────
+// ── Platform superadmin ───────────────────────────────────────────────────────
 
-describe('can manage studio', () => {
-  test('owner can manage studio', () => {
-    assert.equal(can(user, 'manage', 'studio', { studioRole: 'owner' }), true);
+describe('platform superadmin bypasses all checks', () => {
+  test('superadmin can do anything', () => {
+    assert.equal(can(user, 'delete', 'gallery', { platformRole: 'superadmin' }), true);
   });
-
-  test('admin can manage studio', () => {
-    assert.equal(can(user, 'manage', 'studio', { studioRole: 'admin' }), true);
-  });
-
-  test('editor cannot manage studio', () => {
-    assert.equal(can(user, 'manage', 'studio', { studioRole: 'editor' }), false);
-  });
-
-  test('photographer cannot manage studio', () => {
-    assert.equal(can(user, 'manage', 'studio', { studioRole: 'photographer' }), false);
-  });
-
-  test('no studio role cannot manage studio', () => {
-    assert.equal(can(user, 'manage', 'studio', {}), false);
+  test('superadmin can delete studio', () => {
+    assert.equal(can(user, 'manageSettings', 'studio', { platformRole: 'superadmin' }), true);
   });
 });
 
-// ── Studio-level: manage member ───────────────────────────────────────────────
+// ── Studio-level ──────────────────────────────────────────────────────────────
+
+describe('studio.read', () => {
+  test('any studio role can read', () => {
+    for (const r of ['photographer', 'collaborator', 'admin', 'owner']) {
+      assert.equal(can(user, 'read', 'studio', { studioRole: r }), true, `role=${r}`);
+    }
+  });
+  test('no role cannot read studio', () => {
+    assert.equal(can(user, 'read', 'studio', {}), false);
+  });
+});
+
+describe('studio.manage / manageMembers / manageProjects / manageSettings', () => {
+  for (const action of ['manage', 'manageMembers', 'manageProjects', 'manageSettings']) {
+    test(`owner can ${action} studio`, () => {
+      assert.equal(can(user, action, 'studio', { studioRole: 'owner' }), true);
+    });
+    test(`admin can ${action} studio`, () => {
+      assert.equal(can(user, action, 'studio', { studioRole: 'admin' }), true);
+    });
+    test(`collaborator cannot ${action} studio`, () => {
+      assert.equal(can(user, action, 'studio', { studioRole: 'collaborator' }), false);
+    });
+    test(`photographer cannot ${action} studio`, () => {
+      assert.equal(can(user, action, 'studio', { studioRole: 'photographer' }), false);
+    });
+  }
+});
 
 describe('can manage member', () => {
   test('owner can manage members', () => {
     assert.equal(can(user, 'manage', 'member', { studioRole: 'owner' }), true);
   });
-
   test('admin can manage members', () => {
     assert.equal(can(user, 'manage', 'member', { studioRole: 'admin' }), true);
   });
-
-  test('editor cannot manage members', () => {
-    assert.equal(can(user, 'manage', 'member', { studioRole: 'editor' }), false);
+  test('collaborator cannot manage members', () => {
+    assert.equal(can(user, 'manage', 'member', { studioRole: 'collaborator' }), false);
   });
-
   test('photographer cannot manage members', () => {
     assert.equal(can(user, 'manage', 'member', { studioRole: 'photographer' }), false);
   });
 });
 
-// ── Gallery-level: read gallery ───────────────────────────────────────────────
+// ── Project-level ─────────────────────────────────────────────────────────────
+
+describe('project.read', () => {
+  test('any studio role can read project', () => {
+    for (const r of ['photographer', 'collaborator', 'admin', 'owner']) {
+      assert.equal(can(user, 'read', 'project', { studioRole: r }), true, `studioRole=${r}`);
+    }
+  });
+  test('project contributor can read project', () => {
+    assert.equal(can(user, 'read', 'project', { projectRole: 'contributor' }), true);
+  });
+  test('no role cannot read project', () => {
+    assert.equal(can(user, 'read', 'project', {}), false);
+  });
+});
+
+describe('project.write / edit', () => {
+  for (const action of ['write', 'edit']) {
+    test(`admin can ${action} project`, () => {
+      assert.equal(can(user, action, 'project', { studioRole: 'admin' }), true);
+    });
+    test(`collaborator cannot ${action} project`, () => {
+      assert.equal(can(user, action, 'project', { studioRole: 'collaborator' }), false);
+    });
+    test(`project manager can ${action} project`, () => {
+      assert.equal(can(user, action, 'project', { projectRole: 'manager' }), true);
+    });
+    test(`project editor cannot ${action} project`, () => {
+      assert.equal(can(user, action, 'project', { projectRole: 'editor' }), false);
+    });
+  }
+});
+
+describe('project.delete', () => {
+  test('admin can delete project', () => {
+    assert.equal(can(user, 'delete', 'project', { studioRole: 'admin' }), true);
+  });
+  test('collaborator cannot delete project', () => {
+    assert.equal(can(user, 'delete', 'project', { studioRole: 'collaborator' }), false);
+  });
+  test('project manager cannot delete project (studio admin only)', () => {
+    assert.equal(can(user, 'delete', 'project', { projectRole: 'manager' }), false);
+  });
+});
+
+describe('project.manageMembers / manageAccess', () => {
+  for (const action of ['manageMembers', 'manageAccess', 'manage']) {
+    test(`admin can ${action} project`, () => {
+      assert.equal(can(user, action, 'project', { studioRole: 'admin' }), true);
+    });
+    test(`project manager can ${action} project`, () => {
+      assert.equal(can(user, action, 'project', { projectRole: 'manager' }), true);
+    });
+    test(`project editor cannot ${action} project`, () => {
+      assert.equal(can(user, action, 'project', { projectRole: 'editor' }), false);
+    });
+  }
+});
+
+// ── Gallery-level: read ───────────────────────────────────────────────────────
 
 describe('can read gallery', () => {
-  const publicGallery  = { access: 'public',  private: false };
-  const privateGallery = { access: 'private', private: true  };
-  // access column is now canonical: access='public' means public even if private=1
-  const publicButPriv  = { access: 'public',  private: true  };
+  const publicGallery  = { access: 'public' };
+  const privateGallery = { access: 'private' };
 
-  test('public gallery is readable by anyone (no roles)', () => {
+  test('public gallery is readable by anyone', () => {
     assert.equal(can(user, 'read', 'gallery', { gallery: publicGallery }), true);
   });
 
-  test('access column is canonical: access=public overrides private flag', () => {
-    assert.equal(can(user, 'read', 'gallery', { gallery: publicButPriv }), true);
-  });
-
-  test('private gallery is not readable without roles', () => {
+  test('private gallery: anonymous cannot read', () => {
     assert.equal(can(user, 'read', 'gallery', { gallery: privateGallery }), false);
   });
 
-  test('studio photographer can read private gallery', () => {
-    assert.equal(can(user, 'read', 'gallery', { gallery: privateGallery, studioRole: 'photographer' }), true);
+  test('private gallery: any studio role can read', () => {
+    for (const r of ['photographer', 'collaborator', 'admin', 'owner']) {
+      assert.equal(can(user, 'read', 'gallery', { gallery: privateGallery, studioRole: r }), true, `studioRole=${r}`);
+    }
   });
 
-  test('studio editor can read private gallery', () => {
-    assert.equal(can(user, 'read', 'gallery', { gallery: privateGallery, studioRole: 'editor' }), true);
+  test('private gallery: project contributor can read', () => {
+    assert.equal(can(user, 'read', 'gallery', { gallery: privateGallery, projectRole: 'contributor' }), true);
   });
 
-  test('gallery viewer role grants read access', () => {
+  test('private gallery: gallery viewer can read', () => {
     assert.equal(can(user, 'read', 'gallery', { gallery: privateGallery, galleryRole: 'viewer' }), true);
   });
 
-  test('gallery contributor role grants read access', () => {
-    assert.equal(can(user, 'read', 'gallery', { gallery: privateGallery, galleryRole: 'contributor' }), true);
+  test('private gallery: viewer token grants read', () => {
+    assert.equal(can(user, 'read', 'gallery', { gallery: privateGallery, viewerToken: 'tok' }), true);
   });
 
-  test('gallery editor role grants read access', () => {
-    assert.equal(can(user, 'read', 'gallery', { gallery: privateGallery, galleryRole: 'editor' }), true);
-  });
-});
-
-// ── Gallery-level: viewer token read access ───────────────────────────────────
-
-describe('can read gallery with viewerToken', () => {
-  const privateGallery = { access: 'private', private: true };
-
-  test('valid viewerToken grants read access to a private gallery', () => {
-    assert.equal(can(user, 'read', 'gallery', { gallery: privateGallery, viewerToken: true }), true);
-  });
-
-  test('viewerToken without gallery context returns false', () => {
-    assert.equal(can(user, 'read', 'gallery', { viewerToken: true }), false);
-  });
-
-  test('viewerToken does not grant write access', () => {
-    assert.equal(can(user, 'write', 'gallery', { gallery: privateGallery, viewerToken: true }), false);
+  test('missing gallery context returns false even with studio role', () => {
+    assert.equal(can(user, 'read', 'gallery', { studioRole: 'owner' }), false);
   });
 });
 
-// ── Gallery-level: write gallery ──────────────────────────────────────────────
+// ── Gallery-level: write / edit ───────────────────────────────────────────────
 
-describe('can write gallery', () => {
-  test('studio owner can write gallery', () => {
-    assert.equal(can(user, 'write', 'gallery', { studioRole: 'owner' }), true);
+describe('can write / edit gallery', () => {
+  for (const action of ['write', 'edit']) {
+    test(`studio owner can ${action}`, () => {
+      assert.equal(can(user, action, 'gallery', { studioRole: 'owner' }), true);
+    });
+    test(`studio collaborator can ${action}`, () => {
+      assert.equal(can(user, action, 'gallery', { studioRole: 'collaborator' }), true);
+    });
+    test(`studio photographer cannot ${action}`, () => {
+      assert.equal(can(user, action, 'gallery', { studioRole: 'photographer' }), false);
+    });
+    test(`project editor can ${action}`, () => {
+      assert.equal(can(user, action, 'gallery', { projectRole: 'editor' }), true);
+    });
+    test(`project contributor cannot ${action}`, () => {
+      assert.equal(can(user, action, 'gallery', { projectRole: 'contributor' }), false);
+    });
+    test(`gallery editor can ${action}`, () => {
+      assert.equal(can(user, action, 'gallery', { galleryRole: 'editor' }), true);
+    });
+    test(`gallery contributor cannot ${action}`, () => {
+      assert.equal(can(user, action, 'gallery', { galleryRole: 'contributor' }), false);
+    });
+    test(`no roles cannot ${action}`, () => {
+      assert.equal(can(user, action, 'gallery', {}), false);
+    });
+  }
+});
+
+// ── Gallery-level: delete ─────────────────────────────────────────────────────
+
+describe('can delete gallery', () => {
+  test('owner can delete', () => assert.equal(can(user, 'delete', 'gallery', { studioRole: 'owner' }), true));
+  test('admin can delete', () => assert.equal(can(user, 'delete', 'gallery', { studioRole: 'admin' }), true));
+  test('collaborator cannot delete', () => assert.equal(can(user, 'delete', 'gallery', { studioRole: 'collaborator' }), false));
+  test('gallery editor cannot delete (studio admin only)', () => assert.equal(can(user, 'delete', 'gallery', { galleryRole: 'editor' }), false));
+});
+
+// ── Gallery-level: publish / build ────────────────────────────────────────────
+
+describe('can publish / build gallery', () => {
+  for (const action of ['publish', 'build']) {
+    test(`studio collaborator can ${action}`, () => {
+      assert.equal(can(user, action, 'gallery', { studioRole: 'collaborator' }), true);
+    });
+    test(`studio photographer cannot ${action} without role`, () => {
+      assert.equal(can(user, action, 'gallery', { studioRole: 'photographer' }), false);
+    });
+    test(`project editor can ${action}`, () => {
+      assert.equal(can(user, action, 'gallery', { projectRole: 'editor' }), true);
+    });
+    test(`project contributor cannot ${action}`, () => {
+      assert.equal(can(user, action, 'gallery', { projectRole: 'contributor' }), false);
+    });
+    test(`gallery editor can ${action}`, () => {
+      assert.equal(can(user, action, 'gallery', { galleryRole: 'editor' }), true);
+    });
+    test(`gallery contributor cannot ${action}`, () => {
+      assert.equal(can(user, action, 'gallery', { galleryRole: 'contributor' }), false);
+    });
+    // photographer + gallery editor role combo
+    test(`photographer + gallery editor can ${action}`, () => {
+      assert.equal(can(user, action, 'gallery', { studioRole: 'photographer', galleryRole: 'editor' }), true);
+    });
+  }
+});
+
+// ── Gallery-level: upload ─────────────────────────────────────────────────────
+
+describe('can upload to gallery', () => {
+  test('studio collaborator can upload', () => assert.equal(can(user, 'upload', 'gallery', { studioRole: 'collaborator' }), true));
+  test('studio photographer cannot upload without role', () => assert.equal(can(user, 'upload', 'gallery', { studioRole: 'photographer' }), false));
+  test('project contributor can upload', () => assert.equal(can(user, 'upload', 'gallery', { projectRole: 'contributor' }), true));
+  test('gallery contributor can upload', () => assert.equal(can(user, 'upload', 'gallery', { galleryRole: 'contributor' }), true));
+  test('gallery viewer cannot upload', () => assert.equal(can(user, 'upload', 'gallery', { galleryRole: 'viewer' }), false));
+  test('photographer + gallery contributor can upload', () => {
+    assert.equal(can(user, 'upload', 'gallery', { studioRole: 'photographer', galleryRole: 'contributor' }), true);
   });
+});
 
-  test('studio admin can write gallery', () => {
-    assert.equal(can(user, 'write', 'gallery', { studioRole: 'admin' }), true);
+// ── Gallery-level: deletePhoto ────────────────────────────────────────────────
+
+describe('can deletePhoto from gallery', () => {
+  test('studio collaborator can deletePhoto', () => assert.equal(can(user, 'deletePhoto', 'gallery', { studioRole: 'collaborator' }), true));
+  test('studio photographer cannot deletePhoto', () => assert.equal(can(user, 'deletePhoto', 'gallery', { studioRole: 'photographer' }), false));
+  test('project editor can deletePhoto', () => assert.equal(can(user, 'deletePhoto', 'gallery', { projectRole: 'editor' }), true));
+  test('project contributor cannot deletePhoto', () => assert.equal(can(user, 'deletePhoto', 'gallery', { projectRole: 'contributor' }), false));
+  test('gallery editor can deletePhoto', () => assert.equal(can(user, 'deletePhoto', 'gallery', { galleryRole: 'editor' }), true));
+  test('gallery contributor cannot deletePhoto', () => assert.equal(can(user, 'deletePhoto', 'gallery', { galleryRole: 'contributor' }), false));
+});
+
+// ── Gallery-level: manageAccess ───────────────────────────────────────────────
+
+describe('can manageAccess for gallery', () => {
+  test('admin can manageAccess', () => assert.equal(can(user, 'manageAccess', 'gallery', { studioRole: 'admin' }), true));
+  test('collaborator cannot manageAccess', () => assert.equal(can(user, 'manageAccess', 'gallery', { studioRole: 'collaborator' }), false));
+  test('project manager can manageAccess', () => assert.equal(can(user, 'manageAccess', 'gallery', { projectRole: 'manager' }), true));
+  test('project editor cannot manageAccess', () => assert.equal(can(user, 'manageAccess', 'gallery', { projectRole: 'editor' }), false));
+  test('gallery editor can manageAccess', () => assert.equal(can(user, 'manageAccess', 'gallery', { galleryRole: 'editor' }), true));
+  test('gallery contributor cannot manageAccess', () => assert.equal(can(user, 'manageAccess', 'gallery', { galleryRole: 'contributor' }), false));
+});
+
+// ── Gallery-level: viewBuildLogs ──────────────────────────────────────────────
+
+describe('can viewBuildLogs', () => {
+  test('any studio role can viewBuildLogs', () => {
+    for (const r of ['photographer', 'collaborator', 'admin', 'owner']) {
+      assert.equal(can(user, 'viewBuildLogs', 'gallery', { studioRole: r }), true, `studioRole=${r}`);
+    }
   });
+  test('project contributor can viewBuildLogs', () => assert.equal(can(user, 'viewBuildLogs', 'gallery', { projectRole: 'contributor' }), true));
+  test('gallery viewer can viewBuildLogs', () => assert.equal(can(user, 'viewBuildLogs', 'gallery', { galleryRole: 'viewer' }), true));
+  test('no roles cannot viewBuildLogs', () => assert.equal(can(user, 'viewBuildLogs', 'gallery', {}), false));
+});
 
-  test('studio editor can write gallery', () => {
-    assert.equal(can(user, 'write', 'gallery', { studioRole: 'editor' }), true);
+// ── Gallery-level: notify ─────────────────────────────────────────────────────
+
+describe('can notify gallery ready', () => {
+  test('studio member can notify', () => assert.equal(can(user, 'notify', 'gallery', { studioRole: 'photographer' }), true));
+  test('gallery contributor can notify', () => assert.equal(can(user, 'notify', 'gallery', { galleryRole: 'contributor' }), true));
+  test('gallery editor can notify', () => assert.equal(can(user, 'notify', 'gallery', { galleryRole: 'editor' }), true));
+  test('gallery viewer cannot notify', () => assert.equal(can(user, 'notify', 'gallery', { galleryRole: 'viewer' }), false));
+  test('no roles cannot notify', () => assert.equal(can(user, 'notify', 'gallery', {}), false));
+});
+
+// ── Viewer token ──────────────────────────────────────────────────────────────
+
+describe('viewer token', () => {
+  const privateGallery = { access: 'private' };
+
+  test('viewer token grants gallery.read', () => {
+    assert.equal(can(user, 'read', 'gallery', { gallery: privateGallery, viewerToken: 'tok' }), true);
   });
-
-  test('studio photographer cannot write gallery', () => {
-    assert.equal(can(user, 'write', 'gallery', { studioRole: 'photographer' }), false);
+  test('viewer token does not grant gallery.write', () => {
+    assert.equal(can(user, 'write', 'gallery', { gallery: privateGallery, viewerToken: 'tok' }), false);
   });
-
-  test('gallery editor role can write gallery', () => {
-    assert.equal(can(user, 'write', 'gallery', { galleryRole: 'editor' }), true);
+  test('viewer token without gallery context returns false', () => {
+    assert.equal(can(user, 'read', 'gallery', { viewerToken: 'tok' }), false);
   });
+});
 
-  test('gallery contributor role cannot write gallery', () => {
-    assert.equal(can(user, 'write', 'gallery', { galleryRole: 'contributor' }), false);
-  });
+// ── Photo compat aliases ──────────────────────────────────────────────────────
 
-  test('gallery viewer role cannot write gallery', () => {
-    assert.equal(can(user, 'write', 'gallery', { galleryRole: 'viewer' }), false);
-  });
+describe('photo.upload (compat)', () => {
+  test('studio collaborator can upload photo', () => assert.equal(can(user, 'upload', 'photo', { studioRole: 'collaborator' }), true));
+  test('studio photographer cannot upload photo without role', () => assert.equal(can(user, 'upload', 'photo', { studioRole: 'photographer' }), false));
+  test('gallery contributor can upload photo', () => assert.equal(can(user, 'upload', 'photo', { galleryRole: 'contributor' }), true));
+  test('gallery viewer cannot upload photo', () => assert.equal(can(user, 'upload', 'photo', { galleryRole: 'viewer' }), false));
+  test('project contributor can upload photo', () => assert.equal(can(user, 'upload', 'photo', { projectRole: 'contributor' }), true));
+  test('no roles cannot upload photo', () => assert.equal(can(user, 'upload', 'photo', {}), false));
+});
 
-  test('no roles cannot write gallery', () => {
+describe('photo.delete (compat)', () => {
+  test('studio collaborator can delete photo', () => assert.equal(can(user, 'delete', 'photo', { studioRole: 'collaborator' }), true));
+  test('studio photographer cannot delete photo', () => assert.equal(can(user, 'delete', 'photo', { studioRole: 'photographer' }), false));
+  test('gallery editor can delete photo', () => assert.equal(can(user, 'delete', 'photo', { galleryRole: 'editor' }), true));
+  test('gallery contributor cannot delete photo', () => assert.equal(can(user, 'delete', 'photo', { galleryRole: 'contributor' }), false));
+  test('project editor can delete photo', () => assert.equal(can(user, 'delete', 'photo', { projectRole: 'editor' }), true));
+  test('no roles cannot delete photo', () => assert.equal(can(user, 'delete', 'photo', {}), false));
+});
+
+// ── Cross-studio denial ───────────────────────────────────────────────────────
+
+describe('cross-studio denial', () => {
+  test('no roles means no access even for owner-level actions', () => {
+    assert.equal(can(user, 'delete', 'gallery', {}), false);
+    assert.equal(can(user, 'manage', 'studio', {}), false);
     assert.equal(can(user, 'write', 'gallery', {}), false);
   });
 });
 
-// ── Gallery-level: delete gallery ─────────────────────────────────────────────
-
-describe('can delete gallery', () => {
-  test('owner can delete gallery', () => {
-    assert.equal(can(user, 'delete', 'gallery', { studioRole: 'owner' }), true);
-  });
-
-  test('admin can delete gallery', () => {
-    assert.equal(can(user, 'delete', 'gallery', { studioRole: 'admin' }), true);
-  });
-
-  test('editor cannot delete gallery', () => {
-    assert.equal(can(user, 'delete', 'gallery', { studioRole: 'editor' }), false);
-  });
-
-  test('photographer cannot delete gallery', () => {
-    assert.equal(can(user, 'delete', 'gallery', { studioRole: 'photographer' }), false);
-  });
-
-  test('gallery editor role cannot delete gallery (studio-only)', () => {
-    assert.equal(can(user, 'delete', 'gallery', { galleryRole: 'editor' }), false);
-  });
-});
-
-// ── Gallery-level: publish gallery ────────────────────────────────────────────
-
-describe('can publish gallery', () => {
-  test('owner can publish gallery', () => {
-    assert.equal(can(user, 'publish', 'gallery', { studioRole: 'owner' }), true);
-  });
-
-  test('admin can publish gallery', () => {
-    assert.equal(can(user, 'publish', 'gallery', { studioRole: 'admin' }), true);
-  });
-
-  test('editor can publish gallery', () => {
-    assert.equal(can(user, 'publish', 'gallery', { studioRole: 'editor' }), true);
-  });
-
-  test('photographer cannot publish gallery', () => {
-    assert.equal(can(user, 'publish', 'gallery', { studioRole: 'photographer' }), false);
-  });
-
-  test('gallery editor role cannot publish (studio-only action)', () => {
-    assert.equal(can(user, 'publish', 'gallery', { galleryRole: 'editor' }), false);
-  });
-});
-
-// ── Photo-level: upload photo ─────────────────────────────────────────────────
-
-describe('can upload photo', () => {
-  // Studio editor+ can upload anywhere (no gallery role needed)
-  test('studio editor can upload anywhere', () => {
-    assert.equal(can(user, 'upload', 'photo', { studioRole: 'editor' }), true);
-  });
-
-  test('studio admin can upload anywhere', () => {
-    assert.equal(can(user, 'upload', 'photo', { studioRole: 'admin' }), true);
-  });
-
-  test('studio owner can upload anywhere', () => {
-    assert.equal(can(user, 'upload', 'photo', { studioRole: 'owner' }), true);
-  });
-
-  // Photographer needs an explicit gallery role (contributor or editor)
-  test('studio photographer alone cannot upload (needs gallery role)', () => {
-    assert.equal(can(user, 'upload', 'photo', { studioRole: 'photographer' }), false);
-  });
-
-  test('photographer with contributor gallery role can upload', () => {
-    assert.equal(can(user, 'upload', 'photo', { studioRole: 'photographer', galleryRole: 'contributor' }), true);
-  });
-
-  test('photographer with editor gallery role can upload', () => {
-    assert.equal(can(user, 'upload', 'photo', { studioRole: 'photographer', galleryRole: 'editor' }), true);
-  });
-
-  test('photographer with viewer gallery role cannot upload', () => {
-    assert.equal(can(user, 'upload', 'photo', { studioRole: 'photographer', galleryRole: 'viewer' }), false);
-  });
-
-  // Gallery role alone (no studio role) — external contributor
-  test('gallery contributor (no studio role) can upload', () => {
-    assert.equal(can(user, 'upload', 'photo', { galleryRole: 'contributor' }), true);
-  });
-
-  test('gallery editor (no studio role) can upload', () => {
-    assert.equal(can(user, 'upload', 'photo', { galleryRole: 'editor' }), true);
-  });
-
-  test('gallery viewer cannot upload', () => {
-    assert.equal(can(user, 'upload', 'photo', { galleryRole: 'viewer' }), false);
-  });
-
-  test('no roles cannot upload', () => {
-    assert.equal(can(user, 'upload', 'photo', {}), false);
-  });
-});
-
-// ── Photo-level: delete photo ─────────────────────────────────────────────────
-
-describe('can delete photo', () => {
-  test('studio owner can delete photo', () => {
-    assert.equal(can(user, 'delete', 'photo', { studioRole: 'owner' }), true);
-  });
-
-  test('studio admin can delete photo', () => {
-    assert.equal(can(user, 'delete', 'photo', { studioRole: 'admin' }), true);
-  });
-
-  test('studio editor can delete photo', () => {
-    assert.equal(can(user, 'delete', 'photo', { studioRole: 'editor' }), true);
-  });
-
-  test('studio photographer cannot delete photo', () => {
-    assert.equal(can(user, 'delete', 'photo', { studioRole: 'photographer' }), false);
-  });
-
-  test('gallery editor can delete photo', () => {
-    assert.equal(can(user, 'delete', 'photo', { galleryRole: 'editor' }), true);
-  });
-
-  test('gallery contributor cannot delete photo', () => {
-    assert.equal(can(user, 'delete', 'photo', { galleryRole: 'contributor' }), false);
-  });
-
-  test('gallery viewer cannot delete photo', () => {
-    assert.equal(can(user, 'delete', 'photo', { galleryRole: 'viewer' }), false);
-  });
-
-  test('no roles cannot delete photo', () => {
-    assert.equal(can(user, 'delete', 'photo', {}), false);
-  });
-});
-
-// ── Unknown action/resource returns false ─────────────────────────────────────
+// ── Unknown action / resource ─────────────────────────────────────────────────
 
 describe('unknown action/resource', () => {
   test('unknown action returns false', () => {
     assert.equal(can(user, 'fly', 'gallery', { studioRole: 'owner' }), false);
   });
-
   test('unknown resource returns false', () => {
-    assert.equal(can(user, 'read', 'unicorn', { studioRole: 'owner' }), false);
+    assert.equal(can(user, 'read', 'spaceship', { studioRole: 'owner' }), false);
   });
 });
