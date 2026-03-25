@@ -60,6 +60,18 @@ export default function GalleryDetail() {
   const [addRole,         setAddRole]         = useState('contributor');
   const [addingMember,    setAddingMember]    = useState(false);
 
+  // Upload links state
+  const [uploadLinks,     setUploadLinks]     = useState([]);
+  const [newLinkLabel,    setNewLinkLabel]    = useState('');
+  const [newLinkExpiry,   setNewLinkExpiry]   = useState('');
+  const [creatingLink,    setCreatingLink]    = useState(false);
+  const [newLinkUrl,      setNewLinkUrl]      = useState('');
+  const [shareModal,      setShareModal]      = useState(null); // { url, label }
+
+  // Inbox state
+  const [inbox,           setInbox]           = useState(null); // { photos, counts }
+  const [validating,      setValidating]      = useState(false);
+
   useEffect(() => { load(); }, [id]);
 
   async function load() {
@@ -236,6 +248,70 @@ export default function GalleryDetail() {
     finally { setSendingInvite(false); }
   }
 
+  async function loadUploadLinks() {
+    try {
+      const links = await api.listUploadLinks(id);
+      setUploadLinks(links);
+    } catch (e) { setToast(`${t('error')}: ${e.message}`); }
+  }
+
+  async function handleCreateUploadLink(e) {
+    e.preventDefault();
+    setCreatingLink(true);
+    setNewLinkUrl('');
+    try {
+      const data = {};
+      if (newLinkLabel.trim()) data.label = newLinkLabel.trim();
+      if (newLinkExpiry) data.expiresAt = new Date(newLinkExpiry).toISOString();
+      const link = await api.createUploadLink(id, data);
+      setUploadLinks(ls => [link, ...ls]);
+      setNewLinkLabel('');
+      setNewLinkExpiry('');
+      setNewLinkUrl(link.uploadUrl);
+    } catch (e) { setToast(`${t('error')}: ${e.message}`); }
+    finally { setCreatingLink(false); }
+  }
+
+  async function handleRevokeUploadLink(linkId) {
+    try {
+      await api.revokeUploadLink(id, linkId);
+      setUploadLinks(ls => ls.map(l => l.id === linkId ? { ...l, active: false, revoked_at: new Date().toISOString() } : l));
+    } catch (e) { setToast(`${t('error')}: ${e.message}`); }
+  }
+
+  async function handleQuickShareLink() {
+    try {
+      const link = await api.createUploadLink(id, { label: 'Quick share' });
+      setShareModal({ url: link.uploadUrl, label: gallery.title || gallery.slug });
+      setUploadLinks(ls => [link, ...ls]);
+    } catch (e) { setToast(`${t('error')}: ${e.message}`); }
+  }
+
+  async function loadInbox() {
+    try {
+      const data = await api.listInbox(id);
+      setInbox(data);
+    } catch (e) { setToast(`${t('error')}: ${e.message}`); }
+  }
+
+  async function handleValidateAll() {
+    setValidating(true);
+    try {
+      await api.validatePhotos(id, { all: true });
+      await loadInbox();
+      setNeedsRebuild(true);
+    } catch (e) { setToast(`${t('error')}: ${e.message}`); }
+    finally { setValidating(false); }
+  }
+
+  async function handleRejectAll() {
+    if (!confirm('Reject and delete all pending photos?')) return;
+    try {
+      await api.rejectPhotos(id, { all: true });
+      await loadInbox();
+    } catch (e) { setToast(`${t('error')}: ${e.message}`); }
+  }
+
   async function handleNotifyReady() {
     try {
       await api.notifyReady(id);
@@ -294,6 +370,11 @@ export default function GalleryDetail() {
               {t('view_gallery_btn')}
             </a>
           )}
+          {canManageAccess && (
+            <button style={s.outlineBtn} onClick={handleQuickShareLink}>
+              🔗 Share upload link
+            </button>
+          )}
           {CAN_BUILD && <>
             <button
               style={{ ...s.outlineBtn, ...(gallery.buildStatus === 'done' && !needsRebuild ? { opacity: 0.4, cursor: 'default' } : {}) }}
@@ -307,9 +388,21 @@ export default function GalleryDetail() {
 
       {/* Tabs */}
       <div style={s.tabs}>
-        {['photos','settings','jobs', ...(canManageAccess ? ['access'] : [])].map(tabKey => (
+        {[
+          'photos',
+          'settings',
+          'jobs',
+          ...(canManageAccess ? ['access'] : []),
+          ...(canManageAccess ? ['upload'] : []),
+          ...(canManageAccess ? ['inbox']  : []),
+        ].map(tabKey => (
           <button key={tabKey} style={{ ...s.tab, ...(tab === tabKey ? s.tabActive : {}) }}
-            onClick={() => { setTab(tabKey); if (tabKey === 'access') loadAccess(); }}>
+            onClick={() => {
+              setTab(tabKey);
+              if (tabKey === 'access') loadAccess();
+              if (tabKey === 'upload') loadUploadLinks();
+              if (tabKey === 'inbox')  loadInbox();
+            }}>
             {t(`tab_${tabKey}`)}
           </button>
         ))}
@@ -644,8 +737,141 @@ export default function GalleryDetail() {
           </div>
         )}
 
+        {/* ── UPLOAD LINKS ── */}
+        {tab === 'upload' && canManageAccess && (
+          <div style={{ maxWidth: 620 }}>
+            <h3 style={s.sectionTitle}>Photographer upload links</h3>
+            <p style={s.sectionHint}>
+              Send an upload link to a photographer. They can upload photos without an account.
+              Uploaded photos land in the <strong>Inbox</strong> tab pending your review.
+            </p>
+
+            <form onSubmit={handleCreateUploadLink} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '1rem' }}>
+              <input
+                style={{ ...s.input, flex: '1 1 160px' }}
+                placeholder="Label (e.g. photographer name)"
+                value={newLinkLabel}
+                onChange={e => setNewLinkLabel(e.target.value)}
+              />
+              <input
+                style={{ ...s.input, flex: '1 1 140px' }}
+                type="date"
+                title="Expiry date (optional)"
+                value={newLinkExpiry}
+                onChange={e => setNewLinkExpiry(e.target.value)}
+              />
+              <button style={s.primaryBtn} type="submit" disabled={creatingLink}>
+                {creatingLink ? '…' : 'Create link'}
+              </button>
+            </form>
+
+            {newLinkUrl && (
+              <div style={s.inviteLinkBox}>
+                <p style={{ margin: '0 0 0.4rem', fontSize: '0.8rem', color: '#555' }}>Share this link with the photographer:</p>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <code style={s.inviteLinkCode}>{newLinkUrl}</code>
+                  <button style={s.accessBtn} onClick={() => { navigator.clipboard.writeText(newLinkUrl); setToast(t('access_copied')); }}>
+                    Copy
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {uploadLinks.length === 0
+              ? <p style={s.dim}>No upload links yet.</p>
+              : <div style={s.accessList}>
+                  {uploadLinks.map(l => (
+                    <div key={l.id} style={s.accessRow}>
+                      <span style={s.accessEmail}>{l.label || '(no label)'}</span>
+                      {l.expires_at && (
+                        <span style={s.accessMeta}>expires {new Date(l.expires_at).toLocaleDateString()}</span>
+                      )}
+                      <span style={{ fontSize: '0.75rem', color: l.active ? '#4ade80' : '#666' }}>
+                        {l.active ? 'active' : 'revoked'}
+                      </span>
+                      {l.active && (
+                        <button style={s.accessDangerBtn} onClick={() => handleRevokeUploadLink(l.id)}>
+                          Revoke
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+            }
+          </div>
+        )}
+
+        {/* ── INBOX ── */}
+        {tab === 'inbox' && canManageAccess && (
+          <div style={{ maxWidth: 680 }}>
+            <h3 style={s.sectionTitle}>Photo inbox</h3>
+            <p style={s.sectionHint}>
+              Photos uploaded by photographers via link appear here. Review and accept or reject them before building.
+            </p>
+
+            {!inbox
+              ? <p style={s.dim}>Loading…</p>
+              : inbox.photos.length === 0
+                ? <p style={s.dim}>No pending photos.</p>
+                : <>
+                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.85rem', color: '#aaa' }}>
+                        {inbox.counts.uploaded} pending · {inbox.counts.validated} validated · {inbox.counts.published} published
+                      </span>
+                      <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
+                        <button style={s.primaryBtn} onClick={handleValidateAll} disabled={validating}>
+                          {validating ? '…' : 'Accept all'}
+                        </button>
+                        <button style={{ ...s.primaryBtn, background: '#7f1d1d', borderColor: '#991b1b' }} onClick={handleRejectAll}>
+                          Reject all
+                        </button>
+                      </div>
+                    </div>
+                    <div style={s.photoGrid}>
+                      {inbox.photos.map(p => (
+                        <div key={p.id} style={{ ...s.photoCard, cursor: 'default' }}>
+                          <img
+                            src={`/api/galleries/${id}/photos/${encodeURIComponent(p.filename)}/preview`}
+                            style={s.thumb} alt={p.filename}
+                          />
+                          <div style={s.photoName}>{p.filename}</div>
+                          {p.upload_link_label && (
+                            <div style={{ fontSize: '0.7rem', color: '#666', padding: '0 0.4rem 0.2rem' }}>{p.upload_link_label}</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+            }
+          </div>
+        )}
+
       </main>
       <Toast message={toast} onDone={() => setToast('')} />
+
+      {/* Share upload link modal */}
+      {shareModal && (
+        <div style={s.modalOverlay} onClick={() => setShareModal(null)}>
+          <div style={s.modalBox} onClick={e => e.stopPropagation()}>
+            <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem', color: '#eee' }}>
+              Upload link — {shareModal.label}
+            </h3>
+            <p style={{ margin: '0 0 1rem', fontSize: '0.82rem', color: '#888' }}>
+              Share this link with the photographer. They can upload without an account.
+            </p>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <code style={s.inviteLinkCode}>{shareModal.url}</code>
+              <button style={s.accessBtn} onClick={() => {
+                navigator.clipboard.writeText(shareModal.url);
+                setToast(t('access_copied'));
+              }}>Copy</button>
+            </div>
+            <div style={{ marginTop: '1rem', textAlign: 'right' }}>
+              <button style={s.primaryBtn} onClick={() => setShareModal(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -722,4 +948,6 @@ const s = {
   accessDangerBtn: { padding:'0.3rem 0.7rem', background:'none', border:'1px solid #fca5a5', color:'#dc2626', borderRadius:4, cursor:'pointer', fontSize:'0.78rem', whiteSpace:'nowrap' },
   inviteLinkBox:{ marginTop:'0.75rem', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:6, padding:'0.75rem 1rem' },
   inviteLinkCode:{ flex:1, fontSize:'0.78rem', fontFamily:'monospace', wordBreak:'break-all', color:'#15803d' },
+  modalOverlay: { position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 },
+  modalBox:     { background:'#1a1a1a', border:'1px solid #2a2a2a', borderRadius:10, padding:'1.5rem', width:'100%', maxWidth:480 },
 };

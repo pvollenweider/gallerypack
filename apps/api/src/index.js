@@ -35,6 +35,9 @@ import settingsRoutes  from './routes/settings.js';
 import studiosRoutes   from './routes/studios.js';
 import projectsRoutes  from './routes/projects.js';
 import platformRoutes  from './routes/platform.js';
+import uploadRoutes    from './routes/upload.js';
+import dashboardRoutes  from './routes/dashboard.js';
+import inspectorRoutes from './routes/inspector.js';
 
 const __DIR      = path.dirname(fileURLToPath(import.meta.url));
 const PORT       = process.env.PORT || 4000;
@@ -107,6 +110,9 @@ app.use('/api/invitations',         invitationsRouter);   // legacy studio invit
 app.use('/api/studios',             studiosRoutes);
 app.use('/api/projects',            projectsRoutes);
 app.use('/api/platform',            platformRoutes);
+app.use('/upload',                  uploadRateLimit, uploadRoutes);
+app.use('/api/dashboard',           dashboardRoutes);
+app.use('/api/inspector',           inspectorRoutes);
 
 // ── Built galleries — static files (fallback when no reverse proxy in front) ──
 app.use(express.static(DIST_DIR, { index: 'index.html' }));

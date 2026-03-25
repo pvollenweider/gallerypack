@@ -5,13 +5,18 @@
 // Use, reproduction, or distribution requires a valid commercial license.
 // Unauthorized use is strictly prohibited.
 
-// apps/api/src/routes/photos.js — photo upload, list, delete, reorder
+// apps/api/src/routes/photos.js — photo upload, list, delete, reorder, upload-links, inbox
 import { Router }   from 'express';
 import multer       from 'multer';
 import path         from 'path';
 import fs           from 'fs';
+import { randomUUID } from 'crypto';
 import { query }    from '../db/database.js';
-import { getGalleryRole, listGalleryRoleAssignments, listStudioMembers, getSettings, audit } from '../db/helpers.js';
+import {
+  getGalleryRole, listGalleryRoleAssignments, listStudioMembers, getSettings, audit,
+  createUploadLink, listUploadLinks, revokeUploadLink,
+  listPhotosByStatus, getPhotoStatusCounts, bulkSetPhotoStatus, setGalleryStatus,
+} from '../db/helpers.js';
 import { sendEmail } from '../services/email.js';
 import { requireAuth } from '../middleware/auth.js';
 import { can } from '../authorization/index.js';
@@ -99,7 +104,7 @@ router.get('/:id/photos/:filename/preview', async (req, res) => {
   }
 });
 
-// GET /api/galleries/:id/photos
+// GET /api/galleries/:id/photos — list photos (DB-backed, falls back to filesystem for legacy rows)
 router.get('/:id/photos', async (req, res) => {
   const gallery = await ensureGalleryBelongsToStudio(req, res);
   if (!gallery) return;
@@ -108,6 +113,33 @@ router.get('/:id/photos', async (req, res) => {
     return res.status(403).json({ error: 'Forbidden' });
   }
 
+  // Try DB-backed photo list first
+  const dbPhotos = await listPhotosByStatus(gallery.id, null);
+  if (dbPhotos.length > 0) {
+    // Attach thumbnail name from photos.json manifest if available
+    const manifestKey = path.join('dist', gallery.slug, 'photos.json').replace(/\\/g, '/');
+    let nameMap = {};
+    try {
+      const buf = await fileStorage.read(manifestKey);
+      const manifest = JSON.parse(buf.toString('utf8'));
+      for (const [file, info] of Object.entries(manifest.photos || {})) {
+        nameMap[file] = info.name;
+      }
+    } catch (_) {}
+
+    return res.json(dbPhotos.map(p => ({
+      file:              p.filename,
+      size:              p.size_bytes,
+      mtime:             p.created_at,
+      status:            p.status,
+      id:                p.id,
+      sort_order:        p.sort_order,
+      upload_link_label: p.upload_link_label || null,
+      thumb:             nameMap[p.filename] || null,
+    })));
+  }
+
+  // Legacy fallback — filesystem-only galleries (not yet migrated to photos table)
   const dir = photosDir(gallery.slug);
   if (!fs.existsSync(dir)) return res.json([]);
 
@@ -115,15 +147,12 @@ router.get('/:id/photos', async (req, res) => {
   const allFiles = fs.readdirSync(dir)
     .filter(f => EXTS.has(path.extname(f).toLowerCase()));
 
-  // Apply saved order from DB (photo_order column).
-  // Lazy migration: if DB column is NULL but legacy file exists, import once then remove file.
   let savedOrder = null;
   const [galleryRows] = await query('SELECT photo_order FROM galleries WHERE id = ?', [gallery.id]);
   const galleryRow = galleryRows[0];
   if (galleryRow?.photo_order) {
     try { savedOrder = JSON.parse(galleryRow.photo_order); } catch {}
   } else {
-    // Legacy fallback — read from disk and migrate to DB
     const orderFile = path.join(ROOT, 'src', gallery.slug, 'photo_order.json');
     try {
       if (fs.existsSync(orderFile)) {
@@ -149,7 +178,6 @@ router.get('/:id/photos', async (req, res) => {
     return { file: f, size: stat.size, mtime: stat.mtimeMs };
   });
 
-  // Attach processed thumbnail name from photos.json manifest if available
   const manifestKey = path.join('dist', gallery.slug, 'photos.json').replace(/\\/g, '/');
   let nameMap = {};
   try {
@@ -163,9 +191,23 @@ router.get('/:id/photos', async (req, res) => {
   res.json(files.map(f => ({ ...f, thumb: nameMap[f.file] || null })));
 });
 
+// GET /api/galleries/:id/photos/inbox — photos awaiting validation (status=uploaded)
+router.get('/:id/photos/inbox', async (req, res) => {
+  const gallery = await ensureGalleryBelongsToStudio(req, res);
+  if (!gallery) return;
+  const galleryRole = await getGalleryRole(req.userId, gallery.id);
+  if (!can(req.user, 'read', 'gallery', { gallery, studioRole: req.studioRole, galleryRole })) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  const photos = await listPhotosByStatus(gallery.id, 'uploaded');
+  const counts = await getPhotoStatusCounts(gallery.id);
+  res.json({ photos, counts });
+});
+
 const MAX_PHOTOS_PER_GALLERY = 500;
 
-// POST /api/galleries/:id/photos — upload one or more photos
+// POST /api/galleries/:id/photos — upload one or more photos (authenticated)
 router.post('/:id/photos', upload.array('photos', 200), async (req, res) => {
   const gallery = await ensureGalleryBelongsToStudio(req, res);
   if (!gallery) return;
@@ -175,12 +217,9 @@ router.post('/:id/photos', upload.array('photos', 200), async (req, res) => {
     return res.status(403).json({ error: 'Forbidden' });
   }
 
-  // Enforce max photos quota
-  const dir = photosDir(gallery.slug);
-  const EXTS = new Set(['.jpg','.jpeg','.png','.tiff','.tif','.heic','.heif','.avif']);
-  const existing = fs.existsSync(dir)
-    ? fs.readdirSync(dir).filter(f => EXTS.has(path.extname(f).toLowerCase())).length
-    : 0;
+  // Enforce max photos quota (count DB rows + filesystem for legacy)
+  const [countRows] = await query('SELECT COUNT(*) AS n FROM photos WHERE gallery_id = ?', [gallery.id]);
+  const existing = Number(countRows[0].n);
 
   if (existing + (req.files?.length || 0) > MAX_PHOTOS_PER_GALLERY) {
     for (const f of req.files || []) { try { fs.unlinkSync(f.path); } catch {} }
@@ -189,7 +228,18 @@ router.post('/:id/photos', upload.array('photos', 200), async (req, res) => {
     });
   }
 
-  const uploaded = (req.files || []).map(f => ({ file: f.filename, size: f.size }));
+  const uploaded = [];
+  for (const f of req.files || []) {
+    const photoId = randomUUID();
+    await query(
+      `INSERT INTO photos (id, gallery_id, filename, original_name, size_bytes, status, uploaded_by_user_id)
+       VALUES (?, ?, ?, ?, ?, 'validated', ?)
+       ON DUPLICATE KEY UPDATE size_bytes = VALUES(size_bytes), original_name = VALUES(original_name)`,
+      [photoId, gallery.id, f.filename, f.originalname, f.size, req.userId]
+    );
+    uploaded.push({ id: photoId, file: f.filename, size: f.size });
+  }
+
   if (uploaded.length > 0) {
     await query(
       'UPDATE galleries SET needs_rebuild = 1, updated_at = ? WHERE id = ?',
@@ -200,6 +250,74 @@ router.post('/:id/photos', upload.array('photos', 200), async (req, res) => {
     }
   }
   res.status(201).json({ uploaded: uploaded.length, files: uploaded });
+});
+
+// POST /api/galleries/:id/photos/validate — bulk validate (accept) inbox photos
+router.post('/:id/photos/validate', async (req, res) => {
+  const gallery = await ensureGalleryBelongsToStudio(req, res);
+  if (!gallery) return;
+  const galleryRole = await getGalleryRole(req.userId, gallery.id);
+  if (!can(req.user, 'upload', 'photo', { studioRole: req.studioRole, galleryRole })) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  const { photoIds, all } = req.body || {};
+
+  let affected = 0;
+  if (all) {
+    const [result] = await query(
+      `UPDATE photos SET status = 'validated' WHERE gallery_id = ? AND status = 'uploaded'`,
+      [gallery.id]
+    );
+    affected = result.affectedRows;
+  } else if (Array.isArray(photoIds) && photoIds.length > 0) {
+    affected = await bulkSetPhotoStatus(photoIds, 'validated');
+  } else {
+    return res.status(400).json({ error: 'Provide photoIds array or all=true' });
+  }
+
+  if (affected > 0) {
+    await query('UPDATE galleries SET needs_rebuild = 1, updated_at = ? WHERE id = ?', [Date.now(), gallery.id]);
+  }
+  res.json({ ok: true, affected });
+});
+
+// POST /api/galleries/:id/photos/reject — bulk reject (delete) inbox photos
+router.post('/:id/photos/reject', async (req, res) => {
+  const gallery = await ensureGalleryBelongsToStudio(req, res);
+  if (!gallery) return;
+  const galleryRole = await getGalleryRole(req.userId, gallery.id);
+  if (!can(req.user, 'upload', 'photo', { studioRole: req.studioRole, galleryRole })) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  const { photoIds, all } = req.body || {};
+
+  let toDelete = [];
+  if (all) {
+    const [rows] = await query(
+      `SELECT id, filename FROM photos WHERE gallery_id = ? AND status = 'uploaded'`,
+      [gallery.id]
+    );
+    toDelete = rows;
+  } else if (Array.isArray(photoIds) && photoIds.length > 0) {
+    const placeholders = photoIds.map(() => '?').join(',');
+    const [rows] = await query(
+      `SELECT id, filename FROM photos WHERE gallery_id = ? AND id IN (${placeholders})`,
+      [gallery.id, ...photoIds]
+    );
+    toDelete = rows;
+  } else {
+    return res.status(400).json({ error: 'Provide photoIds array or all=true' });
+  }
+
+  for (const p of toDelete) {
+    const filePath = path.join(photosDir(gallery.slug), path.basename(p.filename));
+    try { fs.unlinkSync(filePath); } catch {}
+    await query('DELETE FROM photos WHERE id = ?', [p.id]);
+  }
+
+  res.json({ ok: true, rejected: toDelete.length });
 });
 
 // DELETE /api/galleries/:id/photos/:filename
@@ -216,6 +334,7 @@ router.delete('/:id/photos/:filename', async (req, res) => {
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found' });
 
   fs.unlinkSync(filePath);
+  await query('DELETE FROM photos WHERE gallery_id = ? AND filename = ?', [gallery.id, safe]);
   await query(
     'UPDATE galleries SET needs_rebuild = 1, updated_at = ? WHERE id = ?',
     [Date.now(), req.params.id]
@@ -237,6 +356,16 @@ router.put('/:id/photos/order', async (req, res) => {
   if (!Array.isArray(order)) return res.status(400).json({ error: 'order must be an array of filenames' });
 
   const cleanOrder = order.map(f => path.basename(f));
+
+  // Update sort_order in photos table
+  for (let i = 0; i < cleanOrder.length; i++) {
+    await query(
+      'UPDATE photos SET sort_order = ? WHERE gallery_id = ? AND filename = ?',
+      [i, gallery.id, cleanOrder[i]]
+    );
+  }
+
+  // Also persist in galleries.photo_order for legacy engine compatibility
   await query(
     'UPDATE galleries SET photo_order = ?, cover_photo = ?, needs_rebuild = 1, updated_at = ? WHERE id = ?',
     [JSON.stringify(cleanOrder), cleanOrder[0] || null, Date.now(), req.params.id]
@@ -282,6 +411,61 @@ router.post('/:id/photos/upload-done', async (req, res) => {
   }
 
   res.json({ ok: true, notified: allEmails.length });
+});
+
+// ── Upload links management ────────────────────────────────────────────────────
+
+// GET /api/galleries/:id/upload-links
+router.get('/:id/upload-links', async (req, res) => {
+  const gallery = await ensureGalleryBelongsToStudio(req, res);
+  if (!gallery) return;
+  const galleryRole = await getGalleryRole(req.userId, gallery.id);
+  if (!can(req.user, 'upload', 'photo', { studioRole: req.studioRole, galleryRole })) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  const links = await listUploadLinks(gallery.id);
+  res.json(links);
+});
+
+// POST /api/galleries/:id/upload-links — create new upload link
+router.post('/:id/upload-links', async (req, res) => {
+  const gallery = await ensureGalleryBelongsToStudio(req, res);
+  if (!gallery) return;
+  const galleryRole = await getGalleryRole(req.userId, gallery.id);
+  if (!can(req.user, 'upload', 'photo', { studioRole: req.studioRole, galleryRole })) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  const { label, expiresAt } = req.body || {};
+  const link = await createUploadLink(gallery.id, req.userId, { label, expiresAt });
+
+  const s = await getSettings(req.studioId);
+  const base = (s?.base_url || process.env.BASE_URL || 'http://localhost:4000').replace(/\/$/, '');
+  const uploadUrl = `${base}/upload/${link.token}`;
+
+  try { await audit(req.studioId, req.userId, 'upload_link.create', 'gallery', gallery.id, { label }); } catch {}
+  res.status(201).json({ ...link, uploadUrl });
+});
+
+// DELETE /api/galleries/:id/upload-links/:linkId — revoke upload link
+router.delete('/:id/upload-links/:linkId', async (req, res) => {
+  const gallery = await ensureGalleryBelongsToStudio(req, res);
+  if (!gallery) return;
+  const galleryRole = await getGalleryRole(req.userId, gallery.id);
+  if (!can(req.user, 'upload', 'photo', { studioRole: req.studioRole, galleryRole })) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  // Verify the link belongs to this gallery
+  const [rows] = await query(
+    'SELECT id FROM gallery_upload_links WHERE id = ? AND gallery_id = ?',
+    [req.params.linkId, gallery.id]
+  );
+  if (!rows[0]) return res.status(404).json({ error: 'Upload link not found' });
+
+  await revokeUploadLink(req.params.linkId);
+  try { await audit(req.studioId, req.userId, 'upload_link.revoke', 'gallery', gallery.id, { linkId: req.params.linkId }); } catch {}
+  res.json({ ok: true });
 });
 
 export default router;

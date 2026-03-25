@@ -52,6 +52,14 @@ export const api = {
   deletePhoto: (galleryId, filename) => req('DELETE', `/galleries/${galleryId}/photos/${encodeURIComponent(filename)}`),
   reorderPhotos:  (galleryId, order)  => req('PUT',    `/galleries/${galleryId}/photos/order`, { order }),
   uploadDone:     (galleryId)         => req('POST',   `/galleries/${galleryId}/photos/upload-done`),
+  listInbox:      (galleryId)         => req('GET',    `/galleries/${galleryId}/photos/inbox`),
+  validatePhotos: (galleryId, data)   => req('POST',   `/galleries/${galleryId}/photos/validate`, data),
+  rejectPhotos:   (galleryId, data)   => req('POST',   `/galleries/${galleryId}/photos/reject`, data),
+
+  // Upload links (photographer access)
+  listUploadLinks:   (galleryId)         => req('GET',    `/galleries/${galleryId}/upload-links`),
+  createUploadLink:  (galleryId, data)   => req('POST',   `/galleries/${galleryId}/upload-links`, data),
+  revokeUploadLink:  (galleryId, linkId) => req('DELETE', `/galleries/${galleryId}/upload-links/${linkId}`),
 
   // Settings
   getSettings:    ()     => req('GET',   '/settings'),
@@ -100,6 +108,26 @@ export const api = {
   getProjectGalleries: (projectId) => req('GET',    `/projects/${projectId}/galleries`),
   createProjectGallery:(projectId, data) => req('POST', `/projects/${projectId}/galleries`, data),
 
+  // Dashboard
+  getDashboard: () => req('GET', '/dashboard'),
+
+  // Inspector (superadmin)
+  inspectorSearch:          (q)                    => req('GET',    `/inspector/search?q=${encodeURIComponent(q)}`),
+  inspectorGallery:         (id)                   => req('GET',    `/inspector/galleries/${id}`),
+  inspectorRebuild:         (id)                   => req('POST',   `/inspector/galleries/${id}/rebuild`),
+  inspectorSetActive:       (id, active)            => req('PATCH',  `/inspector/galleries/${id}`, { active }),
+  inspectorRevokeUploadLink:(galleryId, linkId)     => req('DELETE', `/inspector/galleries/${galleryId}/upload-links/${linkId}`),
+  inspectorRevokeToken:     (galleryId, tokenId)    => req('DELETE', `/inspector/galleries/${galleryId}/viewer-tokens/${tokenId}`),
+  inspectorPhoto:           (id)                   => req('GET',    `/inspector/photos/${id}`),
+  inspectorStudios:         ()                     => req('GET',    `/inspector/studios`),
+  inspectorStudio:          (id)                   => req('GET',    `/inspector/studios/${id}`),
+  inspectorProject:         (id)                   => req('GET',    `/inspector/projects/${id}`),
+  inspectorUsers:           ()                     => req('GET',    `/inspector/users`),
+  inspectorUser:            (id)                   => req('GET',    `/inspector/users/${id}`),
+  inspectorAuditLog:        (params)               => req('GET',    `/inspector/audit-log?${new URLSearchParams(params)}`),
+  inspectorDashboard:       ()                     => req('GET',    `/inspector/dashboard`),
+  inspectorAnomalies:       (params = {})          => req('GET',    `/inspector/anomalies?${new URLSearchParams(params)}`),
+
   // Platform (superadmin)
   listPlatformStudios:  ()            => req('GET',    '/platform/studios'),
   createPlatformStudio: (data)        => req('POST',   '/platform/studios', data),
@@ -119,6 +147,23 @@ export const api = {
       const xhr = new XMLHttpRequest();
       xhr.open('POST', `${BASE}/galleries/${galleryId}/photos`);
       xhr.withCredentials = true;
+      if (onProgress) xhr.upload.onprogress = (e) => onProgress(e.loaded / e.total);
+      xhr.onload  = () => xhr.status < 300 ? resolve(JSON.parse(xhr.responseText)) : reject(new Error(xhr.responseText));
+      xhr.onerror = () => reject(new Error('Upload failed'));
+      xhr.send(fd);
+    });
+  },
+
+  // Public token-based upload (no auth)
+  getUploadInfo(token) {
+    return fetch(`/upload/${token}`).then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(new Error(e.error || 'Invalid link'))));
+  },
+  uploadPhotosViaToken(token, files, onProgress) {
+    return new Promise((resolve, reject) => {
+      const fd = new FormData();
+      for (const f of files) fd.append('photos', f);
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `/upload/${token}/photos`);
       if (onProgress) xhr.upload.onprogress = (e) => onProgress(e.loaded / e.total);
       xhr.onload  = () => xhr.status < 300 ? resolve(JSON.parse(xhr.responseText)) : reject(new Error(xhr.responseText));
       xhr.onerror = () => reject(new Error('Upload failed'));
