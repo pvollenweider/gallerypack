@@ -51,6 +51,16 @@ Platform
 | `docker-compose.test.yml` | CI / ephemeral testing |
 | `deploy/docker-compose.prod.yml` | Apache-based self-hosted (advanced) |
 
+## Repository layout
+
+| Directory | License | Description |
+|---|---|---|
+| `packages/engine/` | AGPL-3.0 | Gallery build engine — image processing, HTML generation |
+| `packages/shared/` | AGPL-3.0 | Storage abstraction and shared utilities |
+| `apps/api/` | Proprietary | Platform API server |
+| `apps/web/` | Proprietary | Admin web application |
+| `workers/builder/` | Proprietary | Build job worker |
+
 ## Docs
 
 - [docs/install.md](docs/install.md) — setup and configuration
@@ -58,7 +68,16 @@ Platform
 - [docs/roles.md](docs/roles.md) — permission model
 - [docs/api.md](docs/api.md) — REST API reference
 - [docs/faq.md](docs/faq.md) — common questions
+- [docs/licensing.md](docs/licensing.md) — licensing model explained
 
-## License
+## Licensing
 
-MIT
+GalleryPack uses a **dual-license model**.
+
+**Open source (AGPL-3.0):** the core engine (`packages/`) is free software. You can use it, modify it, and build on it — but if you use it to provide a network service, you must publish your modified source under the same license.
+
+**Proprietary:** the platform (`apps/`, `workers/`) requires a commercial license. It is source-available for inspection but not freely redistributable or deployable without an agreement.
+
+**Self-hosting:** requires a commercial license for the full stack. The engine alone can be used under AGPL.
+
+**Commercial licensing:** contact via [GitHub](https://github.com/pvollenweider/gallerypack) — see [docs/licensing.md](docs/licensing.md) for details.
