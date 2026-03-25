@@ -1,6 +1,11 @@
 // apps/api/src/db/helpers.js — reusable query helpers
 import { getDb } from './database.js';
-import { randomBytes, randomUUID, createHmac, timingSafeEqual, scryptSync } from 'crypto';
+import { randomBytes, randomUUID, createHash, createHmac, timingSafeEqual, scryptSync } from 'crypto';
+
+/** SHA-256 hex digest of a raw token string. Used for all token storage. */
+function sha256(raw) {
+  return createHash('sha256').update(raw).digest('hex');
+}
 
 // ── ID generation ─────────────────────────────────────────────────────────────
 
@@ -215,15 +220,17 @@ const INVITE_DEFAULT_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
  * @param {{ studioId, galleryId?, email?, label?, expiresIn?, singleUse? }} opts
  */
 export function createInvite({ studioId, galleryId = null, email = null, label = null, expiresIn = INVITE_DEFAULT_TTL_MS, singleUse = false }) {
-  const id    = genId();
-  const token = genToken(32); // 64-char hex, sent in URL
-  const now   = Date.now();
-  const expiresAt = expiresIn ? now + expiresIn : null;
+  const id         = genId();
+  const rawToken   = genToken(32); // 64-char hex — returned to caller, NEVER stored
+  const tokenHash  = sha256(rawToken);
+  const now        = Date.now();
+  const expiresAt  = expiresIn ? now + expiresIn : null;
   getDb().prepare(`
-    INSERT INTO invites (id, studio_id, gallery_id, token, email, label, single_use, expires_at, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, studioId, galleryId, token, email, label, singleUse ? 1 : 0, expiresAt, now);
-  return getInviteById(id);
+    INSERT INTO invites (id, studio_id, gallery_id, token, token_hash, email, label, single_use, expires_at, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(id, studioId, galleryId, tokenHash, tokenHash, email, label, singleUse ? 1 : 0, expiresAt, now);
+  // Return row with rawToken injected — raw token is NOT in the DB
+  return { ...getInviteById(id), token: rawToken };
 }
 
 export function getInviteById(id) {
@@ -231,7 +238,7 @@ export function getInviteById(id) {
 }
 
 export function getInviteByToken(token) {
-  return getDb().prepare('SELECT * FROM invites WHERE token = ?').get(token);
+  return getDb().prepare('SELECT * FROM invites WHERE token_hash = ?').get(sha256(token));
 }
 
 export function listInvites(studioId) {
@@ -418,19 +425,21 @@ export function createInvitation(studioId, email, role, createdBy, { galleryId =
     db.prepare('DELETE FROM invitations WHERE id = ?').run(existing.id);
   }
   const id        = randomUUID();
-  const token     = randomBytes(32).toString('hex');
+  const rawToken  = randomBytes(32).toString('hex');
+  const tokenHash = sha256(rawToken);
   const now       = Date.now();
   const expiresAt = now + INVITATION_TTL_MS;
   db.prepare(`
-    INSERT INTO invitations (id, studio_id, email, role, token, created_by, created_at, expires_at, gallery_id, gallery_role)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, studioId, email, role, token, createdBy, now, expiresAt, galleryId, galleryRole);
-  return db.prepare('SELECT * FROM invitations WHERE id = ?').get(id);
+    INSERT INTO invitations (id, studio_id, email, role, token, token_hash, created_by, created_at, expires_at, gallery_id, gallery_role)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(id, studioId, email, role, tokenHash, tokenHash, createdBy, now, expiresAt, galleryId, galleryRole);
+  // Return row with rawToken injected — raw token is NOT in the DB
+  return { ...db.prepare('SELECT * FROM invitations WHERE id = ?').get(id), token: rawToken };
 }
 
 /** Returns an invitation row by token, or null. */
 export function getInvitationByToken(token) {
-  return getDb().prepare('SELECT * FROM invitations WHERE token = ?').get(token) || null;
+  return getDb().prepare('SELECT * FROM invitations WHERE token_hash = ?').get(sha256(token)) || null;
 }
 
 /**
@@ -443,7 +452,7 @@ export function getInvitationByToken(token) {
 export function acceptInvitation(token, password) {
   const db = getDb();
   return db.transaction(() => {
-    const inv = db.prepare('SELECT * FROM invitations WHERE token = ?').get(token);
+    const inv = db.prepare('SELECT * FROM invitations WHERE token_hash = ?').get(sha256(token));
     if (!inv) throw Object.assign(new Error('Invitation not found'), { status: 404 });
     if (inv.accepted_at) throw Object.assign(new Error('Invitation already accepted'), { status: 409 });
     if (inv.expires_at < Date.now()) throw Object.assign(new Error('Invitation has expired'), { status: 410 });
@@ -478,24 +487,25 @@ const RESET_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
 export function createPasswordResetToken(userId) {
   const db = getDb();
   db.prepare('DELETE FROM password_reset_tokens WHERE user_id = ? AND used_at IS NULL').run(userId);
-  const id    = randomUUID();
-  const token = randomBytes(32).toString('hex');
-  const now   = Date.now();
+  const id        = randomUUID();
+  const rawToken  = randomBytes(32).toString('hex');
+  const tokenHash = sha256(rawToken);
+  const now       = Date.now();
   db.prepare(`
-    INSERT INTO password_reset_tokens (id, user_id, token, created_at, expires_at)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(id, userId, token, now, now + RESET_TTL_MS);
-  return db.prepare('SELECT * FROM password_reset_tokens WHERE id = ?').get(id);
+    INSERT INTO password_reset_tokens (id, user_id, token, token_hash, created_at, expires_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(id, userId, tokenHash, tokenHash, now, now + RESET_TTL_MS);
+  return { ...db.prepare('SELECT * FROM password_reset_tokens WHERE id = ?').get(id), token: rawToken };
 }
 
 export function getPasswordResetToken(token) {
-  return getDb().prepare('SELECT * FROM password_reset_tokens WHERE token = ?').get(token) || null;
+  return getDb().prepare('SELECT * FROM password_reset_tokens WHERE token_hash = ?').get(sha256(token)) || null;
 }
 
 export function usePasswordResetToken(token, newPassword) {
   const db = getDb();
   return db.transaction(() => {
-    const row = db.prepare('SELECT * FROM password_reset_tokens WHERE token = ?').get(token);
+    const row = db.prepare('SELECT * FROM password_reset_tokens WHERE token_hash = ?').get(sha256(token));
     if (!row)      throw Object.assign(new Error('Lien invalide'), { status: 404 });
     if (row.used_at) throw Object.assign(new Error('Ce lien a déjà été utilisé'), { status: 409 });
     if (row.expires_at < Date.now()) throw Object.assign(new Error('Ce lien a expiré'), { status: 410 });
@@ -513,18 +523,19 @@ const MAGIC_TTL_MS = 5 * 60 * 1000; // 5 minutes
 export function createMagicLink(userId) {
   const db = getDb();
   db.prepare('DELETE FROM magic_links WHERE user_id = ? AND used_at IS NULL').run(userId);
-  const id    = randomUUID();
-  const token = randomBytes(32).toString('hex');
-  const now   = Date.now();
-  db.prepare('INSERT INTO magic_links (id, user_id, token, created_at, expires_at) VALUES (?, ?, ?, ?, ?)')
-    .run(id, userId, token, now, now + MAGIC_TTL_MS);
-  return db.prepare('SELECT * FROM magic_links WHERE id = ?').get(id);
+  const id        = randomUUID();
+  const rawToken  = randomBytes(32).toString('hex');
+  const tokenHash = sha256(rawToken);
+  const now       = Date.now();
+  db.prepare('INSERT INTO magic_links (id, user_id, token, token_hash, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(id, userId, tokenHash, tokenHash, now, now + MAGIC_TTL_MS);
+  return { ...db.prepare('SELECT * FROM magic_links WHERE id = ?').get(id), token: rawToken };
 }
 
 export function useMagicLink(token) {
   const db = getDb();
   return db.transaction(() => {
-    const row = db.prepare('SELECT * FROM magic_links WHERE token = ?').get(token);
+    const row = db.prepare('SELECT * FROM magic_links WHERE token_hash = ?').get(sha256(token));
     if (!row)          throw Object.assign(new Error('Lien invalide'), { status: 404 });
     if (row.used_at)   throw Object.assign(new Error('Ce lien a déjà été utilisé'), { status: 409 });
     if (row.expires_at < Date.now()) throw Object.assign(new Error('Ce lien a expiré (5 min)'), { status: 410 });
@@ -543,24 +554,25 @@ export function useMagicLink(token) {
  * @returns {object} new viewer_tokens row
  */
 export function createViewerTokenDb(galleryId, createdBy, { label = null, expiresAt = null } = {}) {
-  const id    = randomUUID();
-  const token = randomBytes(32).toString('hex');
-  const now   = Date.now();
+  const id        = randomUUID();
+  const rawToken  = randomBytes(32).toString('hex');
+  const tokenHash = sha256(rawToken);
+  const now       = Date.now();
   getDb().prepare(`
-    INSERT INTO viewer_tokens (id, gallery_id, token, label, created_by, created_at, expires_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(id, galleryId, token, label, createdBy, now, expiresAt ?? null);
-  return getDb().prepare('SELECT * FROM viewer_tokens WHERE id = ?').get(id);
+    INSERT INTO viewer_tokens (id, gallery_id, token, token_hash, label, created_by, created_at, expires_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(id, galleryId, tokenHash, tokenHash, label, createdBy, now, expiresAt ?? null);
+  return { ...getDb().prepare('SELECT * FROM viewer_tokens WHERE id = ?').get(id), token: rawToken };
 }
 
 /**
- * Look up a viewer token by its token string.
+ * Look up a viewer token by its raw token string (looked up by sha256 hash).
  * Returns the row or null. Deletes and returns null if expired.
  * @param {string} token
  * @returns {object|null}
  */
 export function getViewerToken(token) {
-  const row = getDb().prepare('SELECT * FROM viewer_tokens WHERE token = ?').get(token);
+  const row = getDb().prepare('SELECT * FROM viewer_tokens WHERE token_hash = ?').get(sha256(token));
   if (!row) return null;
   if (row.expires_at !== null && row.expires_at < Date.now()) {
     getDb().prepare('DELETE FROM viewer_tokens WHERE id = ?').run(row.id);

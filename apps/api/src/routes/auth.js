@@ -1,6 +1,8 @@
 // apps/api/src/routes/auth.js — login / logout
 import { Router } from 'express';
 import { createHash } from 'crypto';
+
+function sha256(raw) { return createHash('sha256').update(raw).digest('hex'); }
 import {
   getUserByEmail, createSession, deleteSession,
   getSession, getUserById, hashPassword, verifyPassword, getStudioRole,
@@ -202,7 +204,7 @@ router.post('/magic', async (req, res) => {
 // Safe for mail scanner prefetch: no session created, no state changed.
 router.get('/magic/:token', (req, res) => {
   const db = getDb();
-  const row = db.prepare('SELECT * FROM magic_links WHERE token = ?').get(req.params.token);
+  const row = db.prepare('SELECT * FROM magic_links WHERE token_hash = ?').get(sha256(req.params.token));
   if (!row)          return res.status(404).json({ error: 'Invalid link' });
   if (row.used_at)   return res.status(409).json({ error: 'Link already used' });
   if (row.expires_at < Date.now()) return res.status(410).json({ error: 'Link expired' });
