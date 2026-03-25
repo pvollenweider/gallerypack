@@ -27,6 +27,7 @@ import { renderLanding } from './views/landing.js';
 import settingsRoutes  from './routes/settings.js';
 import studiosRoutes   from './routes/studios.js';
 import projectsRoutes  from './routes/projects.js';
+import platformRoutes  from './routes/platform.js';
 
 const __DIR      = path.dirname(fileURLToPath(import.meta.url));
 const PORT       = process.env.PORT || 4000;
@@ -98,6 +99,7 @@ app.use('/api/invites/v1',          invitesRoutes);       // legacy gallery view
 app.use('/api/invitations',         invitationsRouter);   // legacy studio invitations (Sprint 9 cleanup)
 app.use('/api/studios',             studiosRoutes);
 app.use('/api/projects',            projectsRoutes);
+app.use('/api/platform',            platformRoutes);
 
 // ── Built galleries — static files (fallback when no reverse proxy in front) ──
 app.use(express.static(DIST_DIR, { index: 'index.html' }));

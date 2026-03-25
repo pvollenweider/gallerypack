@@ -16,8 +16,9 @@ export async function requireAuth(req, res, next) {
   const user = await getUserById(session.user_id);
   if (!user) return res.status(401).json({ error: 'User not found' });
 
-  req.user   = user;
-  req.userId = user.id;
+  req.user         = user;
+  req.userId       = user.id;
+  req.platformRole = user.platform_role || null;
 
   // studioId precedence: hostname-resolved context > user's home studio
   // (hostname context is set by resolveStudioContext middleware in multi mode)

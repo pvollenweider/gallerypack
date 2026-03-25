@@ -27,7 +27,7 @@ export async function bootstrap() {
       isDefault: true,
     });
 
-    // Create admin user with scrypt-hashed password
+    // Create admin user with scrypt-hashed password, designated as platform superadmin
     const existing = await getUserByEmail(adminEmail);
     const user = existing || await createUser({
       studioId:     studio.id,
@@ -35,7 +35,12 @@ export async function bootstrap() {
       passwordHash: hashPassword(adminPassword),
       role:         'admin',
       name:         'Admin',
+      platformRole: 'superadmin',
     });
+    // Ensure platform_role is set even if user already existed
+    if (existing && !existing.platform_role) {
+      await query('UPDATE users SET platform_role = ? WHERE id = ?', ['superadmin', existing.id]);
+    }
 
     // Insert owner membership for the admin user
     await upsertStudioMembership(studio.id, user.id, 'owner');
