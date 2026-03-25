@@ -51,8 +51,10 @@ export function requireStudioRole(minRole) {
 
 /**
  * Resolve a viewer token from query param `?vt=<token>` or `Authorization: Bearer <token>`.
- * If a valid, non-expired viewer token is found, sets req.viewerGalleryId and calls next().
- * Does NOT set req.user — this is anonymous/public access.
+ * If a valid, non-expired, non-revoked token is found sets:
+ *   req.viewerToken  = raw token string (for can() checks)
+ *   req.viewerScope  = { type: 'project'|'gallery', id: scopeId }
+ * Does NOT set req.user — viewer tokens never create user sessions.
  */
 export async function resolveViewerToken(req, res, next) {
   let raw = req.query.vt;
@@ -67,7 +69,8 @@ export async function resolveViewerToken(req, res, next) {
 
   const row = await getViewerToken(raw);
   if (row) {
-    req.viewerGalleryId = row.gallery_id;
+    req.viewerToken = raw;
+    req.viewerScope = { type: row.scope_type, id: row.scope_id };
     // Fire-and-forget: update last_used_at without blocking the request
     touchViewerToken(row.id).catch(() => {});
   }
