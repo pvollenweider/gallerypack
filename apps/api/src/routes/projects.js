@@ -8,8 +8,11 @@ import {
   createProject, updateProject, archiveProject,
   getProjectRole, upsertProjectRole, removeProjectRole, listProjectMembers,
   PROJECT_ROLE_HIERARCHY,
+  createViewerTokenDb, listViewerTokens, deleteViewerToken,
+  getGalleryRole,
   audit,
 } from '../db/helpers.js';
+import { can } from '../authorization/index.js';
 import { query } from '../db/database.js';
 import { randomUUID } from 'crypto';
 
@@ -170,6 +173,50 @@ router.delete('/:id/members/:userId', async (req, res) => {
 
   await removeProjectRole(project.id, req.params.userId);
   try { await audit(req.studioId, req.userId, 'project.member_removed', 'project', project.id, { userId: req.params.userId }); } catch {}
+  res.json({ ok: true });
+});
+
+// ── Project-level viewer token routes ─────────────────────────────────────────
+// Viewer tokens scoped to a project grant read access to all galleries within it.
+
+router.post('/:id/viewer-tokens', async (req, res) => {
+  const project = await getProject(req.params.id);
+  if (!project || project.studio_id !== req.studioId) return res.status(404).json({ error: 'Project not found' });
+
+  const effectiveRole = await resolveProjectAccess(req.userId, req.studioRole, project.id);
+  if (!can(req.user, 'manageAccess', 'project', { studioRole: req.studioRole, projectRole: effectiveRole })) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  const { label = null, expiresAt = null, email = null } = req.body || {};
+  const token = await createViewerTokenDb('project', project.id, req.userId, { email, label, expiresAt });
+  try { await audit(req.studioId, req.userId, 'viewer_token.created', 'project', project.id, { label }); } catch {}
+  res.status(201).json(token);
+});
+
+router.get('/:id/viewer-tokens', async (req, res) => {
+  const project = await getProject(req.params.id);
+  if (!project || project.studio_id !== req.studioId) return res.status(404).json({ error: 'Project not found' });
+
+  const effectiveRole = await resolveProjectAccess(req.userId, req.studioRole, project.id);
+  if (!can(req.user, 'manageAccess', 'project', { studioRole: req.studioRole, projectRole: effectiveRole })) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  res.json(await listViewerTokens('project', project.id));
+});
+
+router.delete('/:id/viewer-tokens/:tokenId', async (req, res) => {
+  const project = await getProject(req.params.id);
+  if (!project || project.studio_id !== req.studioId) return res.status(404).json({ error: 'Project not found' });
+
+  const effectiveRole = await resolveProjectAccess(req.userId, req.studioRole, project.id);
+  if (!can(req.user, 'manageAccess', 'project', { studioRole: req.studioRole, projectRole: effectiveRole })) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  await deleteViewerToken(req.params.tokenId);
+  try { await audit(req.studioId, req.userId, 'viewer_token.revoked', 'project', project.id, { tokenId: req.params.tokenId }); } catch {}
   res.json({ ok: true });
 });
 

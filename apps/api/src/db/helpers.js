@@ -766,30 +766,40 @@ export async function useMagicLink(token) {
   });
 }
 
-// ── Viewer tokens (DB-backed, per-gallery share links) ────────────────────────
+// ── Viewer tokens v2 (project | gallery scope) ────────────────────────────────
 
-export async function createViewerTokenDb(galleryId, createdBy, { label = null, expiresAt = null } = {}) {
+/**
+ * Create a scoped viewer token.
+ * @param {string} scopeType - 'project' | 'gallery'
+ * @param {string} scopeId
+ * @param {string} createdByUserId
+ * @param {{ email?, label?, expiresAt? }} opts
+ * @returns token row + raw token (shown once)
+ */
+export async function createViewerTokenDb(scopeType, scopeId, createdByUserId, { email = null, label = null, expiresAt = null } = {}) {
   const id        = randomUUID();
   const rawToken  = randomBytes(32).toString('hex');
   const tokenHash = sha256(rawToken);
   const now       = Date.now();
   await query(`
-    INSERT INTO viewer_tokens (id, gallery_id, token, token_hash, label, created_by, created_at, expires_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `, [id, galleryId, tokenHash, tokenHash, label, createdBy, now, expiresAt ?? null]);
+    INSERT INTO viewer_tokens (id, scope_type, scope_id, email, label, token_hash, expires_at, created_by_user_id, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `, [id, scopeType, scopeId, email, label, tokenHash, expiresAt ?? null, createdByUserId ?? null, now]);
   const [rows] = await query('SELECT * FROM viewer_tokens WHERE id = ?', [id]);
   return { ...rows[0], token: rawToken };
 }
 
-export async function getViewerToken(token) {
+/** Lookup viewer token by raw value. Returns null if not found, expired, or revoked. */
+export async function getViewerToken(rawToken) {
   const [rows] = await query(
     'SELECT * FROM viewer_tokens WHERE token_hash = ?',
-    [sha256(token)]
+    [sha256(rawToken)]
   );
   const row = rows[0];
   if (!row) return null;
+  if (row.revoked_at) return null;
   if (row.expires_at !== null && row.expires_at < Date.now()) {
-    await query('DELETE FROM viewer_tokens WHERE id = ?', [row.id]);
+    await query('UPDATE viewer_tokens SET revoked_at = ? WHERE id = ?', [Date.now(), row.id]);
     return null;
   }
   return row;
@@ -799,16 +809,16 @@ export async function touchViewerToken(id) {
   await query('UPDATE viewer_tokens SET last_used_at = ? WHERE id = ?', [Date.now(), id]);
 }
 
-export async function listViewerTokens(galleryId) {
+export async function listViewerTokens(scopeType, scopeId) {
   const [rows] = await query(
-    'SELECT * FROM viewer_tokens WHERE gallery_id = ? ORDER BY created_at DESC',
-    [galleryId]
+    'SELECT * FROM viewer_tokens WHERE scope_type = ? AND scope_id = ? AND revoked_at IS NULL ORDER BY created_at DESC',
+    [scopeType, scopeId]
   );
   return rows;
 }
 
 export async function deleteViewerToken(id) {
-  await query('DELETE FROM viewer_tokens WHERE id = ?', [id]);
+  await query('UPDATE viewer_tokens SET revoked_at = ? WHERE id = ?', [Date.now(), id]);
 }
 
 // ── Projects ──────────────────────────────────────────────────────────────────
