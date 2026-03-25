@@ -1,5 +1,37 @@
 # Caddyfile - GalleryPack SaaS production reverse proxy
 # The admin SPA and API are both served by the Express API container.
+#
+# Multi-studio mode: set BASE_DOMAIN=gallerypack.app in environment.
+# Caddy passes the original Host header as X-Forwarded-Host so the API can
+# resolve the studio context from the subdomain.
+#
+# Wildcard subdomain block (multi-studio):
+#   *.{$BASE_DOMAIN:localhost} — studio subdomains
+# Root domain block:
+#   {$BASE_DOMAIN:localhost}   — platform root
+
+# ── Studio subdomains (only active when BASE_DOMAIN is set) ───────────────────
+*.{$BASE_DOMAIN:localhost} {
+    reverse_proxy api:4000 {
+        header_up X-Forwarded-Host {host}
+        header_up X-Forwarded-For  {remote_host}
+        flush_interval -1
+    }
+
+    encode gzip
+
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options        "SAMEORIGIN"
+        Referrer-Policy        "strict-origin-when-cross-origin"
+        -Server
+    }
+}
+
+# ── Platform root / single-domain fallback ────────────────────────────────────
+{$BASE_DOMAIN:localhost} {
+    # Alternate: set DOMAIN to override (legacy single-domain deployments)
+}
 
 {$DOMAIN:localhost} {
     # API + Admin SPA

@@ -7,8 +7,9 @@ import { fileURLToPath } from 'url';
 
 import { runMigrations } from './db/migrations/run.js';
 import { bootstrap }     from './services/bootstrap.js';
-import { errorHandler }  from './middleware/error.js';
-import { rateLimit }     from './middleware/rateLimit.js';
+import { errorHandler }       from './middleware/error.js';
+import { rateLimit }          from './middleware/rateLimit.js';
+import { resolveStudioContext } from './middleware/studioContext.js';
 import { query, getPool } from './db/database.js';
 import { createStorage } from '../../../packages/shared/src/storage/index.js';
 import { getSettings, getSession } from './db/helpers.js';
@@ -38,6 +39,9 @@ const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+// ── Studio context — resolve studio from hostname (before all routes) ─────────
+app.use(resolveStudioContext);
 
 // ── Rate limiters ─────────────────────────────────────────────────────────────
 const uploadRateLimit = rateLimit({ windowMs: 60_000, max: 100 });
