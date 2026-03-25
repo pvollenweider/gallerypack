@@ -285,7 +285,7 @@ export function verifyViewerToken(token) {
   return data.g;
 }
 
-// ── Invites (photographer upload links) ───────────────────────────────────────
+// ── Gallery invites (photographer upload links — uses gallery_invites table) ───
 
 const INVITE_DEFAULT_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
@@ -296,36 +296,176 @@ export async function createInvite({ studioId, galleryId = null, email = null, l
   const now       = Date.now();
   const expiresAt = expiresIn ? now + expiresIn : null;
   await query(`
-    INSERT INTO invites (id, studio_id, gallery_id, token, token_hash, email, label, single_use, expires_at, created_at)
+    INSERT INTO gallery_invites (id, studio_id, gallery_id, token, token_hash, email, label, single_use, expires_at, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `, [id, studioId, galleryId, tokenHash, tokenHash, email, label, singleUse ? 1 : 0, expiresAt, now]);
   return { ...(await getInviteById(id)), token: rawToken };
 }
 
 export async function getInviteById(id) {
-  const [rows] = await query('SELECT * FROM invites WHERE id = ?', [id]);
+  const [rows] = await query('SELECT * FROM gallery_invites WHERE id = ?', [id]);
   return rows[0] ?? null;
 }
 
 export async function getInviteByToken(token) {
-  const [rows] = await query('SELECT * FROM invites WHERE token_hash = ?', [sha256(token)]);
+  const [rows] = await query('SELECT * FROM gallery_invites WHERE token_hash = ?', [sha256(token)]);
   return rows[0] ?? null;
 }
 
 export async function listInvites(studioId) {
   const [rows] = await query(
-    'SELECT * FROM invites WHERE studio_id = ? ORDER BY created_at DESC',
+    'SELECT * FROM gallery_invites WHERE studio_id = ? ORDER BY created_at DESC',
     [studioId]
   );
   return rows;
 }
 
 export async function useInvite(id) {
-  await query('UPDATE invites SET used_at = ? WHERE id = ?', [Date.now(), id]);
+  await query('UPDATE gallery_invites SET used_at = ? WHERE id = ?', [Date.now(), id]);
 }
 
 export async function revokeInvite(id) {
+  await query('UPDATE gallery_invites SET revoked_at = ? WHERE id = ?', [Date.now(), id]);
+}
+
+// ── Unified scoped invites (studio | project | gallery) ───────────────────────
+
+const SCOPED_INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+export const INVITE_SCOPE_TYPES = ['studio', 'project', 'gallery'];
+
+export async function createScopedInvite(scopeType, scopeId, email, roleToGrant, createdByUserId = null, ttlMs = SCOPED_INVITE_TTL_MS) {
+  const id        = randomUUID();
+  const rawToken  = genToken(32);
+  const tokenHash = sha256(rawToken);
+  const now       = Date.now();
+  const expiresAt = now + ttlMs;
+
+  // Replace any pending (unused, non-revoked) invite for same email+scope
+  await query(
+    'DELETE FROM invites WHERE email = ? AND scope_type = ? AND scope_id = ? AND used_at IS NULL AND revoked_at IS NULL',
+    [email, scopeType, scopeId]
+  );
+
+  await query(`
+    INSERT INTO invites (id, email, scope_type, scope_id, role_to_grant, token_hash, expires_at, created_by_user_id, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `, [id, email, scopeType, scopeId, roleToGrant, tokenHash, expiresAt, createdByUserId, now]);
+
+  const [rows] = await query('SELECT * FROM invites WHERE id = ?', [id]);
+  return { ...rows[0], token: rawToken };
+}
+
+export async function getScopedInviteById(id) {
+  const [rows] = await query('SELECT * FROM invites WHERE id = ?', [id]);
+  return rows[0] ?? null;
+}
+
+export async function getScopedInviteByToken(rawToken) {
+  const [rows] = await query('SELECT * FROM invites WHERE token_hash = ?', [sha256(rawToken)]);
+  return rows[0] ?? null;
+}
+
+export async function listScopedInvites(scopeType, scopeId) {
+  const [rows] = await query(
+    'SELECT * FROM invites WHERE scope_type = ? AND scope_id = ? AND used_at IS NULL AND revoked_at IS NULL ORDER BY created_at DESC',
+    [scopeType, scopeId]
+  );
+  return rows;
+}
+
+export async function revokeScopedInvite(id) {
   await query('UPDATE invites SET revoked_at = ? WHERE id = ?', [Date.now(), id]);
+}
+
+/**
+ * Accept a scoped invite: resolve or create user, grant role, mark invite used.
+ * Returns { user, sessionToken } on success.
+ */
+export async function acceptScopedInvite(rawToken, password = null) {
+  return withTransaction(async (conn) => {
+    const [invRows] = await conn.query(
+      'SELECT * FROM invites WHERE token_hash = ?',
+      [sha256(rawToken)]
+    );
+    const inv = invRows[0];
+    if (!inv)         throw Object.assign(new Error('Invite not found'), { status: 404 });
+    if (inv.revoked_at) throw Object.assign(new Error('Invite has been revoked'), { status: 410 });
+    if (inv.used_at)    throw Object.assign(new Error('Invite has already been used'), { status: 410 });
+    if (inv.expires_at < Date.now()) throw Object.assign(new Error('Invite has expired'), { status: 410 });
+
+    // Resolve studio id from scope
+    let studioId;
+    if (inv.scope_type === 'studio') {
+      studioId = inv.scope_id;
+    } else if (inv.scope_type === 'project') {
+      const [pRows] = await conn.query('SELECT studio_id FROM projects WHERE id = ?', [inv.scope_id]);
+      if (!pRows[0]) throw Object.assign(new Error('Project not found'), { status: 404 });
+      studioId = pRows[0].studio_id;
+    } else if (inv.scope_type === 'gallery') {
+      const [gRows] = await conn.query('SELECT studio_id FROM galleries WHERE id = ?', [inv.scope_id]);
+      if (!gRows[0]) throw Object.assign(new Error('Gallery not found'), { status: 404 });
+      studioId = gRows[0].studio_id;
+    } else {
+      throw Object.assign(new Error('Unknown scope type'), { status: 400 });
+    }
+
+    // Find or create user
+    const [existingRows] = await conn.query('SELECT * FROM users WHERE email = ?', [inv.email]);
+    let user = existingRows[0] ?? null;
+    const now = Date.now();
+
+    if (!user) {
+      const userId       = genId();
+      const passwordHash = password ? hashPassword(password) : null;
+      await conn.query(
+        'INSERT INTO users (id, studio_id, email, password_hash, role, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [userId, studioId, inv.email, passwordHash, inv.role_to_grant, '', now, now]
+      );
+      const [newRows] = await conn.query('SELECT * FROM users WHERE id = ?', [userId]);
+      user = newRows[0];
+    }
+
+    // Ensure user has a studio membership (min: photographer)
+    const [memRows] = await conn.query(
+      'SELECT id FROM studio_memberships WHERE studio_id = ? AND user_id = ?',
+      [studioId, user.id]
+    );
+    if (!memRows[0]) {
+      const minRole = inv.scope_type === 'studio' ? inv.role_to_grant : 'photographer';
+      const memId = genId();
+      await conn.query(
+        'INSERT INTO studio_memberships (id, studio_id, user_id, role, created_at) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE role = VALUES(role)',
+        [memId, studioId, user.id, minRole, now]
+      );
+    } else if (inv.scope_type === 'studio') {
+      // Update studio membership role if this is a studio-scoped invite
+      await conn.query(
+        'UPDATE studio_memberships SET role = ? WHERE studio_id = ? AND user_id = ?',
+        [inv.role_to_grant, studioId, user.id]
+      );
+    }
+
+    // Grant scope-specific role
+    if (inv.scope_type === 'project') {
+      const praId = randomUUID();
+      await conn.query(
+        'INSERT INTO project_role_assignments (id, project_id, user_id, role, granted_by_user_id, granted_at) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE role = VALUES(role)',
+        [praId, inv.scope_id, user.id, inv.role_to_grant, inv.created_by_user_id, now]
+      );
+    } else if (inv.scope_type === 'gallery') {
+      const graId = randomUUID();
+      await conn.query(
+        'INSERT INTO gallery_role_assignments (id, gallery_id, user_id, role, granted_by_user_id, created_at) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE role = VALUES(role)',
+        [graId, inv.scope_id, user.id, inv.role_to_grant, inv.created_by_user_id, now]
+      );
+    }
+
+    // Mark invite as used
+    await conn.query('UPDATE invites SET used_at = ? WHERE id = ?', [now, inv.id]);
+
+    return user;
+  });
 }
 
 // ── Studio memberships ────────────────────────────────────────────────────────

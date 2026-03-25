@@ -20,6 +20,7 @@ import photosRoutes      from './routes/photos.js';
 import jobsRoutes        from './routes/jobs.js';
 import invitesRoutes     from './routes/invites.js';
 import invitationsRouter from './routes/invitations.js';
+import scopedInvitesRouter from './routes/scopedInvites.js';
 import publicRoutes, { getPublicGalleries } from './routes/public.js';
 import { renderLanding } from './views/landing.js';
 import settingsRoutes  from './routes/settings.js';
@@ -88,8 +89,9 @@ app.use('/api/galleries',           accessRoutes);
 app.use('/api/galleries',           uploadRateLimit, photosRoutes);
 app.use('/api/galleries',           jobsRoutes);
 app.use('/api/jobs',                jobsRoutes); // for /api/jobs/:jobId and /api/jobs/:jobId/stream
-app.use('/api/invites',             invitesRoutes);
-app.use('/api/invitations',         invitationsRouter);
+app.use('/api/invites',             scopedInvitesRouter); // canonical scoped invites (Sprint 5)
+app.use('/api/invites/v1',          invitesRoutes);       // legacy gallery viewer invite links
+app.use('/api/invitations',         invitationsRouter);   // legacy studio invitations (Sprint 9 cleanup)
 app.use('/api/studios',             studiosRoutes);
 app.use('/api/projects',            projectsRoutes);
 
