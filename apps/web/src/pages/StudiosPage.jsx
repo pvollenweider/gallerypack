@@ -112,6 +112,7 @@ export default function StudiosPage() {
         <span style={s.logo}>GalleryPack</span>
         <div style={s.headerRight}>
           <span style={s.userLabel}>{user?.email}</span>
+          {isSuperadmin && <Link to="/inspector" style={s.outlineBtn}>Inspector</Link>}
           <Link to="/settings" style={s.outlineBtn}>{t('settings')}</Link>
           <button style={s.outlineBtn} onClick={logout}>{t('sign_out')}</button>
         </div>
