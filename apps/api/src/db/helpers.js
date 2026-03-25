@@ -1074,6 +1074,73 @@ export async function setGalleryStatus(galleryId, status) {
   await query(`UPDATE galleries SET workflow_status = ? WHERE id = ?`, [status, galleryId]);
 }
 
+// ── Photographer helpers (issue #133) ─────────────────────────────────────────
+
+export async function createPhotographer(galleryId, { name, email = null, bio = null, uploadLinkId = null, organizationId = null }) {
+  const id  = genId();
+  const now = new Date();
+  await query(
+    `INSERT INTO photographers (id, gallery_id, organization_id, name, email, bio, upload_link_id, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, galleryId, organizationId, name, email, bio, uploadLinkId, now]
+  );
+  return getPhotographer(id);
+}
+
+export async function getPhotographer(id) {
+  const [rows] = await query('SELECT * FROM photographers WHERE id = ?', [id]);
+  return rows[0] ?? null;
+}
+
+export async function getPhotographerByUploadLink(uploadLinkId) {
+  const [rows] = await query(
+    'SELECT * FROM photographers WHERE upload_link_id = ? LIMIT 1',
+    [uploadLinkId]
+  );
+  return rows[0] ?? null;
+}
+
+export async function listPhotographers(galleryId) {
+  const [rows] = await query(`
+    SELECT p.*,
+      (SELECT COUNT(*) FROM photos ph WHERE ph.photographer_id = p.id) AS photo_count
+    FROM photographers p
+    WHERE p.gallery_id = ?
+    ORDER BY p.created_at ASC
+  `, [galleryId]);
+  return rows;
+}
+
+export async function updatePhotographer(id, { name, email, bio }) {
+  const sets = [];
+  const vals = [];
+  if (name  !== undefined) { sets.push('name = ?');  vals.push(name); }
+  if (email !== undefined) { sets.push('email = ?'); vals.push(email); }
+  if (bio   !== undefined) { sets.push('bio = ?');   vals.push(bio); }
+  if (!sets.length) return getPhotographer(id);
+  vals.push(id);
+  await query(`UPDATE photographers SET ${sets.join(', ')} WHERE id = ?`, vals);
+  return getPhotographer(id);
+}
+
+export async function deletePhotographer(id) {
+  await query('DELETE FROM photographers WHERE id = ?', [id]);
+}
+
+export async function setPhotoPhotographer(photoId, photographerId) {
+  await query('UPDATE photos SET photographer_id = ? WHERE id = ?', [photographerId ?? null, photoId]);
+}
+
+export async function bulkSetPhotoPhotographer(photoIds, photographerId) {
+  if (!photoIds.length) return 0;
+  const placeholders = photoIds.map(() => '?').join(',');
+  const [result] = await query(
+    `UPDATE photos SET photographer_id = ? WHERE id IN (${placeholders})`,
+    [photographerId ?? null, ...photoIds]
+  );
+  return result.affectedRows;
+}
+
 // ── Organization helpers (Sprint 22) ──────────────────────────────────────────
 // These read from the `organizations` table introduced in migration 013.
 // organizations.id === studios.id, so these are safe to use alongside studio helpers.

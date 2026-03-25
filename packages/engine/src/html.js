@@ -357,7 +357,14 @@ export function buildHTML(cfg, photos, fontCss = '', standalone = false, customL
   if (customLegal.html) projectWithLegal.legalHtml = customLegal.html;
   if (customLegal.txt)  projectWithLegal.legalTxt  = customLegal.txt;
 
-  const photosJson  = JSON.stringify(photos.map((p, i) => ({ name: p.name, dlName: p.dlName || p.name, role: BIG_POSITIONS.has(i % 12) ? 'big' : 'small', isDark: p.isDark, exif: p.exif })));
+  const photosJson  = JSON.stringify(photos.map((p, i) => ({ name: p.name, dlName: p.dlName || p.name, role: BIG_POSITIONS.has(i % 12) ? 'big' : 'small', isDark: p.isDark, exif: p.exif, credit: p.credit || null })));
+
+  // Build a deduplicated list of photographers for the credits section (issue #133)
+  const photographerSet = new Map(); // name → true (preserves first-seen order)
+  for (const p of photos) {
+    if (p.credit && !photographerSet.has(p.credit)) photographerSet.set(p.credit, true);
+  }
+  const photographers = [...photographerSet.keys()];
   const projectJson = JSON.stringify(projectWithLegal);
 
   // Preload links for the first N grid thumbnails — browser fetches them
@@ -849,6 +856,38 @@ body.sw-idle.glightbox-open{cursor:none}
 }
 .footer-credit:hover{color:rgba(255,255,255,.45)}
 
+/* ── Photo credits section (issue #133) ─────────── */
+#photo-credits{
+  text-align:center;padding:32px 24px 0;max-width:640px;margin:0 auto;
+}
+.credits-title{
+  font-family:'Poppins',sans-serif;font-size:10px;font-weight:500;
+  color:rgba(255,255,255,.2);text-transform:uppercase;letter-spacing:.12em;
+  margin:0 0 14px;
+}
+.credits-list{
+  list-style:none;padding:0;margin:0 0 10px;
+  display:flex;flex-wrap:wrap;justify-content:center;gap:6px 18px;
+}
+.credits-list li{
+  font-family:'Poppins',sans-serif;font-size:11px;font-weight:300;
+  color:rgba(255,255,255,.35);
+}
+.credits-notice{
+  font-family:'Poppins',sans-serif;font-size:9px;font-weight:300;
+  color:rgba(255,255,255,.15);letter-spacing:.05em;margin:0;
+}
+/* Per-photo credit badge shown inside grid tile (hover) */
+.tile-credit{
+  position:absolute;bottom:6px;left:6px;right:6px;
+  font-family:'Poppins',sans-serif;font-size:9px;font-weight:400;
+  color:rgba(255,255,255,.7);background:rgba(0,0,0,.45);
+  padding:2px 6px;border-radius:3px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  opacity:0;transition:opacity .2s;pointer-events:none;
+}
+.tile:hover .tile-credit{opacity:1}
+
 /* ── Modale mentions légales ─────────────────────── */
 #legal-overlay{
   position:fixed;inset:0;z-index:200000;
@@ -920,6 +959,14 @@ ${[2,3,5,8,10].map(s => {
 
 <main class="wrap">
   <div class="grid" id="grid"></div>
+  ${photographers.length > 0 ? `
+  <section id="photo-credits" aria-label="Photo credits">
+    <h2 class="credits-title">Photo credits</h2>
+    <ul class="credits-list">
+      ${photographers.map(name => `<li>© ${name}</li>`).join('\n      ')}
+    </ul>
+    <p class="credits-notice">All photos © their respective authors. Reproduction prohibited without written consent.</p>
+  </section>` : ''}
   <footer class="gallery-footer">
     <button id="legal-btn">Legal notice</button>
     <span class="footer-sep">·</span>
@@ -1117,6 +1164,15 @@ function makeTile(photo, idx) {
 
   tile.appendChild(img);
   tile.appendChild(num);
+
+  // Per-photo photographer credit badge (shown on hover) — issue #133
+  if (photo.credit) {
+    const creditEl = document.createElement('span');
+    creditEl.className   = 'tile-credit';
+    creditEl.textContent = '\u00a9\u00a0' + photo.credit;
+    tile.appendChild(creditEl);
+  }
+
   tile.addEventListener('click', () => {
     lb.openAt(idx);
   });

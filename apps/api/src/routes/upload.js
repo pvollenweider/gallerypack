@@ -12,7 +12,7 @@ import path           from 'path';
 import fs             from 'fs';
 import { randomUUID } from 'crypto';
 import { query }      from '../db/database.js';
-import { getUploadLinkByToken } from '../db/helpers.js';
+import { getUploadLinkByToken, getPhotographerByUploadLink } from '../db/helpers.js';
 import { emit, EVENTS } from '../services/events.js';
 import { ROOT }       from '../../../../packages/engine/src/fs.js';
 
@@ -59,11 +59,15 @@ router.get('/:token', async (req, res) => {
   const link = await getUploadLinkByToken(req.params.token);
   if (!link) return res.status(404).json({ error: 'Invalid or expired upload link' });
 
+  // Include photographer name if one is linked to this upload link
+  const photographer = await getPhotographerByUploadLink(link.id);
+
   res.json({
-    galleryId:    link.gallery_id,
-    galleryTitle: link.gallery_title,
-    label:        link.label,
-    expiresAt:    link.expires_at,
+    galleryId:      link.gallery_id,
+    galleryTitle:   link.gallery_title,
+    label:          link.label,
+    expiresAt:      link.expires_at,
+    photographerName: photographer?.name ?? null,
   });
 });
 
@@ -77,6 +81,9 @@ router.post('/:token/photos', upload.array('photos', 50), async (req, res) => {
     for (const f of req.files || []) { try { fs.unlinkSync(f.path); } catch {} }
     return res.status(401).json({ error: 'Invalid or expired upload link' });
   }
+
+  // Resolve linked photographer for auto-attribution
+  const photographer = await getPhotographerByUploadLink(link.id);
 
   // Enforce quota
   const [countRows] = await query('SELECT COUNT(*) AS n FROM photos WHERE gallery_id = ?', [link.gallery_id]);
@@ -92,12 +99,15 @@ router.post('/:token/photos', upload.array('photos', 50), async (req, res) => {
   for (const f of req.files || []) {
     const photoId = randomUUID();
     await query(
-      `INSERT INTO photos (id, gallery_id, filename, original_name, size_bytes, status, upload_link_id)
-       VALUES (?, ?, ?, ?, ?, 'uploaded', ?)
-       ON DUPLICATE KEY UPDATE size_bytes = VALUES(size_bytes), original_name = VALUES(original_name)`,
-      [photoId, link.gallery_id, f.filename, f.originalname, f.size, link.id]
+      `INSERT INTO photos (id, gallery_id, filename, original_name, size_bytes, status, upload_link_id, photographer_id)
+       VALUES (?, ?, ?, ?, ?, 'uploaded', ?, ?)
+       ON DUPLICATE KEY UPDATE
+         size_bytes = VALUES(size_bytes),
+         original_name = VALUES(original_name),
+         photographer_id = VALUES(photographer_id)`,
+      [photoId, link.gallery_id, f.filename, f.originalname, f.size, link.id, photographer?.id ?? null]
     );
-    uploaded.push({ id: photoId, file: f.filename, size: f.size });
+    uploaded.push({ id: photoId, file: f.filename, size: f.size, photographerId: photographer?.id ?? null });
   }
 
   if (uploaded.length > 0) {
@@ -112,6 +122,7 @@ router.post('/:token/photos', upload.array('photos', 50), async (req, res) => {
       galleryId:       link.gallery_id,
       galleryTitle:    link.gallery_title,
       uploadLinkLabel: link.label,
+      photographerName: photographer?.name ?? null,
       photoCount:      uploaded.length,
     });
   }

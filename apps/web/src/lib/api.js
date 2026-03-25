@@ -128,6 +128,14 @@ export const api = {
   inspectorDashboard:       ()                     => req('GET',    `/inspector/dashboard`),
   inspectorAnomalies:       (params = {})          => req('GET',    `/inspector/anomalies?${new URLSearchParams(params)}`),
 
+  // Photographers (issue #133)
+  listPhotographers:    (galleryId)               => req('GET',    `/galleries/${galleryId}/photographers`),
+  createPhotographer:   (galleryId, data)          => req('POST',   `/galleries/${galleryId}/photographers`, data),
+  updatePhotographer:   (galleryId, pgId, data)    => req('PATCH',  `/galleries/${galleryId}/photographers/${pgId}`, data),
+  deletePhotographer:   (galleryId, pgId)          => req('DELETE', `/galleries/${galleryId}/photographers/${pgId}`),
+  setPhotoPhotographer: (galleryId, photoId, data) => req('PATCH',  `/galleries/${galleryId}/photos/${photoId}`, data),
+  bulkSetPhotographer:  (galleryId, data)          => req('PATCH',  `/galleries/${galleryId}/photos/bulk-attribute`, data),
+
   // Organizations (Sprint 22 canonical API)
   listOrganizations:        ()            => req('GET',    '/organizations'),
   getOrganization:          (id)          => req('GET',    `/organizations/${id}`),

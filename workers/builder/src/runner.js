@@ -98,16 +98,33 @@ export async function runJob(jobId) {
     // The engine's listPhotos() respects this file and treats it as the full ordered list.
     // This excludes 'uploaded' photos that are still pending review.
     const [validatedRows] = await query(
-      `SELECT filename FROM photos
-       WHERE gallery_id = ? AND status IN ('validated', 'published')
-       ORDER BY sort_order ASC, created_at ASC`,
+      `SELECT ph.filename, pg.name AS photographer_name
+       FROM photos ph
+       LEFT JOIN photographers pg ON pg.id = ph.photographer_id
+       WHERE ph.gallery_id = ? AND ph.status IN ('validated', 'published')
+       ORDER BY ph.sort_order ASC, ph.created_at ASC`,
       [gallery.id]
     );
     if (validatedRows.length > 0) {
-      const orderFile = path.join(ROOT, 'src', gallery.slug, 'photo_order.json');
-      fs.mkdirSync(path.dirname(orderFile), { recursive: true });
+      const galSrcDir = path.join(ROOT, 'src', gallery.slug);
+      fs.mkdirSync(galSrcDir, { recursive: true });
+
+      // photo_order.json — ordered list of filenames (engine filter)
+      const orderFile = path.join(galSrcDir, 'photo_order.json');
       fs.writeFileSync(orderFile, JSON.stringify(validatedRows.map(r => r.filename)));
       await appendEvent(jobId, 'log', `Photo filter: ${validatedRows.length} validated photo(s) will be built`);
+
+      // photo_attribution.json — filename → photographer name (issue #133)
+      const attribution = {};
+      for (const r of validatedRows) {
+        if (r.photographer_name) attribution[r.filename] = r.photographer_name;
+      }
+      const attrFile = path.join(galSrcDir, 'photo_attribution.json');
+      fs.writeFileSync(attrFile, JSON.stringify(attribution));
+      const creditCount = Object.keys(attribution).length;
+      if (creditCount > 0) {
+        await appendEvent(jobId, 'log', `Photo attribution: ${creditCount} photo(s) with photographer credits`);
+      }
     }
 
     // Load build config

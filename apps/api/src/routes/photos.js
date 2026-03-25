@@ -16,6 +16,8 @@ import {
   getGalleryRole, listGalleryRoleAssignments, listStudioMembers, getSettings, audit,
   createUploadLink, listUploadLinks, revokeUploadLink,
   listPhotosByStatus, getPhotoStatusCounts, bulkSetPhotoStatus, setGalleryStatus,
+  createPhotographer, getPhotographer, listPhotographers, updatePhotographer, deletePhotographer,
+  setPhotoPhotographer, bulkSetPhotoPhotographer,
 } from '../db/helpers.js';
 import { sendEmail } from '../services/email.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -428,6 +430,8 @@ router.get('/:id/upload-links', async (req, res) => {
 });
 
 // POST /api/galleries/:id/upload-links — create new upload link
+// Body: { label?, expiresAt?, photographerName?, photographerEmail?, photographerBio? }
+// If photographerName is provided, a photographers row is created and linked to the upload link.
 router.post('/:id/upload-links', async (req, res) => {
   const gallery = await ensureGalleryBelongsToStudio(req, res);
   if (!gallery) return;
@@ -436,15 +440,27 @@ router.post('/:id/upload-links', async (req, res) => {
     return res.status(403).json({ error: 'Forbidden' });
   }
 
-  const { label, expiresAt } = req.body || {};
+  const { label, expiresAt, photographerName, photographerEmail, photographerBio } = req.body || {};
   const link = await createUploadLink(gallery.id, req.userId, { label, expiresAt });
+
+  // If a photographer name was provided, create a photographer record linked to this upload link
+  let photographer = null;
+  if (photographerName) {
+    photographer = await createPhotographer(gallery.id, {
+      name:          photographerName,
+      email:         photographerEmail || null,
+      bio:           photographerBio   || null,
+      uploadLinkId:  link.id,
+      organizationId: req.organizationId || req.studioId,
+    });
+  }
 
   const s = await getSettings(req.studioId);
   const base = (s?.base_url || process.env.BASE_URL || 'http://localhost:4000').replace(/\/$/, '');
   const uploadUrl = `${base}/upload/${link.token}`;
 
-  try { await audit(req.studioId, req.userId, 'upload_link.create', 'gallery', gallery.id, { label }); } catch {}
-  res.status(201).json({ ...link, uploadUrl });
+  try { await audit(req.studioId, req.userId, 'upload_link.create', 'gallery', gallery.id, { label, photographerName }); } catch {}
+  res.status(201).json({ ...link, uploadUrl, photographer });
 });
 
 // DELETE /api/galleries/:id/upload-links/:linkId — revoke upload link
@@ -466,6 +482,108 @@ router.delete('/:id/upload-links/:linkId', async (req, res) => {
   await revokeUploadLink(req.params.linkId);
   try { await audit(req.studioId, req.userId, 'upload_link.revoke', 'gallery', gallery.id, { linkId: req.params.linkId }); } catch {}
   res.json({ ok: true });
+});
+
+// ── Photographers CRUD ─────────────────────────────────────────────────────────
+
+// GET /api/galleries/:id/photographers
+router.get('/:id/photographers', async (req, res) => {
+  const gallery = await ensureGalleryBelongsToStudio(req, res);
+  if (!gallery) return;
+  res.json(await listPhotographers(gallery.id));
+});
+
+// POST /api/galleries/:id/photographers
+router.post('/:id/photographers', async (req, res) => {
+  const gallery = await ensureGalleryBelongsToStudio(req, res);
+  if (!gallery) return;
+  if (!can(req.user, 'upload', 'photo', { studioRole: req.studioRole })) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  const { name, email, bio } = req.body || {};
+  if (!name) return res.status(400).json({ error: 'name is required' });
+  const pg = await createPhotographer(gallery.id, {
+    name, email, bio,
+    organizationId: req.organizationId || req.studioId,
+  });
+  res.status(201).json(pg);
+});
+
+// PATCH /api/galleries/:id/photographers/:pgId
+router.patch('/:id/photographers/:pgId', async (req, res) => {
+  const gallery = await ensureGalleryBelongsToStudio(req, res);
+  if (!gallery) return;
+  if (!can(req.user, 'upload', 'photo', { studioRole: req.studioRole })) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  const pg = await getPhotographer(req.params.pgId);
+  if (!pg || pg.gallery_id !== gallery.id) return res.status(404).json({ error: 'Photographer not found' });
+
+  const { name, email, bio } = req.body || {};
+  const updated = await updatePhotographer(pg.id, { name, email, bio });
+  res.json(updated);
+});
+
+// DELETE /api/galleries/:id/photographers/:pgId
+router.delete('/:id/photographers/:pgId', async (req, res) => {
+  const gallery = await ensureGalleryBelongsToStudio(req, res);
+  if (!gallery) return;
+  if (!can(req.user, 'write', 'gallery', { studioRole: req.studioRole })) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  const pg = await getPhotographer(req.params.pgId);
+  if (!pg || pg.gallery_id !== gallery.id) return res.status(404).json({ error: 'Photographer not found' });
+
+  await deletePhotographer(pg.id);
+  res.json({ ok: true });
+});
+
+// ── Manual photo attribution ───────────────────────────────────────────────────
+
+// PATCH /api/galleries/:id/photos/:photoId — manually set photographer_id
+router.patch('/:id/photos/:photoId', async (req, res) => {
+  const gallery = await ensureGalleryBelongsToStudio(req, res);
+  if (!gallery) return;
+  const galleryRole = await getGalleryRole(req.userId, gallery.id);
+  if (!can(req.user, 'upload', 'photo', { studioRole: req.studioRole, galleryRole })) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  const { photographerId } = req.body || {};
+  // photographerId = null clears attribution
+  if (photographerId !== undefined && photographerId !== null) {
+    const pg = await getPhotographer(photographerId);
+    if (!pg || pg.gallery_id !== gallery.id) {
+      return res.status(400).json({ error: 'Photographer not found in this gallery' });
+    }
+  }
+
+  await setPhotoPhotographer(req.params.photoId, photographerId ?? null);
+  res.json({ ok: true });
+});
+
+// PATCH /api/galleries/:id/photos/bulk-attribute — bulk set photographer on multiple photos
+router.patch('/:id/photos/bulk-attribute', async (req, res) => {
+  const gallery = await ensureGalleryBelongsToStudio(req, res);
+  if (!gallery) return;
+  const galleryRole = await getGalleryRole(req.userId, gallery.id);
+  if (!can(req.user, 'upload', 'photo', { studioRole: req.studioRole, galleryRole })) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  const { photoIds, photographerId } = req.body || {};
+  if (!Array.isArray(photoIds) || !photoIds.length) {
+    return res.status(400).json({ error: 'photoIds array is required' });
+  }
+  if (photographerId) {
+    const pg = await getPhotographer(photographerId);
+    if (!pg || pg.gallery_id !== gallery.id) {
+      return res.status(400).json({ error: 'Photographer not found in this gallery' });
+    }
+  }
+
+  const count = await bulkSetPhotoPhotographer(photoIds, photographerId ?? null);
+  res.json({ ok: true, updated: count });
 });
 
 export default router;

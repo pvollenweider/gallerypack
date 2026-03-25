@@ -64,11 +64,21 @@ export function listPhotos(srcDir) {
   const allFiles = fs.readdirSync(srcDir)
     .filter(f => EXTS.has(path.extname(f).toLowerCase()));
 
+  const galDir = path.dirname(srcDir); // gallery root (parent of photos/)
+
   // Load explicit ordering saved by the admin UI (photo_order.json sits next to photos/)
-  const orderFile = path.join(path.dirname(srcDir), 'photo_order.json');
+  const orderFile = path.join(galDir, 'photo_order.json');
   let savedOrder = null;
   if (fs.existsSync(orderFile)) {
     try { savedOrder = JSON.parse(fs.readFileSync(orderFile, 'utf8')); } catch {}
+  }
+
+  // Load photographer attribution (photo_attribution.json) — issue #133
+  // Maps filename → photographer name, written by the builder runner before each build.
+  const attrFile = path.join(galDir, 'photo_attribution.json');
+  let attribution = {};
+  if (fs.existsSync(attrFile)) {
+    try { attribution = JSON.parse(fs.readFileSync(attrFile, 'utf8')); } catch {}
   }
 
   let ordered;
@@ -81,7 +91,11 @@ export function listPhotos(srcDir) {
     ordered = allFiles.sort();
   }
 
-  return ordered.map(f => ({ file: f, full: path.join(srcDir, f) }));
+  return ordered.map(f => ({
+    file:   f,
+    full:   path.join(srcDir, f),
+    credit: attribution[f] ?? null,  // photographer name or null
+  }));
 }
 
 // ── Brightness analysis ───────────────────────────────────────────────────────
@@ -250,8 +264,9 @@ export async function processPhotos(photos, cfg, paths, FORCE = false) {
         role:   BIG_POSITIONS.has(i % 12) ? 'big' : 'small',
         isDark: dims.isDark,
         exif:   exifFull,
+        credit: photo.credit ?? null,  // photographer name (issue #133)
       };
-      results.push({ ...dims, exif: exifFull });
+      results.push({ ...dims, exif: exifFull, credit: photo.credit ?? null });
     } catch (e) {
       fail(`Erreur sur ${photo.file} : ${e.message}`);
     }

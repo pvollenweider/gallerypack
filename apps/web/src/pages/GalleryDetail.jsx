@@ -61,12 +61,20 @@ export default function GalleryDetail() {
   const [addingMember,    setAddingMember]    = useState(false);
 
   // Upload links state
-  const [uploadLinks,     setUploadLinks]     = useState([]);
-  const [newLinkLabel,    setNewLinkLabel]    = useState('');
-  const [newLinkExpiry,   setNewLinkExpiry]   = useState('');
-  const [creatingLink,    setCreatingLink]    = useState(false);
-  const [newLinkUrl,      setNewLinkUrl]      = useState('');
-  const [shareModal,      setShareModal]      = useState(null); // { url, label }
+  const [uploadLinks,          setUploadLinks]          = useState([]);
+  const [newLinkLabel,         setNewLinkLabel]         = useState('');
+  const [newLinkExpiry,        setNewLinkExpiry]        = useState('');
+  const [newLinkPhotographer,  setNewLinkPhotographer]  = useState('');
+  const [newLinkPgEmail,       setNewLinkPgEmail]       = useState('');
+  const [creatingLink,         setCreatingLink]         = useState(false);
+  const [newLinkUrl,           setNewLinkUrl]           = useState('');
+  const [shareModal,           setShareModal]           = useState(null); // { url, label }
+
+  // Photographers state
+  const [photographers,        setPhotographers]        = useState([]);
+  const [newPgName,            setNewPgName]            = useState('');
+  const [newPgEmail,           setNewPgEmail]           = useState('');
+  const [addingPhotographer,   setAddingPhotographer]   = useState(false);
 
   // Inbox state
   const [inbox,           setInbox]           = useState(null); // { photos, counts }
@@ -76,10 +84,14 @@ export default function GalleryDetail() {
 
   async function load() {
     try {
-      const [g, p, j] = await Promise.all([api.getGallery(id), api.listPhotos(id), api.listJobs(id)]);
+      const [g, p, j, pgs] = await Promise.all([
+        api.getGallery(id), api.listPhotos(id), api.listJobs(id),
+        api.listPhotographers(id).catch(() => []),
+      ]);
       setGallery(g);
       setPhotos(p);
       setJobs(j);
+      setPhotographers(pgs);
       if (g.builtAt && p.some(photo => photo.mtime > g.builtAt)) setNeedsRebuild(true);
       if (g.buildStatus !== 'done' && p.length > 0) setNeedsRebuild(true);
       const formData = {
@@ -261,15 +273,41 @@ export default function GalleryDetail() {
     setNewLinkUrl('');
     try {
       const data = {};
-      if (newLinkLabel.trim()) data.label = newLinkLabel.trim();
-      if (newLinkExpiry) data.expiresAt = new Date(newLinkExpiry).toISOString();
+      if (newLinkLabel.trim())          data.label              = newLinkLabel.trim();
+      if (newLinkExpiry)                data.expiresAt          = new Date(newLinkExpiry).toISOString();
+      if (newLinkPhotographer.trim())   data.photographerName   = newLinkPhotographer.trim();
+      if (newLinkPgEmail.trim())        data.photographerEmail  = newLinkPgEmail.trim();
       const link = await api.createUploadLink(id, data);
       setUploadLinks(ls => [link, ...ls]);
+      if (link.photographer) setPhotographers(ps => [...ps, link.photographer]);
       setNewLinkLabel('');
       setNewLinkExpiry('');
+      setNewLinkPhotographer('');
+      setNewLinkPgEmail('');
       setNewLinkUrl(link.uploadUrl);
     } catch (e) { setToast(`${t('error')}: ${e.message}`); }
     finally { setCreatingLink(false); }
+  }
+
+  async function handleAddPhotographer(e) {
+    e.preventDefault();
+    if (!newPgName.trim()) return;
+    setAddingPhotographer(true);
+    try {
+      const pg = await api.createPhotographer(id, { name: newPgName.trim(), email: newPgEmail.trim() || undefined });
+      setPhotographers(ps => [...ps, pg]);
+      setNewPgName('');
+      setNewPgEmail('');
+    } catch (e) { setToast(`${t('error')}: ${e.message}`); }
+    finally { setAddingPhotographer(false); }
+  }
+
+  async function handleDeletePhotographer(pgId) {
+    if (!confirm('Remove this photographer? Their photos will lose attribution.')) return;
+    try {
+      await api.deletePhotographer(id, pgId);
+      setPhotographers(ps => ps.filter(p => p.id !== pgId));
+    } catch (e) { setToast(`${t('error')}: ${e.message}`); }
   }
 
   async function handleRevokeUploadLink(linkId) {
@@ -392,9 +430,10 @@ export default function GalleryDetail() {
           'photos',
           'settings',
           'jobs',
-          ...(canManageAccess ? ['access'] : []),
-          ...(canManageAccess ? ['upload'] : []),
-          ...(canManageAccess ? ['inbox']  : []),
+          ...(canManageAccess ? ['access']        : []),
+          ...(canManageAccess ? ['upload']        : []),
+          ...(canManageAccess ? ['inbox']         : []),
+          ...(canManageAccess ? ['photographers'] : []),
         ].map(tabKey => (
           <button key={tabKey} style={{ ...s.tab, ...(tab === tabKey ? s.tabActive : {}) }}
             onClick={() => {
@@ -746,23 +785,45 @@ export default function GalleryDetail() {
               Uploaded photos land in the <strong>Inbox</strong> tab pending your review.
             </p>
 
-            <form onSubmit={handleCreateUploadLink} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '1rem' }}>
-              <input
-                style={{ ...s.input, flex: '1 1 160px' }}
-                placeholder="Label (e.g. photographer name)"
-                value={newLinkLabel}
-                onChange={e => setNewLinkLabel(e.target.value)}
-              />
-              <input
-                style={{ ...s.input, flex: '1 1 140px' }}
-                type="date"
-                title="Expiry date (optional)"
-                value={newLinkExpiry}
-                onChange={e => setNewLinkExpiry(e.target.value)}
-              />
-              <button style={s.primaryBtn} type="submit" disabled={creatingLink}>
-                {creatingLink ? '…' : 'Create link'}
-              </button>
+            <form onSubmit={handleCreateUploadLink} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <input
+                  style={{ ...s.input, flex: '1 1 160px' }}
+                  placeholder="Label (e.g. 'Reception photos')"
+                  value={newLinkLabel}
+                  onChange={e => setNewLinkLabel(e.target.value)}
+                />
+                <input
+                  style={{ ...s.input, flex: '1 1 140px' }}
+                  type="date"
+                  title="Expiry date (optional)"
+                  value={newLinkExpiry}
+                  onChange={e => setNewLinkExpiry(e.target.value)}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                <input
+                  style={{ ...s.input, flex: '1 1 160px' }}
+                  placeholder="Photographer name (optional)"
+                  value={newLinkPhotographer}
+                  onChange={e => setNewLinkPhotographer(e.target.value)}
+                />
+                <input
+                  style={{ ...s.input, flex: '1 1 160px' }}
+                  type="email"
+                  placeholder="Photographer email (optional)"
+                  value={newLinkPgEmail}
+                  onChange={e => setNewLinkPgEmail(e.target.value)}
+                />
+                <button style={s.primaryBtn} type="submit" disabled={creatingLink}>
+                  {creatingLink ? '…' : 'Create link'}
+                </button>
+              </div>
+              {newLinkPhotographer.trim() && (
+                <p style={{ fontSize: '0.75rem', color: '#888', margin: 0 }}>
+                  A photographer record will be created and linked — photos uploaded via this link will be auto-attributed to <strong>{newLinkPhotographer}</strong>.
+                </p>
+              )}
             </form>
 
             {newLinkUrl && (
@@ -842,6 +903,61 @@ export default function GalleryDetail() {
                       ))}
                     </div>
                   </>
+            }
+          </div>
+        )}
+
+        {/* ── PHOTOGRAPHERS ── */}
+        {tab === 'photographers' && canManageAccess && (
+          <div style={{ maxWidth: 600 }}>
+            <h3 style={s.sectionTitle}>Photographers</h3>
+            <p style={s.sectionHint}>
+              Named photographers associated with this gallery. Attribution is set automatically
+              when photos are uploaded via a linked upload link, or manually from the photo list.
+              Their names appear as credits in the built gallery.
+            </p>
+
+            <form onSubmit={handleAddPhotographer} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+              <input
+                style={{ ...s.input, flex: '1 1 160px' }}
+                placeholder="Photographer name"
+                value={newPgName}
+                onChange={e => setNewPgName(e.target.value)}
+                required
+              />
+              <input
+                style={{ ...s.input, flex: '1 1 160px' }}
+                type="email"
+                placeholder="Email (optional)"
+                value={newPgEmail}
+                onChange={e => setNewPgEmail(e.target.value)}
+              />
+              <button style={s.primaryBtn} type="submit" disabled={addingPhotographer}>
+                {addingPhotographer ? '…' : 'Add photographer'}
+              </button>
+            </form>
+
+            {photographers.length === 0
+              ? <p style={s.dim}>No photographers yet. Create an upload link with a photographer name, or add one above.</p>
+              : <div style={s.accessList}>
+                  {photographers.map(pg => (
+                    <div key={pg.id} style={s.accessRow}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <span style={s.accessEmail}>{pg.name}</span>
+                        {pg.email && <span style={{ ...s.accessMeta, marginLeft: '0.5rem' }}>{pg.email}</span>}
+                      </div>
+                      <span style={{ fontSize: '0.75rem', color: '#888' }}>{pg.photo_count ?? 0} photos</span>
+                      {pg.upload_link_id && (
+                        <span style={{ fontSize: '0.7rem', color: '#4ade80', background: 'rgba(74,222,128,0.1)', padding: '0.1rem 0.4rem', borderRadius: 3 }}>
+                          linked
+                        </span>
+                      )}
+                      <button style={s.accessDangerBtn} onClick={() => handleDeletePhotographer(pg.id)}>
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
             }
           </div>
         )}

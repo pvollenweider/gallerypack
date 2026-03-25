@@ -110,6 +110,8 @@ export const translations = {
     filter_rebuild: 'To rebuild',
     public_site: 'Public site ↗',
 
+    tab_photographers: 'Photographers',
+
     // Access management panel
     tab_access: 'Access',
     access_panel_title: 'Access management',
@@ -486,6 +488,8 @@ export const translations = {
     filter_rebuild: 'À recompiler',
     public_site: 'Site public ↗',
 
+    tab_photographers: 'Photographes',
+
     // Access management panel
     tab_access: 'Accès',
     access_panel_title: 'Gestion des accès',
@@ -830,6 +834,8 @@ export const translations = {
     delete_gallery_confirm: 'Diese Galerie aus dem Admin löschen? Erstellte Dateien bleiben erhalten.',
     recent_builds: 'Letzte Builds',
     no_builds: 'Noch keine Builds.',
+    tab_photographers: 'Fotografen',
+
     // Access management panel
     tab_access: 'Zugang',
     access_panel_title: 'Zugriffsverwaltung',
