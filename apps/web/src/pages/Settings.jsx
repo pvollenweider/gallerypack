@@ -5,7 +5,7 @@
 // Use, reproduction, or distribution requires a valid commercial license.
 // Unauthorized use is strictly prohibited.
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useT, useLocale } from '../lib/I18nContext.jsx';
@@ -81,7 +81,18 @@ export default function Settings() {
   const [smtpTesting,  setSmtpTesting]  = useState(false);
   const [smtpResult,   setSmtpResult]   = useState(null); // { ok, message }
 
+  // License (superadmin only)
+  const [licenseInfo,   setLicenseInfo]  = useState(null);
+  const [licensePasting,setLicensePaste] = useState(false);
+  const [licenseJson,   setLicenseJson]  = useState('');
+  const [licenseApplying, setLicenseApplying] = useState(false);
+  const [licenseMsg,    setLicenseMsg]   = useState(null); // { ok, text }
+  const licenseRef = useRef(null);
+
   useEffect(() => {
+    if (user?.platformRole === 'superadmin') {
+      api.getPlatformLicense().then(setLicenseInfo).catch(() => {});
+    }
     api.getSettings().then(s => {
       setForm({
         siteTitle:                   s.siteTitle                   || '',
@@ -113,6 +124,23 @@ export default function Settings() {
       setSmtpResult({ ok: false, message: err.message });
     } finally {
       setSmtpTesting(false);
+    }
+  }
+
+  async function handleInstallLicense(e) {
+    e.preventDefault();
+    setLicenseApplying(true);
+    setLicenseMsg(null);
+    try {
+      const res = await api.installPlatformLicense(licenseJson.trim());
+      setLicenseInfo(res.license);
+      setLicenseJson('');
+      setLicensePaste(false);
+      setLicenseMsg({ ok: true, text: t('license_install_success') });
+    } catch (err) {
+      setLicenseMsg({ ok: false, text: err.message });
+    } finally {
+      setLicenseApplying(false);
     }
   }
 
@@ -208,6 +236,87 @@ export default function Settings() {
               >
                 {settingDefault ? t('saving') : t('studios_set_default')}
               </button>
+            </Section>
+          </div>
+        )}
+
+        {/* ── License (superadmin only) ── */}
+        {user?.platformRole === 'superadmin' && (
+          <div style={{ ...s.form, marginBottom: '2rem' }} id="license" ref={licenseRef}>
+            <Section label={t('section_license')}>
+              {licenseInfo && (() => {
+                const isValid   = licenseInfo.source === 'license';
+                const isExpired = licenseInfo.source === 'expired';
+                return (
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+                      <span style={{
+                        ...s.badge,
+                        ...(isValid ? s.badgeGreen : isExpired ? s.badgeYellow : s.badgeGray),
+                      }}>
+                        {isValid ? t('license_status_valid') : isExpired ? t('license_status_expired') : t('license_status_free')}
+                      </span>
+                      {isValid && licenseInfo.licensee && (
+                        <span style={{ fontSize: '0.85rem', color: '#555' }}>
+                          {licenseInfo.licensee.name}
+                          {licenseInfo.expires_at && (
+                            <span style={{ color: '#aaa', marginLeft: '0.5rem' }}>
+                              · {t('license_expires_at')} {new Date(licenseInfo.expires_at).toLocaleDateString()}
+                            </span>
+                          )}
+                        </span>
+                      )}
+                    </div>
+                    {isValid && (licenseInfo.features?.length > 0) && (
+                      <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                        {licenseInfo.features.map(f => (
+                          <span key={f} style={s.featureChip}>{f.replace(/_/g, ' ')}</span>
+                        ))}
+                      </div>
+                    )}
+                    {(licenseInfo.source === 'free' || isExpired) && (
+                      <p style={{ fontSize: '0.8rem', color: '#aaa', margin: '0.35rem 0 0' }}>
+                        {t('license_install_hint')}
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {licenseMsg && (
+                <p style={{ fontSize: '0.82rem', color: licenseMsg.ok ? '#059669' : '#dc2626', marginBottom: '0.5rem' }}>
+                  {licenseMsg.ok ? '✓ ' : '✗ '}{licenseMsg.text}
+                </p>
+              )}
+
+              {!licensePasting ? (
+                <button style={{ ...s.btn, background: '#2563eb', marginTop: 0 }} type="button"
+                  onClick={() => { setLicensePaste(true); setLicenseMsg(null); }}>
+                  {licenseInfo?.source === 'license' ? t('license_update_btn') : t('license_install_btn')}
+                </button>
+              ) : (
+                <form onSubmit={handleInstallLicense}>
+                  <textarea
+                    style={{ ...s.input, width: '100%', fontFamily: 'monospace', fontSize: '0.78rem',
+                             resize: 'vertical', marginBottom: '0.5rem', padding: '0.5rem', lineHeight: 1.5 }}
+                    rows={8}
+                    placeholder={'{\n  "payload": { ... },\n  "signature": "..."\n}'}
+                    value={licenseJson}
+                    onChange={e => setLicenseJson(e.target.value)}
+                    autoFocus
+                    spellCheck={false}
+                  />
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button style={s.btn} type="submit" disabled={!licenseJson.trim() || licenseApplying}>
+                      {licenseApplying ? t('license_installing') : t('license_apply_btn')}
+                    </button>
+                    <button style={s.testBtn} type="button"
+                      onClick={() => { setLicensePaste(false); setLicenseJson(''); setLicenseMsg(null); }}>
+                      {t('cancel')}
+                    </button>
+                  </div>
+                </form>
+              )}
             </Section>
           </div>
         )}
@@ -525,4 +634,9 @@ const s = {
   hint:         { fontSize: '0.8rem', color: '#999', marginBottom: '0.5rem', marginLeft: 216 },
   btn:          { marginTop: '0.25rem', padding: '0.55rem 1.5rem', background: '#111', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem', alignSelf: 'flex-start' },
   testBtn:      { padding: '0.35rem 0.9rem', background: '#fff', border: '1px solid #ddd', borderRadius: 5, fontSize: '0.82rem', cursor: 'pointer', color: '#555' },
+  badge:        { display: 'inline-block', padding: '0.2rem 0.6rem', borderRadius: 99, fontSize: '0.75rem', fontWeight: 700 },
+  badgeGreen:   { background: '#dcfce7', color: '#166534' },
+  badgeYellow:  { background: '#fef9c3', color: '#713f12' },
+  badgeGray:    { background: '#f3f4f6', color: '#374151' },
+  featureChip:  { background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: 99, padding: '0.15rem 0.55rem', fontSize: '0.75rem', fontWeight: 500 },
 };
