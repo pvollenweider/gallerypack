@@ -6,7 +6,7 @@
 // Unauthorized use is strictly prohibited.
 
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useT, useLocale } from '../lib/I18nContext.jsx';
 import { slugify } from '../lib/i18n.js';
@@ -174,7 +174,7 @@ export default function Settings() {
   return (
     <div style={s.page}>
       <header style={s.header}>
-        <Link to="/studio" style={s.back}>← {t('studio_back')}</Link>
+        <button style={{ ...s.back, background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => navigate(-1)}>← {t('studio_back')}</button>
         <span style={s.title}>{t('global_settings')}</span>
       </header>
       <main style={s.main}>
@@ -512,7 +512,7 @@ function ProfilePage({ user, setUser }) {
   return (
     <div style={s.page}>
       <header style={s.header}>
-        <Link to="/studio" style={s.back}>← {t('studio_back')}</Link>
+        <button style={{ ...s.back, background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => navigate(-1)}>← {t('studio_back')}</button>
         <span style={s.title}>{t('profile_title')}</span>
       </header>
       <main style={s.main}>
