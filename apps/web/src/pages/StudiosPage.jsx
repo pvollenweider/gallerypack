@@ -145,7 +145,7 @@ export default function StudiosPage() {
           <h2 style={s.heading}>{t('studios_title')}</h2>
           {isSuperadmin && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              {license?.source === 'free' && <Link to="/license" style={{ ...s.outlineBtn, fontSize: '0.78rem', color: '#888' }}>{t('license_free_badge')}</Link>}
+              {license?.source === 'free' && <Link to="/settings#license" style={{ ...s.outlineBtn, fontSize: '0.78rem', color: '#888' }}>{t('license_free_badge')}</Link>}
               <button
                 style={{ ...s.primaryBtn, opacity: orgLimitReached ? 0.45 : 1, cursor: orgLimitReached ? 'not-allowed' : 'pointer' }}
                 onClick={() => !orgLimitReached && setCreating(v => !v)}
@@ -161,7 +161,7 @@ export default function StudiosPage() {
           <div style={s.upgradeBanner}>
             <span style={{ fontWeight: 600 }}>{t('license_org_limit_title')}</span>
             {' '}{t('license_org_limit_body')}
-            {' '}<Link to="/license" style={{ color: '#2563eb' }}>{t('license_upgrade_link')}</Link>
+            {' '}<Link to="/settings#license" style={{ color: '#2563eb' }}>{t('license_upgrade_link')}</Link>
           </div>
         )}
 

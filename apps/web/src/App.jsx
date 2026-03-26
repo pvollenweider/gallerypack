@@ -21,7 +21,6 @@ import ResetPassword  from './pages/ResetPassword.jsx';
 import MagicLogin     from './pages/MagicLogin.jsx';
 import UploadPage     from './pages/UploadPage.jsx';
 import Dashboard      from './pages/Dashboard.jsx';
-import LicensePage    from './pages/LicensePage.jsx';
 import { Footer }     from './components/Footer.jsx';
 
 // Inspector
@@ -71,7 +70,6 @@ export default function App() {
       <Route path="/galleries/:id"               element={<AuthLayout><GalleryDetail /></AuthLayout>} />
       <Route path="/jobs/:jobId"                 element={<AuthLayout><BuildStatus /></AuthLayout>} />
       <Route path="/settings"                    element={<AuthLayout><Settings /></AuthLayout>} />
-      <Route path="/license"                     element={<AuthLayout><LicensePage /></AuthLayout>} />
       <Route path="/team/:userId"                element={<AuthLayout><MemberProfile /></AuthLayout>} />
       {/* Public / unauthenticated */}
       <Route path="/invite/:token"               element={<AcceptInvite />} />
