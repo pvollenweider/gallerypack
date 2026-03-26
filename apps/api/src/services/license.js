@@ -8,7 +8,7 @@
 // apps/api/src/services/license.js — load and verify the GalleryPack license at startup
 
 import { createVerify } from 'node:crypto';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -183,4 +183,51 @@ export function effectiveOrgLimit() {
     return caps.limits.organization_limit ?? Infinity;
   }
   return 1;
+}
+
+/**
+ * Verify and install a license from a JSON string.
+ * Writes the file to disk and reloads the in-memory state.
+ * Throws if the license is invalid.
+ *
+ * @param {string} licenseJson
+ * @returns {{ ok: true, info: object }}
+ */
+export function installLicense(licenseJson) {
+  let publicKey;
+  try {
+    publicKey = readFileSync(PUBLIC_KEY_PATH, 'utf8');
+  } catch {
+    throw new Error('Public key not found on server');
+  }
+
+  // Verify before writing
+  let parsed;
+  try { parsed = JSON.parse(licenseJson); } catch { throw new Error('Invalid JSON'); }
+
+  const { payload, signature } = parsed;
+  if (!payload || !signature) throw new Error('License is missing payload or signature');
+
+  const canonical = canonicalize(payload);
+  let ok = false;
+  try {
+    const v = createVerify('SHA256');
+    v.update(canonical, 'utf8');
+    v.end();
+    ok = v.verify(publicKey, signature, 'base64');
+  } catch (err) {
+    throw new Error('Signature verification failed: ' + err.message);
+  }
+  if (!ok) throw new Error('Invalid signature — license may have been tampered with');
+
+  // Write to disk
+  const licensePath = process.env.LICENSE_FILE
+    || join(__DIR, '../../../../../.gallerypack-license');
+
+  writeFileSync(licensePath, licenseJson, 'utf8');
+
+  // Reload in-memory state
+  loadLicense();
+
+  return { ok: true, info: getLicenseInfo() };
 }

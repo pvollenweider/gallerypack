@@ -160,6 +160,7 @@ export const api = {
   listPlatformUsers:    ()            => req('GET',    '/platform/users'),
   updatePlatformUser:   (id, data)    => req('PATCH',  `/platform/users/${id}`, data),
   getPlatformLicense:   ()            => req('GET',    '/platform/license'),
+  installPlatformLicense: (licenseJson) => req('POST', '/platform/license', { licenseJson }),
 
   // Upload (multipart — handled separately)
   uploadPhotos(galleryId, files, onProgress) {
