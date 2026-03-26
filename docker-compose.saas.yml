@@ -31,9 +31,11 @@ services:
     volumes:
       - ./src:/app/src                 # source photos (engine reads/writes here)
       - ./dist:/app/dist               # built galleries (engine writes here)
+      - ./data:/app/data               # persistent server data (license file, etc.)
     environment:
       PORT:                "4000"
       NODE_ENV:            "production"
+      LICENSE_FILE:        "/app/data/gallerypack.license"
       PLATFORM_MODE:       "${PLATFORM_MODE:-single}"
       BASE_DOMAIN:         "${BASE_DOMAIN:-gallerypack.app}"
       DB_HOST:             "db"

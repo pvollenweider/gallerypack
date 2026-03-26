@@ -15,7 +15,7 @@ services:
   gallerypack:
     build:
       context: ..
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.api
     # Only accessible from localhost — Apache proxies to it
     ports:
       - "127.0.0.1:3000:3000"
