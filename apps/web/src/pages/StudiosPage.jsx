@@ -135,6 +135,14 @@ export default function StudiosPage() {
         <div style={s.headerRight}>
           <span style={s.userLabel}>{user?.email}</span>
           {isSuperadmin && <Link to="/inspector" style={s.outlineBtn}>Inspector</Link>}
+          {isSuperadmin && (
+            <Link to="/settings#license" style={{ ...s.outlineBtn, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              {license?.source === 'license'
+                ? <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
+                : <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }} />}
+              {t('section_license')}
+            </Link>
+          )}
           <Link to="/settings" style={s.outlineBtn}>{t('settings')}</Link>
           <button style={s.outlineBtn} onClick={logout}>{t('sign_out')}</button>
         </div>
@@ -145,7 +153,6 @@ export default function StudiosPage() {
           <h2 style={s.heading}>{t('studios_title')}</h2>
           {isSuperadmin && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              {license?.source === 'free' && <Link to="/settings#license" style={{ ...s.outlineBtn, fontSize: '0.78rem', color: '#888' }}>{t('license_free_badge')}</Link>}
               <button
                 style={{ ...s.primaryBtn, opacity: orgLimitReached ? 0.45 : 1, cursor: orgLimitReached ? 'not-allowed' : 'pointer' }}
                 onClick={() => !orgLimitReached && setCreating(v => !v)}

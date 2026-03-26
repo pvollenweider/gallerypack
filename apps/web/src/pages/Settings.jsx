@@ -89,6 +89,18 @@ export default function Settings() {
   const [licenseMsg,    setLicenseMsg]   = useState(null); // { ok, text }
   const licenseRef = useRef(null);
 
+  // Scroll to license section when navigated via /settings#license
+  useEffect(() => {
+    if (window.location.hash === '#license' && user?.platformRole === 'superadmin') {
+      // Wait for the license data to load then scroll + auto-open the paste form
+      const timer = setTimeout(() => {
+        licenseRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        setLicensePaste(true);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [licenseInfo]); // re-run once licenseInfo is loaded
+
   useEffect(() => {
     if (user?.platformRole === 'superadmin') {
       api.getPlatformLicense().then(setLicenseInfo).catch(() => {});
