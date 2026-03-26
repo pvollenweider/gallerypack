@@ -15,6 +15,7 @@ import ProjectDetail   from './pages/ProjectDetail.jsx';
 import GalleryDetail   from './pages/GalleryDetail.jsx';
 import BuildStatus     from './pages/BuildStatus.jsx';
 import Settings        from './pages/Settings.jsx';
+import Team            from './pages/Team.jsx';
 import MemberProfile   from './pages/MemberProfile.jsx';
 import AcceptInvite    from './pages/AcceptInvite.jsx';
 import ForgotPassword  from './pages/ForgotPassword.jsx';
@@ -30,7 +31,7 @@ import ManageHub       from './management/pages/manage/ManageHub.jsx';
 import { PlatformOverviewPage, SmtpPage, LicensePage, BrandingPage } from './management/pages/platform/index.jsx';
 import { OrganizationsListPage, OrganizationOverviewPage, OrganizationGeneralPage, OrganizationDefaultsPage, OrganizationAccessPage, OrganizationTeamPage, OrganizationProjectsPage } from './management/pages/organizations/index.jsx';
 import { ProjectsListPage, ProjectOverviewPage, ProjectGeneralPage, ProjectGalleriesPage, ProjectAccessPage, ProjectDeliveryPage } from './management/pages/projects/index.jsx';
-import { GalleriesListPage, GalleryOverviewPage, GalleryGeneralPage, GalleryAccessPage, GalleryDownloadsPage, GalleryUploadPage, GalleryPublishPage } from './management/pages/galleries/index.jsx';
+import { GalleriesListPage, GalleryOverviewPage, GalleryGeneralPage, GalleryAccessPage, GalleryDownloadsPage, GalleryUploadPage, GalleryPublishPage, GalleryInsightsPage } from './management/pages/galleries/index.jsx';
 
 // Inspector
 import InspectorLayout     from './inspector/InspectorLayout.jsx';
@@ -82,6 +83,7 @@ export default function App() {
       <Route path="/galleries/:id"               element={<AuthLayout><GalleryDetail /></AuthLayout>} />
       <Route path="/jobs/:jobId"                 element={<AuthLayout><BuildStatus /></AuthLayout>} />
       <Route path="/settings"                    element={<AuthLayout><Settings /></AuthLayout>} />
+      <Route path="/team"                        element={<AuthLayout><Team /></AuthLayout>} />
       <Route path="/team/:userId"                element={<AuthLayout><MemberProfile /></AuthLayout>} />
       {/* Public / unauthenticated */}
       <Route path="/invite/:token"               element={<AcceptInvite />} />
@@ -114,6 +116,7 @@ export default function App() {
       <Route path="/manage/galleries/:galleryId/downloads" element={<ManageLayout><GalleryDownloadsPage /></ManageLayout>} />
       <Route path="/manage/galleries/:galleryId/upload" element={<ManageLayout><GalleryUploadPage /></ManageLayout>} />
       <Route path="/manage/galleries/:galleryId/publish" element={<ManageLayout><GalleryPublishPage /></ManageLayout>} />
+      <Route path="/manage/galleries/:galleryId/insights" element={<ManageLayout><GalleryInsightsPage /></ManageLayout>} />
 
       {/* ── Platform admin — /admin/platform/* (superadmin only) ── */}
       <Route path="/admin/platform" element={<PlatformLayout><PlatformOverviewPage /></PlatformLayout>} />

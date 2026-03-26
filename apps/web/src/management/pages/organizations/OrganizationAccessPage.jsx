@@ -7,8 +7,11 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '../../../lib/api.js';
+import { useT } from '../../../lib/I18nContext.jsx';
+import { AdminPage, AdminCard, AdminSwitch, AdminAlert, AdminButton } from '../../../components/ui/index.js';
 
 export default function OrganizationAccessPage() {
+  const t = useT();
   const [form,   setForm]   = useState({ defaultAccess: 'public', defaultAllowDownloadImage: true, defaultAllowDownloadGallery: false });
   const [saving, setSaving] = useState(false);
   const [saved,  setSaved]  = useState('');
@@ -31,7 +34,7 @@ export default function OrganizationAccessPage() {
     setSaving(true); setSaved(''); setError('');
     try {
       await api.saveSettings(form);
-      setSaved('Access settings saved.');
+      setSaved(t('access_saved'));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -40,76 +43,55 @@ export default function OrganizationAccessPage() {
   }
 
   return (
-    <>
-      <div className="app-content-header">
-        <div className="container-fluid">
-          <div className="row mb-2">
-            <div className="col-sm-6"><h1 className="m-0">Access & Privacy</h1></div>
+    <AdminPage title={t('org_access_title')} maxWidth="100%">
+      <div className="row">
+        <div className="col-lg-7">
+          <div className="alert alert-info py-2" style={{ fontSize: '0.875rem' }}>
+            <i className="fas fa-info-circle me-2" />
+            {t('org_access_hint')}
           </div>
-        </div>
-      </div>
 
-      <div className="app-content-body">
-        <div className="container-fluid">
-          <div className="row">
-            <div className="col-lg-7">
-              <div className="alert alert-info py-2" style={{ fontSize: '0.875rem' }}>
-                <i className="fas fa-info-circle me-2" />
-                These are organization-level defaults. Projects and galleries can override them individually.
+          <form onSubmit={save}>
+            <AdminCard title={t('org_access_visibility_section')}>
+              <div className="mb-0">
+                <label className="form-label">{t('org_access_type_label')}</label>
+                {['public', 'private', 'password'].map(v => (
+                  <div key={v} className="form-check">
+                    <input className="form-check-input" type="radio" name="access" id={`access-${v}`}
+                      value={v} checked={form.defaultAccess === v} onChange={set('defaultAccess')} />
+                    <label className="form-check-label" htmlFor={`access-${v}`}>
+                      {v === 'public'   && t('access_public_full')}
+                      {v === 'private'  && t('access_private_full')}
+                      {v === 'password' && t('access_password_full')}
+                    </label>
+                  </div>
+                ))}
               </div>
+            </AdminCard>
 
-              <form onSubmit={save}>
-                <div className="card">
-                  <div className="card-header"><h3 className="card-title">Visibility</h3></div>
-                  <div className="card-body">
-                    <div className="mb-0">
-                      <label className="form-label">Access type</label>
-                      {['public', 'private', 'password'].map(v => (
-                        <div key={v} className="form-check">
-                          <input className="form-check-input" type="radio" name="access" id={`access-${v}`}
-                            value={v} checked={form.defaultAccess === v} onChange={set('defaultAccess')} />
-                          <label className="form-check-label" htmlFor={`access-${v}`}>
-                            {v === 'public'   && 'Public — anyone with the link can view'}
-                            {v === 'private'  && 'Private — only invited members can view'}
-                            {v === 'password' && 'Password protected — requires a password to access'}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+            <AdminCard title={t('org_downloads_section')}>
+              <AdminSwitch
+                label={t('allow_photo_download')}
+                checked={form.defaultAllowDownloadImage}
+                onChange={set('defaultAllowDownloadImage')}
+              />
+              <AdminSwitch
+                label={t('allow_zip_download')}
+                checked={form.defaultAllowDownloadGallery}
+                onChange={set('defaultAllowDownloadGallery')}
+                className="mb-0"
+              />
+            </AdminCard>
 
-                <div className="card">
-                  <div className="card-header"><h3 className="card-title">Downloads</h3></div>
-                  <div className="card-body">
-                    <div className="mb-3">
-                      <div className="form-check form-switch">
-                        <input className="form-check-input" type="checkbox" id="dlImg"
-                          checked={form.defaultAllowDownloadImage} onChange={set('defaultAllowDownloadImage')} />
-                        <label className="form-check-label" htmlFor="dlImg">Allow photo download</label>
-                      </div>
-                    </div>
-                    <div className="mb-0">
-                      <div className="form-check form-switch">
-                        <input className="form-check-input" type="checkbox" id="dlGal"
-                          checked={form.defaultAllowDownloadGallery} onChange={set('defaultAllowDownloadGallery')} />
-                        <label className="form-check-label" htmlFor="dlGal">Allow gallery ZIP download</label>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+            <AdminAlert variant="success" message={saved} />
+            <AdminAlert message={error} />
 
-                {saved && <div className="alert alert-success">{saved}</div>}
-                {error && <div className="alert alert-danger">{error}</div>}
-
-                <button type="submit" className="btn btn-primary mb-4" disabled={saving}>
-                  {saving ? <><i className="fas fa-spinner fa-spin me-1" />Saving…</> : 'Save'}
-                </button>
-              </form>
-            </div>
-          </div>
+            <AdminButton type="submit" loading={saving} loadingLabel={t('saving')} className="mb-4">
+              {t('save')}
+            </AdminButton>
+          </form>
         </div>
       </div>
-    </>
+    </AdminPage>
   );
 }

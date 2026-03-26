@@ -71,6 +71,9 @@ export const api = {
   // Photographer ready notification
   notifyReady: (galleryId) => req('POST', `/galleries/${galleryId}/notify-ready`),
 
+  // Focal stats (Insights tab)
+  getFocalStats: (galleryId) => req('GET', `/galleries/${galleryId}/focal-stats`),
+
   // Jobs
   triggerBuild: (galleryId, force = false) => req('POST', `/galleries/${galleryId}/build`, { force }),
   listJobs:     (galleryId)               => req('GET',  `/galleries/${galleryId}/jobs`),

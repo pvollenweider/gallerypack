@@ -8,12 +8,17 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../../../lib/api.js';
+import { useT } from '../../../lib/I18nContext.jsx';
+import { useBreadcrumb } from '../../context/BreadcrumbContext.jsx';
+import { AdminPage, AdminCard, AdminButton, AdminBadge, AdminAlert } from '../../../components/ui/index.js';
 
 const STATUS_BADGE  = { done: 'success', error: 'danger', running: 'primary', queued: 'warning' };
 const ACCESS_BADGE  = { public: 'success', private: 'secondary', password: 'warning' };
 
 export default function GalleryOverviewPage() {
+  const t = useT();
   const { galleryId } = useParams();
+  const { setEntityName } = useBreadcrumb();
   const [gallery, setGallery] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState('');
@@ -22,7 +27,7 @@ export default function GalleryOverviewPage() {
 
   useEffect(() => {
     api.getGallery(galleryId)
-      .then(setGallery)
+      .then(g => { setGallery(g); setEntityName(galleryId, g.title || g.slug); })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, [galleryId]);
@@ -31,7 +36,7 @@ export default function GalleryOverviewPage() {
     setBuilding(true); setBuildMsg('');
     try {
       await api.triggerBuild(galleryId, true);
-      setBuildMsg('Build triggered.');
+      setBuildMsg(t('build_triggered'));
       const g = await api.getGallery(galleryId);
       setGallery(g);
     } catch (err) {
@@ -44,86 +49,77 @@ export default function GalleryOverviewPage() {
   const base = `/manage/galleries/${galleryId}`;
 
   return (
-    <>
-      <div className="app-content-header">
-        <div className="container-fluid">
-          <div className="row mb-2 align-items-center">
-            <div className="col-sm-6"><h1 className="m-0">{gallery?.title || gallery?.slug || 'Gallery'}</h1></div>
-            <div className="col-sm-6 text-sm-end">
-              <button className="btn btn-primary btn-sm" onClick={rebuild} disabled={building || loading}>
-                {building ? <><i className="fas fa-spinner fa-spin me-1" />Building…</> : <><i className="fas fa-rocket me-1" />Publish</>}
-              </button>
-            </div>
+    <AdminPage
+      title={gallery?.title || gallery?.slug || 'Gallery'}
+      actions={
+        <AdminButton
+          size="sm"
+          icon="fas fa-rocket"
+          loading={building}
+          loadingLabel={t('gal_publish_building')}
+          disabled={loading}
+          onClick={rebuild}
+        >
+          {t('gal_publish_title')}
+        </AdminButton>
+      }
+    >
+      {loading && <div className="text-center py-5 text-muted"><i className="fas fa-spinner fa-spin fa-2x" /></div>}
+      <AdminAlert message={error} />
+      <AdminAlert variant="info" message={buildMsg} className="py-2" />
+
+      {gallery && (
+        <div className="row">
+
+          <div className="col-md-3 mb-3">
+            <AdminCard
+              title={<><i className="fas fa-lock me-2" />{t('gal_overview_access')}</>}
+              headerRight={<Link to={`${base}/access`} className="btn btn-sm btn-outline-secondary">{t('gal_overview_edit')}</Link>}
+              className="h-100"
+            >
+              <AdminBadge color={ACCESS_BADGE[gallery.access] || 'secondary'}>{gallery.access || 'public'}</AdminBadge>
+              {gallery.access === 'password' && <small className="text-muted d-block mt-1">{t('gal_overview_password_set')}</small>}
+            </AdminCard>
           </div>
+
+          <div className="col-md-3 mb-3">
+            <AdminCard
+              title={<><i className="fas fa-download me-2" />{t('gal_overview_downloads')}</>}
+              headerRight={<Link to={`${base}/downloads`} className="btn btn-sm btn-outline-secondary">{t('gal_overview_edit')}</Link>}
+              className="h-100"
+            >
+              <div style={{ fontSize: '0.85rem' }}>
+                <div><i className={`fas fa-${gallery.allowDownloadImage ? 'check text-success' : 'times text-muted'} me-2`} />{t('gal_overview_photo_dl')}</div>
+                <div><i className={`fas fa-${gallery.allowDownloadGallery ? 'check text-success' : 'times text-muted'} me-2`} />{t('gal_overview_zip_dl')}</div>
+              </div>
+            </AdminCard>
+          </div>
+
+          <div className="col-md-3 mb-3">
+            <AdminCard
+              title={<><i className="fas fa-upload me-2" />{t('gal_overview_upload')}</>}
+              headerRight={<Link to={`${base}/upload`} className="btn btn-sm btn-outline-secondary">{t('gal_overview_manage')}</Link>}
+              className="h-100"
+            >
+              <p className="text-muted mb-0" style={{ fontSize: '0.85rem' }}>{t('gal_overview_upload_desc')}</p>
+            </AdminCard>
+          </div>
+
+          <div className="col-md-3 mb-3">
+            <AdminCard
+              title={<><i className="fas fa-rocket me-2" />{t('gal_overview_publish')}</>}
+              headerRight={<Link to={`${base}/publish`} className="btn btn-sm btn-outline-secondary">{t('gal_overview_details')}</Link>}
+              className="h-100"
+            >
+              {gallery.buildStatus
+                ? <AdminBadge color={STATUS_BADGE[gallery.buildStatus] || 'secondary'}>{gallery.buildStatus}</AdminBadge>
+                : <span className="text-muted" style={{ fontSize: '0.85rem' }}>{t('gal_overview_never_built')}</span>
+              }
+            </AdminCard>
+          </div>
+
         </div>
-      </div>
-
-      <div className="app-content-body">
-        <div className="container-fluid">
-          {loading && <div className="text-center py-5 text-muted"><i className="fas fa-spinner fa-spin fa-2x" /></div>}
-          {error   && <div className="alert alert-danger">{error}</div>}
-          {buildMsg && <div className="alert alert-info py-2">{buildMsg}</div>}
-
-          {gallery && (
-            <div className="row">
-
-              <div className="col-md-3 mb-3">
-                <div className="card h-100">
-                  <div className="card-header d-flex align-items-center justify-content-between">
-                    <h3 className="card-title mb-0"><i className="fas fa-lock me-2" />Access</h3>
-                    <Link to={`${base}/access`} className="btn btn-sm btn-outline-secondary">Edit</Link>
-                  </div>
-                  <div className="card-body">
-                    <span className={`badge bg-${ACCESS_BADGE[gallery.access] || 'secondary'}`}>{gallery.access || 'public'}</span>
-                    {gallery.access === 'password' && <small className="text-muted d-block mt-1">Password set</small>}
-                  </div>
-                </div>
-              </div>
-
-              <div className="col-md-3 mb-3">
-                <div className="card h-100">
-                  <div className="card-header d-flex align-items-center justify-content-between">
-                    <h3 className="card-title mb-0"><i className="fas fa-download me-2" />Downloads</h3>
-                    <Link to={`${base}/downloads`} className="btn btn-sm btn-outline-secondary">Edit</Link>
-                  </div>
-                  <div className="card-body" style={{ fontSize: '0.85rem' }}>
-                    <div><i className={`fas fa-${gallery.allowDownloadImage ? 'check text-success' : 'times text-muted'} me-2`} />Photo download</div>
-                    <div><i className={`fas fa-${gallery.allowDownloadGallery ? 'check text-success' : 'times text-muted'} me-2`} />ZIP download</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="col-md-3 mb-3">
-                <div className="card h-100">
-                  <div className="card-header d-flex align-items-center justify-content-between">
-                    <h3 className="card-title mb-0"><i className="fas fa-upload me-2" />Upload</h3>
-                    <Link to={`${base}/upload`} className="btn btn-sm btn-outline-secondary">Manage</Link>
-                  </div>
-                  <div className="card-body">
-                    <p className="text-muted mb-0" style={{ fontSize: '0.85rem' }}>Upload links and contributor access.</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="col-md-3 mb-3">
-                <div className="card h-100">
-                  <div className="card-header d-flex align-items-center justify-content-between">
-                    <h3 className="card-title mb-0"><i className="fas fa-rocket me-2" />Publish</h3>
-                    <Link to={`${base}/publish`} className="btn btn-sm btn-outline-secondary">Details</Link>
-                  </div>
-                  <div className="card-body">
-                    {gallery.buildStatus
-                      ? <span className={`badge bg-${STATUS_BADGE[gallery.buildStatus] || 'secondary'}`}>{gallery.buildStatus}</span>
-                      : <span className="text-muted" style={{ fontSize: '0.85rem' }}>Never built</span>
-                    }
-                  </div>
-                </div>
-              </div>
-
-            </div>
-          )}
-        </div>
-      </div>
-    </>
+      )}
+    </AdminPage>
   );
 }

@@ -8,11 +8,14 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../lib/api.js';
+import { useT } from '../../../lib/I18nContext.jsx';
+import { AdminPage, AdminCard, AdminInput, AdminBadge, AdminAlert, AdminButton, AdminLoader } from '../../../components/ui/index.js';
 
 const ROLES = ['owner', 'admin', 'collaborator', 'photographer'];
 const ROLE_BADGE = { owner: 'danger', admin: 'primary', collaborator: 'info', photographer: 'secondary' };
 
 export default function OrganizationTeamPage() {
+  const t = useT();
   const { orgId } = useParams();
   const [members,     setMembers]     = useState([]);
   const [invitations, setInvitations] = useState([]);
@@ -40,7 +43,7 @@ export default function OrganizationTeamPage() {
     setInviting(true); setInviteMsg(''); setInviteErr('');
     try {
       await api.createInvitation({ email, role });
-      setInviteMsg(`Invitation sent to ${email}.`);
+      setInviteMsg(t('invite_sent_to', { email }));
       setEmail('');
       load();
     } catch (err) {
@@ -58,116 +61,105 @@ export default function OrganizationTeamPage() {
   }
 
   return (
-    <>
-      <div className="app-content-header">
-        <div className="container-fluid">
-          <div className="row mb-2">
-            <div className="col-sm-6"><h1 className="m-0">Team</h1></div>
+    <AdminPage title={t('org_team_title')} maxWidth="100%">
+      {loading ? (
+        <AdminLoader />
+      ) : (
+        <div className="row">
+          <div className="col-lg-8">
+
+            {/* Members */}
+            <AdminCard title={t('org_team_members_section')} noPadding>
+              {members.length === 0 ? (
+                <div className="text-center text-muted py-4">{t('org_team_no_members')}</div>
+              ) : (
+                <div className="table-responsive">
+                  <table className="table table-sm table-hover mb-0">
+                    <thead className="table-light">
+                      <tr>
+                        <th>{t('inspector_th_name')}</th>
+                        <th>{t('inspector_th_email')}</th>
+                        <th>{t('team_th_role')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {members.map(m => (
+                        <tr key={m.user_id}>
+                          <td>{m.name || '—'}</td>
+                          <td className="text-muted" style={{ fontSize: '0.85rem' }}>{m.email}</td>
+                          <td>
+                            <AdminBadge color={ROLE_BADGE[m.role] || 'secondary'}>{m.role}</AdminBadge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </AdminCard>
+
+            {/* Pending invitations */}
+            {invitations.length > 0 && (
+              <AdminCard title={t('org_team_pending_section')} noPadding>
+                <div className="table-responsive">
+                  <table className="table table-sm table-hover mb-0">
+                    <thead className="table-light">
+                      <tr><th>{t('inspector_th_email')}</th><th>{t('team_th_role')}</th><th>{t('team_th_since')}</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                      {invitations.map(inv => (
+                        <tr key={inv.id}>
+                          <td>{inv.email}</td>
+                          <td><AdminBadge color={ROLE_BADGE[inv.role] || 'secondary'}>{inv.role}</AdminBadge></td>
+                          <td className="text-muted" style={{ fontSize: '0.8rem' }}>{new Date(inv.created_at).toLocaleDateString()}</td>
+                          <td>
+                            <AdminButton variant="outline-danger" size="sm" onClick={() => revokeInvite(inv.id)} aria-label={`Revoke invitation for ${inv.email}`}>
+                              <i className="fas fa-times" aria-hidden="true" />
+                            </AdminButton>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </AdminCard>
+            )}
+
+            {/* Invite */}
+            <AdminCard title={t('org_team_invite_section')}>
+              <form onSubmit={invite}>
+                <div className="row align-items-end">
+                  <div className="col-sm-5 mb-3">
+                    <AdminInput
+                      label={t('login_email')}
+                      type="email"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      required
+                      placeholder={t('org_team_invite_email_placeholder')}
+                      className="mb-0"
+                    />
+                  </div>
+                  <div className="col-sm-4 mb-3">
+                    <label className="form-label">{t('team_th_role')}</label>
+                    <select className="form-select" value={role} onChange={e => setRole(e.target.value)}>
+                      {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                  </div>
+                  <div className="col-sm-3 mb-3">
+                    <AdminButton type="submit" loading={inviting} loadingLabel={t('saving')} className="w-100">
+                      {t('org_team_send_invite_btn')}
+                    </AdminButton>
+                  </div>
+                </div>
+                <AdminAlert variant="success" message={inviteMsg} />
+                <AdminAlert message={inviteErr} />
+              </form>
+            </AdminCard>
+
           </div>
         </div>
-      </div>
-
-      <div className="app-content-body">
-        <div className="container-fluid">
-          {loading ? (
-            <div className="text-center py-5 text-muted"><i className="fas fa-spinner fa-spin fa-2x" /></div>
-          ) : (
-            <div className="row">
-              <div className="col-lg-8">
-
-                {/* Members */}
-                <div className="card">
-                  <div className="card-header"><h3 className="card-title">Members</h3></div>
-                  <div className="card-body p-0">
-                    {members.length === 0 ? (
-                      <div className="text-center text-muted py-4">No members yet.</div>
-                    ) : (
-                      <table className="table table-sm table-hover mb-0">
-                        <thead className="table-light">
-                          <tr>
-                            <th>Name</th>
-                            <th>Email</th>
-                            <th>Role</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {members.map(m => (
-                            <tr key={m.user_id}>
-                              <td>{m.name || '—'}</td>
-                              <td className="text-muted" style={{ fontSize: '0.85rem' }}>{m.email}</td>
-                              <td>
-                                <span className={`badge bg-${ROLE_BADGE[m.role] || 'secondary'}`}>{m.role}</span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    )}
-                  </div>
-                </div>
-
-                {/* Pending invitations */}
-                {invitations.length > 0 && (
-                  <div className="card">
-                    <div className="card-header"><h3 className="card-title">Pending invitations</h3></div>
-                    <div className="card-body p-0">
-                      <table className="table table-sm table-hover mb-0">
-                        <thead className="table-light">
-                          <tr><th>Email</th><th>Role</th><th>Sent</th><th></th></tr>
-                        </thead>
-                        <tbody>
-                          {invitations.map(inv => (
-                            <tr key={inv.id}>
-                              <td>{inv.email}</td>
-                              <td><span className={`badge bg-${ROLE_BADGE[inv.role] || 'secondary'}`}>{inv.role}</span></td>
-                              <td className="text-muted" style={{ fontSize: '0.8rem' }}>{new Date(inv.created_at).toLocaleDateString()}</td>
-                              <td>
-                                <button className="btn btn-sm btn-outline-danger" onClick={() => revokeInvite(inv.id)}>
-                                  <i className="fas fa-times" />
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-                {/* Invite */}
-                <div className="card">
-                  <div className="card-header"><h3 className="card-title">Invite member</h3></div>
-                  <div className="card-body">
-                    <form onSubmit={invite}>
-                      <div className="row align-items-end">
-                        <div className="col-sm-5 mb-3">
-                          <label className="form-label">Email</label>
-                          <input className="form-control" type="email" value={email}
-                            onChange={e => setEmail(e.target.value)} required placeholder="member@example.com" />
-                        </div>
-                        <div className="col-sm-4 mb-3">
-                          <label className="form-label">Role</label>
-                          <select className="form-select" value={role} onChange={e => setRole(e.target.value)}>
-                            {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                          </select>
-                        </div>
-                        <div className="col-sm-3 mb-3">
-                          <button type="submit" className="btn btn-primary w-100" disabled={inviting}>
-                            {inviting ? <i className="fas fa-spinner fa-spin" /> : 'Send invite'}
-                          </button>
-                        </div>
-                      </div>
-                      {inviteMsg && <div className="alert alert-success py-2">{inviteMsg}</div>}
-                      {inviteErr && <div className="alert alert-danger py-2">{inviteErr}</div>}
-                    </form>
-                  </div>
-                </div>
-
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </>
+      )}
+    </AdminPage>
   );
 }

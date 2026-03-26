@@ -60,6 +60,7 @@ const SEGMENT_LABELS = {
   downloads:     'Downloads',
   upload:        'Upload',
   publish:       'Publish',
+  insights:      'Insights',
   overview:      'Overview',
 };
 
@@ -72,7 +73,6 @@ const SEGMENT_LABELS = {
  * @returns {{ label: string, href: string }[]}
  */
 export function buildBreadcrumb(pathname, entityNames = {}) {
-  const paramKeys = { orgId: true, projectId: true, galleryId: true };
   const segments = pathname.split('/').filter(Boolean);
   const crumbs = [];
   let path = '';
@@ -80,20 +80,16 @@ export function buildBreadcrumb(pathname, entityNames = {}) {
   for (const seg of segments) {
     path += '/' + seg;
 
-    // Check if this segment is a known entity param value
-    const entityKey = Object.keys(entityNames).find(k => entityNames[k] === seg || paramKeys[k]);
-    const matchedName = Object.entries(entityNames).find(([, v]) => v === seg)?.[0];
-    if (matchedName) {
-      // This is an entity ID — show a human name if provided
-      const paramKey = Object.keys(entityNames).find(k => entityNames[k] && seg === entityNames[k]);
-      crumbs.push({ label: entityNames[seg] ?? seg, href: path });
+    // If this segment is a known entity ID, show its human name
+    if (entityNames[seg]) {
+      crumbs.push({ label: entityNames[seg], href: path });
       continue;
     }
 
     const label = SEGMENT_LABELS[seg];
-    if (label === null) continue; // skip 'admin', 'manage'
+    if (label === null) continue;        // skip 'admin', 'manage'
     if (label === undefined) {
-      // Unknown segment — likely an entity ID. Show short form.
+      // Unknown segment — likely an entity ID with no name loaded yet
       crumbs.push({ label: seg.length > 12 ? seg.slice(0, 8) + '…' : seg, href: path });
     } else {
       crumbs.push({ label, href: path });

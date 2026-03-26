@@ -8,17 +8,23 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../lib/api.js';
+import { useT } from '../../../lib/I18nContext.jsx';
+import InheritedValue from '../../components/InheritedValue.jsx';
+import { AdminPage, AdminCard, AdminButton, AdminAlert } from '../../../components/ui/index.js';
 
 export default function GalleryDownloadsPage() {
+  const t = useT();
   const { galleryId } = useParams();
-  const [form,   setForm]   = useState({ allowDownloadImage: true, allowDownloadGallery: false });
+  const [form,      setForm]      = useState({ allowDownloadImage: true, allowDownloadGallery: false });
+  const [orgDef,    setOrgDef]    = useState(null);
   const [saving, setSaving] = useState(false);
   const [saved,  setSaved]  = useState('');
   const [error,  setError]  = useState('');
 
   useEffect(() => {
-    api.getGallery(galleryId).then(g => {
+    Promise.all([api.getGallery(galleryId), api.getSettings()]).then(([g, s]) => {
       setForm({ allowDownloadImage: !!g.allowDownloadImage, allowDownloadGallery: !!g.allowDownloadGallery });
+      if (s) setOrgDef({ img: !!s.allowDownloadImage, zip: !!s.allowDownloadGallery });
     }).catch(() => {});
   }, [galleryId]);
 
@@ -31,7 +37,7 @@ export default function GalleryDownloadsPage() {
     setSaving(true); setSaved(''); setError('');
     try {
       await api.updateGallery(galleryId, form);
-      setSaved('Download settings saved.');
+      setSaved(t('download_saved'));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -40,53 +46,49 @@ export default function GalleryDownloadsPage() {
   }
 
   return (
-    <>
-      <div className="app-content-header">
-        <div className="container-fluid">
-          <div className="row mb-2"><div className="col-sm-6"><h1 className="m-0">Downloads</h1></div></div>
-        </div>
-      </div>
-      <div className="app-content-body">
-        <div className="container-fluid">
-          <div className="row">
-            <div className="col-lg-6">
-              <form onSubmit={save}>
-                <div className="card">
-                  <div className="card-header"><h3 className="card-title">Download permissions</h3></div>
-                  <div className="card-body">
-                    <div className="mb-3">
-                      <div className="form-check form-switch">
-                        <input className="form-check-input" type="checkbox" id="dlImg"
-                          checked={form.allowDownloadImage} onChange={set('allowDownloadImage')} />
-                        <label className="form-check-label" htmlFor="dlImg">
-                          Allow photo download
-                          <small className="text-muted d-block">Visitors can download individual photos.</small>
-                        </label>
-                      </div>
-                    </div>
-                    <div className="mb-0">
-                      <div className="form-check form-switch">
-                        <input className="form-check-input" type="checkbox" id="dlGal"
-                          checked={form.allowDownloadGallery} onChange={set('allowDownloadGallery')} />
-                        <label className="form-check-label" htmlFor="dlGal">
-                          Allow ZIP download
-                          <small className="text-muted d-block">Visitors can download the entire gallery as a ZIP.</small>
-                        </label>
-                      </div>
-                    </div>
-                  </div>
+    <AdminPage title={t('gal_downloads_title')}>
+      <div className="row">
+        <div className="col-lg-6">
+          <form onSubmit={save}>
+            <AdminCard title={t('gal_downloads_section')}>
+              <div className="mb-3">
+                <div className="form-check form-switch">
+                  <input className="form-check-input" type="checkbox" id="dlImg"
+                    checked={form.allowDownloadImage} onChange={set('allowDownloadImage')} />
+                  <label className="form-check-label" htmlFor="dlImg">
+                    {t('gal_downloads_photo_label')}
+                    <small className="text-muted d-block">{t('gal_downloads_photo_hint')}</small>
+                  </label>
                 </div>
+              </div>
+              <div className="mb-0">
+                <div className="form-check form-switch">
+                  <input className="form-check-input" type="checkbox" id="dlGal"
+                    checked={form.allowDownloadGallery} onChange={set('allowDownloadGallery')} />
+                  <label className="form-check-label" htmlFor="dlGal">
+                    {t('gal_downloads_zip_label')}
+                    <small className="text-muted d-block">{t('gal_downloads_zip_hint')}</small>
+                  </label>
+                </div>
+              </div>
 
-                {saved && <div className="alert alert-success">{saved}</div>}
-                {error && <div className="alert alert-danger">{error}</div>}
-                <button type="submit" className="btn btn-primary mb-4" disabled={saving}>
-                  {saving ? <><i className="fas fa-spinner fa-spin me-1" />Saving…</> : 'Save'}
-                </button>
-              </form>
-            </div>
-          </div>
+              {orgDef && (
+                <div className="mt-3 pt-3 border-top">
+                  <InheritedValue label={t('org_default_label')}>
+                    {t('allow_photo_download')}: {orgDef.img ? t('status_allowed') : t('status_disabled_val')} &nbsp;·&nbsp; {t('allow_zip_download')}: {orgDef.zip ? t('status_allowed') : t('status_disabled_val')}
+                  </InheritedValue>
+                </div>
+              )}
+            </AdminCard>
+
+            <AdminAlert variant="success" message={saved} />
+            <AdminAlert message={error} />
+            <AdminButton type="submit" loading={saving} loadingLabel={t('saving')} className="mb-4">
+              {t('save')}
+            </AdminButton>
+          </form>
         </div>
       </div>
-    </>
+    </AdminPage>
   );
 }

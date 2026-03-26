@@ -8,8 +8,11 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../lib/api.js';
+import { useT } from '../../../lib/I18nContext.jsx';
+import { AdminPage, AdminCard, AdminInput, AdminSelect, AdminAlert, AdminButton } from '../../../components/ui/index.js';
 
 export default function ProjectGeneralPage() {
+  const t = useT();
   const { projectId } = useParams();
   const [form,   setForm]   = useState({ name: '', slug: '', description: '', visibility: 'public' });
   const [saving, setSaving] = useState(false);
@@ -31,7 +34,7 @@ export default function ProjectGeneralPage() {
     setSaving(true); setSaved(''); setError('');
     try {
       await api.updateProject(projectId, form);
-      setSaved('Changes saved.');
+      setSaved(t('changes_saved'));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -40,54 +43,48 @@ export default function ProjectGeneralPage() {
   }
 
   return (
-    <>
-      <div className="app-content-header">
-        <div className="container-fluid">
-          <div className="row mb-2"><div className="col-sm-6"><h1 className="m-0">General</h1></div></div>
+    <AdminPage title={t('proj_general_title')} maxWidth="100%">
+      <div className="row">
+        <div className="col-lg-7">
+          <form onSubmit={save}>
+            <AdminCard title={t('branding_identity_section')}>
+              <AdminInput
+                label={t('orgs_th_name')}
+                value={form.name}
+                onChange={set('name')}
+                required
+              />
+              <AdminInput
+                label={t('orgs_th_slug')}
+                prefix="/"
+                value={form.slug}
+                onChange={set('slug')}
+                required
+                pattern="[a-z0-9-]+"
+              />
+              <AdminInput
+                label={t('field_description')}
+                value={form.description}
+                onChange={set('description')}
+              />
+              <AdminSelect
+                label={t('proj_visibility_label')}
+                value={form.visibility}
+                onChange={set('visibility')}
+                className="mb-0"
+              >
+                <option value="public">{t('access_public')}</option>
+                <option value="private">{t('access_private')}</option>
+              </AdminSelect>
+            </AdminCard>
+            <AdminAlert variant="success" message={saved} />
+            <AdminAlert message={error} />
+            <AdminButton type="submit" loading={saving} loadingLabel={t('saving')}>
+              {t('save')}
+            </AdminButton>
+          </form>
         </div>
       </div>
-      <div className="app-content-body">
-        <div className="container-fluid">
-          <div className="row">
-            <div className="col-lg-7">
-              <form onSubmit={save}>
-                <div className="card">
-                  <div className="card-header"><h3 className="card-title">Identity</h3></div>
-                  <div className="card-body">
-                    <div className="mb-3">
-                      <label className="form-label">Name</label>
-                      <input className="form-control" value={form.name} onChange={set('name')} required />
-                    </div>
-                    <div className="mb-3">
-                      <label className="form-label">Slug</label>
-                      <div className="input-group">
-                        <span className="input-group-text text-muted">/</span>
-                        <input className="form-control" value={form.slug} onChange={set('slug')} required pattern="[a-z0-9-]+" />
-                      </div>
-                    </div>
-                    <div className="mb-3">
-                      <label className="form-label">Description</label>
-                      <input className="form-control" value={form.description} onChange={set('description')} />
-                    </div>
-                    <div className="mb-0">
-                      <label className="form-label">Visibility</label>
-                      <select className="form-select" value={form.visibility} onChange={set('visibility')}>
-                        <option value="public">Public</option>
-                        <option value="private">Private</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-                {saved && <div className="alert alert-success">{saved}</div>}
-                {error && <div className="alert alert-danger">{error}</div>}
-                <button type="submit" className="btn btn-primary mb-4" disabled={saving}>
-                  {saving ? <><i className="fas fa-spinner fa-spin me-1" />Saving…</> : 'Save'}
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      </div>
-    </>
+    </AdminPage>
   );
 }

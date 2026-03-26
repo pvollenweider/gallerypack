@@ -12,3 +12,4 @@ export { default as GalleryAccessPage }   from './GalleryAccessPage.jsx';
 export { default as GalleryDownloadsPage }from './GalleryDownloadsPage.jsx';
 export { default as GalleryUploadPage }   from './GalleryUploadPage.jsx';
 export { default as GalleryPublishPage }  from './GalleryPublishPage.jsx';
+export { default as GalleryInsightsPage } from './GalleryInsightsPage.jsx';

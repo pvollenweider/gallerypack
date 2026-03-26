@@ -7,8 +7,11 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '../../../lib/api.js';
+import { useT } from '../../../lib/I18nContext.jsx';
+import { AdminPage, AdminCard, AdminInput, AdminSwitch, AdminAlert, AdminButton } from '../../../components/ui/index.js';
 
 export default function OrganizationDefaultsPage() {
+  const t = useT();
   const [form,   setForm]   = useState({
     defaultAuthor: '', defaultAuthorEmail: '',
     defaultLocale: 'en', defaultAccess: 'public',
@@ -38,7 +41,7 @@ export default function OrganizationDefaultsPage() {
     setSaving(true); setSaved(''); setError('');
     try {
       await api.saveSettings(form);
-      setSaved('Defaults saved.');
+      setSaved(t('defaults_saved'));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -47,80 +50,70 @@ export default function OrganizationDefaultsPage() {
   }
 
   return (
-    <>
-      <div className="app-content-header">
-        <div className="container-fluid">
-          <div className="row mb-2">
-            <div className="col-sm-6"><h1 className="m-0">Defaults</h1></div>
+    <AdminPage title={t('org_defaults_title')} maxWidth="100%">
+      <div className="row">
+        <div className="col-lg-8">
+          <div className="alert alert-info py-2" style={{ fontSize: '0.875rem' }}>
+            <i className="fas fa-info-circle me-2" />
+            {t('org_defaults_hint')}
           </div>
-        </div>
-      </div>
 
-      <div className="app-content-body">
-        <div className="container-fluid">
-          <div className="row">
-            <div className="col-lg-8">
-              <div className="alert alert-info py-2" style={{ fontSize: '0.875rem' }}>
-                <i className="fas fa-info-circle me-2" />
-                These values are inherited by projects and galleries unless explicitly overridden at a lower level.
+          <form onSubmit={save}>
+            <AdminCard title={t('org_defaults_photographer_section')}>
+              <div className="row">
+                <div className="col-sm-6 mb-3">
+                  <AdminInput
+                    label={t('org_defaults_photo_name_label')}
+                    value={form.defaultAuthor}
+                    onChange={set('defaultAuthor')}
+                    placeholder={t('org_defaults_photo_name_placeholder')}
+                    className="mb-0"
+                  />
+                </div>
+                <div className="col-sm-6 mb-3">
+                  <AdminInput
+                    label={t('org_defaults_photo_email_label')}
+                    type="email"
+                    value={form.defaultAuthorEmail}
+                    onChange={set('defaultAuthorEmail')}
+                    placeholder={t('org_defaults_photo_email_placeholder')}
+                    className="mb-0"
+                  />
+                </div>
               </div>
+            </AdminCard>
 
-              <form onSubmit={save}>
-                <div className="card">
-                  <div className="card-header"><h3 className="card-title">Photographer</h3></div>
-                  <div className="card-body">
-                    <div className="row">
-                      <div className="col-sm-6 mb-3">
-                        <label className="form-label">Default photographer name</label>
-                        <input className="form-control" value={form.defaultAuthor} onChange={set('defaultAuthor')} placeholder="Jane Smith" />
-                      </div>
-                      <div className="col-sm-6 mb-3">
-                        <label className="form-label">Default photographer email</label>
-                        <input className="form-control" type="email" value={form.defaultAuthorEmail} onChange={set('defaultAuthorEmail')} placeholder="jane@example.com" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
+            <AdminCard title={t('org_defaults_access_section')}>
+              <div className="mb-3">
+                <label className="form-label">{t('org_defaults_access_label')}</label>
+                <select className="form-select" value={form.defaultAccess} onChange={set('defaultAccess')}>
+                  <option value="public">{t('access_public')}</option>
+                  <option value="private">{t('access_private')}</option>
+                  <option value="password">{t('field_password')}</option>
+                </select>
+              </div>
+              <AdminSwitch
+                label={t('allow_photo_download')}
+                checked={form.defaultAllowDownloadImage}
+                onChange={set('defaultAllowDownloadImage')}
+              />
+              <AdminSwitch
+                label={t('allow_zip_download')}
+                checked={form.defaultAllowDownloadGallery}
+                onChange={set('defaultAllowDownloadGallery')}
+                className="mb-0"
+              />
+            </AdminCard>
 
-                <div className="card">
-                  <div className="card-header"><h3 className="card-title">Access & Downloads</h3></div>
-                  <div className="card-body">
-                    <div className="mb-3">
-                      <label className="form-label">Default access type</label>
-                      <select className="form-select" value={form.defaultAccess} onChange={set('defaultAccess')}>
-                        <option value="public">Public</option>
-                        <option value="private">Private</option>
-                        <option value="password">Password protected</option>
-                      </select>
-                    </div>
-                    <div className="mb-3">
-                      <div className="form-check form-switch">
-                        <input className="form-check-input" type="checkbox" id="dlImg"
-                          checked={form.defaultAllowDownloadImage} onChange={set('defaultAllowDownloadImage')} />
-                        <label className="form-check-label" htmlFor="dlImg">Allow photo download</label>
-                      </div>
-                    </div>
-                    <div className="mb-0">
-                      <div className="form-check form-switch">
-                        <input className="form-check-input" type="checkbox" id="dlGal"
-                          checked={form.defaultAllowDownloadGallery} onChange={set('defaultAllowDownloadGallery')} />
-                        <label className="form-check-label" htmlFor="dlGal">Allow gallery ZIP download</label>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+            <AdminAlert variant="success" message={saved} />
+            <AdminAlert message={error} />
 
-                {saved && <div className="alert alert-success">{saved}</div>}
-                {error && <div className="alert alert-danger">{error}</div>}
-
-                <button type="submit" className="btn btn-primary mb-4" disabled={saving}>
-                  {saving ? <><i className="fas fa-spinner fa-spin me-1" />Saving…</> : 'Save defaults'}
-                </button>
-              </form>
-            </div>
-          </div>
+            <AdminButton type="submit" loading={saving} loadingLabel={t('saving')} className="mb-4">
+              {t('save_defaults_btn')}
+            </AdminButton>
+          </form>
         </div>
       </div>
-    </>
+    </AdminPage>
   );
 }

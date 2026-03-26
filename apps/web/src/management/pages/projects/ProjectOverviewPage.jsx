@@ -8,9 +8,14 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../../../lib/api.js';
+import { useT } from '../../../lib/I18nContext.jsx';
+import { useBreadcrumb } from '../../context/BreadcrumbContext.jsx';
+import { AdminPage, AdminCard, AdminAlert, AdminLoader, AdminButton } from '../../../components/ui/index.js';
 
 export default function ProjectOverviewPage() {
+  const t = useT();
   const { projectId } = useParams();
+  const { setEntityName } = useBreadcrumb();
   const [project,    setProject]    = useState(null);
   const [galleries,  setGalleries]  = useState([]);
   const [loading,    setLoading]    = useState(true);
@@ -18,7 +23,7 @@ export default function ProjectOverviewPage() {
 
   useEffect(() => {
     Promise.all([api.getProject(projectId), api.getProjectGalleries(projectId)])
-      .then(([p, g]) => { setProject(p); setGalleries(g || []); })
+      .then(([p, g]) => { setProject(p); setGalleries(g || []); setEntityName(projectId, p.name); })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, [projectId]);
@@ -26,91 +31,79 @@ export default function ProjectOverviewPage() {
   const base = `/manage/projects/${projectId}`;
 
   return (
-    <>
-      <div className="app-content-header">
-        <div className="container-fluid">
-          <div className="row mb-2">
-            <div className="col-sm-6"><h1 className="m-0">{project?.name ?? 'Project'}</h1></div>
+    <AdminPage title={project?.name ?? 'Project'} maxWidth="100%">
+      {loading && <AdminLoader />}
+      <AdminAlert message={error} />
+
+      {project && (
+        <div className="row">
+
+          <div className="col-md-4 mb-3">
+            <AdminCard
+              title={<><i className="fas fa-info-circle me-2" />{t('proj_general_title')}</>}
+              headerRight={
+                <Link to={`${base}/general`} className="btn btn-sm btn-outline-secondary">{t('gal_overview_edit')}</Link>
+              }
+              className="h-100"
+            >
+              <dl className="mb-0" style={{ fontSize: '0.875rem' }}>
+                <dt className="text-muted">{t('orgs_th_slug')}</dt><dd><code>{project.slug}</code></dd>
+                {project.description && <><dt className="text-muted">{t('field_description')}</dt><dd>{project.description}</dd></>}
+                <dt className="text-muted">{t('proj_visibility_label')}</dt><dd>{project.visibility || 'public'}</dd>
+              </dl>
+            </AdminCard>
           </div>
+
+          <div className="col-md-4 mb-3">
+            <AdminCard
+              title={<><i className="fas fa-images me-2" />{t('proj_galleries_title')}</>}
+              headerRight={
+                <Link to={`${base}/galleries`} className="btn btn-sm btn-outline-secondary">{t('proj_overview_view_all')}</Link>
+              }
+              className="h-100"
+            >
+              <p className="mb-0" style={{ fontSize: '0.875rem' }}>
+                <strong>{galleries.length}</strong> {galleries.length === 1 ? t('proj_overview_gallery') : t('proj_overview_galleries_pl')}
+              </p>
+              {galleries.slice(0, 3).map(g => (
+                <div key={g.id} className="mt-1">
+                  <Link to={`/manage/galleries/${g.id}`} style={{ fontSize: '0.85rem' }}>{g.title || g.slug}</Link>
+                </div>
+              ))}
+              {galleries.length > 3 && <small className="text-muted">+{galleries.length - 3} more</small>}
+            </AdminCard>
+          </div>
+
+          <div className="col-md-4 mb-3">
+            <AdminCard
+              title={<><i className="fas fa-lock me-2" />{t('proj_access_title')}</>}
+              headerRight={
+                <Link to={`${base}/access`} className="btn btn-sm btn-outline-secondary">{t('gal_overview_manage')}</Link>
+              }
+              className="h-100"
+            >
+              <p className="text-muted mb-0" style={{ fontSize: '0.875rem' }}>
+                {t('proj_overview_access_desc')}
+              </p>
+            </AdminCard>
+          </div>
+
+          <div className="col-md-4 mb-3">
+            <AdminCard
+              title={<><i className="fas fa-truck me-2" />{t('proj_delivery_title')}</>}
+              headerRight={
+                <Link to={`${base}/delivery`} className="btn btn-sm btn-outline-secondary">{t('gal_overview_manage')}</Link>
+              }
+              className="h-100"
+            >
+              <p className="text-muted mb-0" style={{ fontSize: '0.875rem' }}>
+                {t('proj_overview_delivery_desc')}
+              </p>
+            </AdminCard>
+          </div>
+
         </div>
-      </div>
-
-      <div className="app-content-body">
-        <div className="container-fluid">
-          {loading && <div className="text-center py-5 text-muted"><i className="fas fa-spinner fa-spin fa-2x" /></div>}
-          {error   && <div className="alert alert-danger">{error}</div>}
-
-          {project && (
-            <div className="row">
-
-              <div className="col-md-4 mb-3">
-                <div className="card h-100">
-                  <div className="card-header d-flex align-items-center justify-content-between">
-                    <h3 className="card-title mb-0"><i className="fas fa-info-circle me-2" />General</h3>
-                    <Link to={`${base}/general`} className="btn btn-sm btn-outline-secondary">Edit</Link>
-                  </div>
-                  <div className="card-body">
-                    <dl className="mb-0" style={{ fontSize: '0.875rem' }}>
-                      <dt className="text-muted">Slug</dt><dd><code>{project.slug}</code></dd>
-                      {project.description && <><dt className="text-muted">Description</dt><dd>{project.description}</dd></>}
-                      <dt className="text-muted">Visibility</dt><dd>{project.visibility || 'public'}</dd>
-                    </dl>
-                  </div>
-                </div>
-              </div>
-
-              <div className="col-md-4 mb-3">
-                <div className="card h-100">
-                  <div className="card-header d-flex align-items-center justify-content-between">
-                    <h3 className="card-title mb-0"><i className="fas fa-images me-2" />Galleries</h3>
-                    <Link to={`${base}/galleries`} className="btn btn-sm btn-outline-secondary">View all</Link>
-                  </div>
-                  <div className="card-body">
-                    <p className="mb-0" style={{ fontSize: '0.875rem' }}>
-                      <strong>{galleries.length}</strong> gallery{galleries.length !== 1 ? 's' : ''}
-                    </p>
-                    {galleries.slice(0, 3).map(g => (
-                      <div key={g.id} className="mt-1">
-                        <Link to={`/manage/galleries/${g.id}`} style={{ fontSize: '0.85rem' }}>{g.title || g.slug}</Link>
-                      </div>
-                    ))}
-                    {galleries.length > 3 && <small className="text-muted">+{galleries.length - 3} more</small>}
-                  </div>
-                </div>
-              </div>
-
-              <div className="col-md-4 mb-3">
-                <div className="card h-100">
-                  <div className="card-header d-flex align-items-center justify-content-between">
-                    <h3 className="card-title mb-0"><i className="fas fa-lock me-2" />Access</h3>
-                    <Link to={`${base}/access`} className="btn btn-sm btn-outline-secondary">Configure</Link>
-                  </div>
-                  <div className="card-body">
-                    <p className="text-muted mb-0" style={{ fontSize: '0.875rem' }}>
-                      Access type and download policy — inherited from organization or overridden at project level.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="col-md-4 mb-3">
-                <div className="card h-100">
-                  <div className="card-header d-flex align-items-center justify-content-between">
-                    <h3 className="card-title mb-0"><i className="fas fa-truck me-2" />Delivery</h3>
-                    <Link to={`${base}/delivery`} className="btn btn-sm btn-outline-secondary">Configure</Link>
-                  </div>
-                  <div className="card-body">
-                    <p className="text-muted mb-0" style={{ fontSize: '0.875rem' }}>
-                      Download and ZIP policies — inherited from organization or overridden at project level.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-          )}
-        </div>
-      </div>
-    </>
+      )}
+    </AdminPage>
   );
 }

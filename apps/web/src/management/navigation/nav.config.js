@@ -50,6 +50,7 @@ export const scopeNav = {
     { key: 'downloads',  label: 'Downloads',  icon: 'fas fa-download',   href: '/manage/galleries/:galleryId/downloads' },
     { key: 'upload',     label: 'Upload',     icon: 'fas fa-upload',     href: '/manage/galleries/:galleryId/upload' },
     { key: 'publish',    label: 'Publish',    icon: 'fas fa-rocket',     href: '/manage/galleries/:galleryId/publish' },
+    { key: 'insights',   label: 'Insights',   icon: 'fas fa-chart-bar',  href: '/manage/galleries/:galleryId/insights' },
   ],
 };
 

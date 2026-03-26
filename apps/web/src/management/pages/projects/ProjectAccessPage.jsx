@@ -7,8 +7,11 @@
 
 import { useEffect, useState } from 'react';
 import { api } from '../../../lib/api.js';
+import { useT } from '../../../lib/I18nContext.jsx';
+import { AdminPage, AdminCard, AdminBadge } from '../../../components/ui/index.js';
 
 export default function ProjectAccessPage() {
+  const t = useT();
   const [orgDefaults, setOrgDefaults] = useState(null);
 
   useEffect(() => {
@@ -16,37 +19,24 @@ export default function ProjectAccessPage() {
   }, []);
 
   return (
-    <>
-      <div className="app-content-header">
-        <div className="container-fluid">
-          <div className="row mb-2"><div className="col-sm-6"><h1 className="m-0">Access</h1></div></div>
-        </div>
-      </div>
-      <div className="app-content-body">
-        <div className="container-fluid">
-          <div className="row">
-            <div className="col-lg-7">
-              <div className="card">
-                <div className="card-header"><h3 className="card-title">Access type</h3></div>
-                <div className="card-body">
-                  <div className="d-flex align-items-center gap-2 mb-3">
-                    <span className="badge bg-light text-dark border">
-                      Inherited from organization
-                    </span>
-                    {orgDefaults && (
-                      <span className="badge bg-secondary">{orgDefaults.defaultAccess || 'public'}</span>
-                    )}
-                  </div>
-                  <p className="text-muted mb-0" style={{ fontSize: '0.875rem' }}>
-                    Project-level access override — V2. For now, galleries inherit the organization's default access policy.
-                    You can still override access on individual galleries.
-                  </p>
-                </div>
-              </div>
+    <AdminPage title={t('proj_access_title')} maxWidth="100%">
+      <div className="row">
+        <div className="col-lg-7">
+          <AdminCard title={t('org_access_type_label')}>
+            <div className="d-flex align-items-center gap-2 mb-3">
+              <span className="badge bg-light text-dark border">
+                {t('proj_access_inherited')}
+              </span>
+              {orgDefaults && (
+                <AdminBadge color="secondary">{orgDefaults.defaultAccess || 'public'}</AdminBadge>
+              )}
             </div>
-          </div>
+            <p className="text-muted mb-0" style={{ fontSize: '0.875rem' }}>
+              {t('proj_access_v2_note')}
+            </p>
+          </AdminCard>
         </div>
       </div>
-    </>
+    </AdminPage>
   );
 }

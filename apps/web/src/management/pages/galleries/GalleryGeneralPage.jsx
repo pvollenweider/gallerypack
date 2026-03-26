@@ -8,8 +8,11 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../../lib/api.js';
+import { useT } from '../../../lib/I18nContext.jsx';
+import { AdminPage, AdminCard, AdminButton, AdminAlert } from '../../../components/ui/index.js';
 
 export default function GalleryGeneralPage() {
+  const t = useT();
   const { galleryId } = useParams();
   const [form,   setForm]   = useState({ title: '', slug: '', author: '', authorEmail: '', locale: 'en' });
   const [saving, setSaving] = useState(false);
@@ -31,7 +34,7 @@ export default function GalleryGeneralPage() {
     setSaving(true); setSaved(''); setError('');
     try {
       await api.updateGallery(galleryId, form);
-      setSaved('Changes saved.');
+      setSaved(t('changes_saved'));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -40,64 +43,49 @@ export default function GalleryGeneralPage() {
   }
 
   return (
-    <>
-      <div className="app-content-header">
-        <div className="container-fluid">
-          <div className="row mb-2"><div className="col-sm-6"><h1 className="m-0">General</h1></div></div>
+    <AdminPage title={t('gal_general_title')}>
+      <div className="row">
+        <div className="col-lg-7">
+          <form onSubmit={save}>
+            <AdminCard title={t('branding_identity_section')}>
+              <div className="mb-3">
+                <label className="form-label">{t('field_title')}</label>
+                <input className="form-control" value={form.title} onChange={set('title')} required />
+              </div>
+              <div className="mb-3">
+                <label className="form-label">{t('orgs_th_slug')}</label>
+                <div className="input-group">
+                  <span className="input-group-text text-muted">/</span>
+                  <input className="form-control" value={form.slug} onChange={set('slug')} required pattern="[a-z0-9-]+" />
+                </div>
+              </div>
+              <div className="mb-0">
+                <label className="form-label">{t('field_locale')}</label>
+                <input className="form-control" value={form.locale} onChange={set('locale')} placeholder="en" />
+              </div>
+            </AdminCard>
+
+            <AdminCard title={t('gal_general_photographer_section')}>
+              <div className="row">
+                <div className="col-sm-6 mb-3">
+                  <label className="form-label">{t('orgs_th_name')}</label>
+                  <input className="form-control" value={form.author} onChange={set('author')} />
+                </div>
+                <div className="col-sm-6 mb-3">
+                  <label className="form-label">{t('login_email')}</label>
+                  <input className="form-control" type="email" value={form.authorEmail} onChange={set('authorEmail')} />
+                </div>
+              </div>
+            </AdminCard>
+
+            <AdminAlert variant="success" message={saved} />
+            <AdminAlert message={error} />
+            <AdminButton type="submit" loading={saving} loadingLabel={t('saving')} className="mb-4">
+              {t('save')}
+            </AdminButton>
+          </form>
         </div>
       </div>
-      <div className="app-content-body">
-        <div className="container-fluid">
-          <div className="row">
-            <div className="col-lg-7">
-              <form onSubmit={save}>
-                <div className="card">
-                  <div className="card-header"><h3 className="card-title">Identity</h3></div>
-                  <div className="card-body">
-                    <div className="mb-3">
-                      <label className="form-label">Title</label>
-                      <input className="form-control" value={form.title} onChange={set('title')} required />
-                    </div>
-                    <div className="mb-3">
-                      <label className="form-label">Slug</label>
-                      <div className="input-group">
-                        <span className="input-group-text text-muted">/</span>
-                        <input className="form-control" value={form.slug} onChange={set('slug')} required pattern="[a-z0-9-]+" />
-                      </div>
-                    </div>
-                    <div className="mb-0">
-                      <label className="form-label">Locale</label>
-                      <input className="form-control" value={form.locale} onChange={set('locale')} placeholder="en" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="card">
-                  <div className="card-header"><h3 className="card-title">Photographer</h3></div>
-                  <div className="card-body">
-                    <div className="row">
-                      <div className="col-sm-6 mb-3">
-                        <label className="form-label">Name</label>
-                        <input className="form-control" value={form.author} onChange={set('author')} />
-                      </div>
-                      <div className="col-sm-6 mb-3">
-                        <label className="form-label">Email</label>
-                        <input className="form-control" type="email" value={form.authorEmail} onChange={set('authorEmail')} />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {saved && <div className="alert alert-success">{saved}</div>}
-                {error && <div className="alert alert-danger">{error}</div>}
-                <button type="submit" className="btn btn-primary mb-4" disabled={saving}>
-                  {saving ? <><i className="fas fa-spinner fa-spin me-1" />Saving…</> : 'Save'}
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      </div>
-    </>
+    </AdminPage>
   );
 }

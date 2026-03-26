@@ -7,8 +7,11 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '../../../lib/api.js';
+import { useT } from '../../../lib/I18nContext.jsx';
+import { AdminPage, AdminCard, AdminButton, AdminInput, AdminAlert } from '../../../components/ui/index.js';
 
 export default function BrandingPage() {
+  const t = useT();
   const [form,   setForm]   = useState({ siteTitle: '', baseUrl: '' });
   const [saving, setSaving] = useState(false);
   const [saved,  setSaved]  = useState('');
@@ -29,7 +32,7 @@ export default function BrandingPage() {
     setSaving(true); setSaved(''); setError('');
     try {
       await api.saveSettings(form);
-      setSaved('Branding saved.');
+      setSaved(t('branding_saved'));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -38,58 +41,44 @@ export default function BrandingPage() {
   }
 
   return (
-    <>
-      <div className="app-content-header">
-        <div className="container-fluid">
-          <div className="row mb-2">
-            <div className="col-sm-6"><h1 className="m-0">Branding</h1></div>
-          </div>
+    <AdminPage title={t('branding_title')}>
+      <div className="row">
+        <div className="col-lg-7">
+
+          <form onSubmit={save}>
+            <AdminCard title={t('branding_identity_section')}>
+              <AdminInput
+                label={t('field_site_title')}
+                value={form.siteTitle}
+                onChange={set('siteTitle')}
+                placeholder={t('branding_site_title_placeholder')}
+                hint={t('site_title_hint')}
+              />
+              <AdminInput
+                label={t('branding_base_url_label')}
+                value={form.baseUrl}
+                onChange={set('baseUrl')}
+                placeholder={t('branding_base_url_placeholder')}
+                hint={t('branding_base_url_hint')}
+              />
+            </AdminCard>
+
+            <AdminCard title={t('branding_logo_section')}>
+              <div className="text-muted">
+                <i className="fas fa-hammer me-2" />{t('branding_logo_v2')}
+              </div>
+            </AdminCard>
+
+            <AdminAlert variant="success" message={saved} />
+            <AdminAlert message={error} />
+
+            <AdminButton type="submit" className="mb-4" loading={saving} loadingLabel={t('saving')}>
+              {t('save')}
+            </AdminButton>
+          </form>
+
         </div>
       </div>
-
-      <div className="app-content-body">
-        <div className="container-fluid">
-          <div className="row">
-            <div className="col-lg-7">
-
-              <form onSubmit={save}>
-                <div className="card">
-                  <div className="card-header"><h3 className="card-title">Identity</h3></div>
-                  <div className="card-body">
-                    <div className="mb-3">
-                      <label className="form-label">Site title</label>
-                      <input className="form-control" value={form.siteTitle} onChange={set('siteTitle')}
-                        placeholder="GalleryPack" />
-                      <div className="form-text">Used in email subjects and page titles.</div>
-                    </div>
-                    <div className="mb-3">
-                      <label className="form-label">Base URL</label>
-                      <input className="form-control" value={form.baseUrl} onChange={set('baseUrl')}
-                        placeholder="https://gallery.example.com" />
-                      <div className="form-text">Root URL of this deployment. Used for links in emails and QR codes.</div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="card">
-                  <div className="card-header"><h3 className="card-title">Logo &amp; favicon</h3></div>
-                  <div className="card-body text-muted">
-                    <i className="fas fa-hammer me-2" />Logo and favicon upload — V2.
-                  </div>
-                </div>
-
-                {saved && <div className="alert alert-success">{saved}</div>}
-                {error && <div className="alert alert-danger">{error}</div>}
-
-                <button type="submit" className="btn btn-primary mb-4" disabled={saving}>
-                  {saving ? <><i className="fas fa-spinner fa-spin me-1" />Saving…</> : 'Save'}
-                </button>
-              </form>
-
-            </div>
-          </div>
-        </div>
-      </div>
-    </>
+    </AdminPage>
   );
 }
