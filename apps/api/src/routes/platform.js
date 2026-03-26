@@ -15,7 +15,7 @@ import {
 } from '../db/helpers.js';
 import { sendInviteEmail } from '../services/email.js';
 import { query } from '../db/database.js';
-import { getLicenseInfo, effectiveOrgLimit } from '../services/license.js';
+import { getLicenseInfo, effectiveOrgLimit, installLicense } from '../services/license.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -56,6 +56,20 @@ router.get('/studios', async (req, res) => {
 // GET /api/platform/license — current license status (superadmin only)
 router.get('/license', (req, res) => {
   res.json(getLicenseInfo());
+});
+
+// POST /api/platform/license — install a new license from JSON (superadmin only)
+router.post('/license', (req, res) => {
+  const { licenseJson } = req.body || {};
+  if (!licenseJson || typeof licenseJson !== 'string') {
+    return res.status(400).json({ error: 'licenseJson is required' });
+  }
+  try {
+    const { info } = installLicense(licenseJson);
+    res.json({ ok: true, license: info });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 // POST /api/platform/studios — create a new studio + optional owner invitation
