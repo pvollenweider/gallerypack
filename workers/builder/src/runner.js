@@ -76,11 +76,7 @@ export async function runJob(jobId) {
     return;
   }
 
-  // Get settings for this studio (GALLERY_APACHE_PATH etc.)
   const settings = await getSettings(job.studio_id);
-  if (settings?.apache_path) {
-    process.env.GALLERY_APACHE_PATH = settings.apache_path;
-  }
 
   // Intercept process.stdout.write so engine log lines go to build_events
   const originalWrite = process.stdout.write.bind(process.stdout);
@@ -149,7 +145,7 @@ export async function runJob(jobId) {
       fontCss,
       {
         force:              !!job.force,
-        generateApacheAuth: !!settings?.apache_path,
+        generateApacheAuth: false,
         geocoder:           undefined, // use default Nominatim
       }
     );
