@@ -13,6 +13,7 @@ import { can } from '../authorization/index.js';
 import { getGalleryRole } from '../db/helpers.js';
 import { createStorage } from '../../../../packages/shared/src/storage/index.js';
 import { FOCAL_BINS, binFocalLength, parseFocal35 } from '../../../../packages/shared/src/focalBins.js';
+import { photoThumbnails } from '../services/thumbnailService.js';
 
 const fileStorage = createStorage();
 
@@ -54,11 +55,24 @@ router.get('/:id/focal-stats', async (req, res, next) => {
     const photoEntries = Object.entries(manifest.photos || {});
     const total = photoEntries.length;
 
+    // Build filename → id map from DB for thumbnail URLs
+    const [dbPhotos] = await query('SELECT id, filename FROM photos WHERE gallery_id = ?', [gallery.id]);
+    const idByFilename = Object.fromEntries(dbPhotos.map(r => [r.filename, r.id]));
+
     // Collect raw focal data per photo — client handles all binning
     const rawPhotos = [];
     for (const [filename, photo] of photoEntries) {
       const mm = parseFocal35(photo.exif?.focal35);
-      if (mm !== null) rawPhotos.push({ filename, mm, lens: photo.exif?.lens ?? null });
+      if (mm !== null) {
+        const photoId = idByFilename[filename] ?? null;
+        rawPhotos.push({
+          filename,
+          mm,
+          lens:      photo.exif?.lens ?? null,
+          id:        photoId,
+          thumbnail: photoId ? photoThumbnails(photoId) : { sm: null, md: null },
+        });
+      }
     }
     const withData = rawPhotos.length;
 
