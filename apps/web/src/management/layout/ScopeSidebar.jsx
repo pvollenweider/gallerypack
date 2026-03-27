@@ -13,30 +13,44 @@ import { interpolatePath } from '../navigation/nav.helpers.js';
 
 /**
  * Sidebar driven entirely by nav.config.
- * Renders:
- *   1. Brand link
- *   2. User panel
- *   3. Global nav entries
- *   4. Contextual scope entries (when scope is active)
+ * Props:
+ *   isMobileDrawer  — when true, renders in the mobile drawer context
+ *   onClose         — called to close the mobile drawer (link clicks also close it)
  */
-export default function ScopeSidebar({ scope, params = {}, onToggle }) {
+export default function ScopeSidebar({ scope, params = {}, onToggle, isMobileDrawer = false, onClose }) {
   const { user, logout } = useAuth();
   const t = useT();
   const isSuperadmin = user?.platformRole === 'superadmin';
   const location = useLocation();
 
   const navCls = ({ isActive }) => `nav-link${isActive ? ' active' : ''}`;
-
   const contextItems = scope ? scopeNav[scope] : null;
+
+  // On mobile drawer, clicking a nav item should close it
+  const handleNavClick = isMobileDrawer && onClose ? onClose : undefined;
 
   return (
     <aside className="app-sidebar bg-body" data-bs-theme="dark">
-      <div className="sidebar-brand">
-        <Link to="/manage" className="brand-link">
+      <div className="sidebar-brand" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Link to="/manage" className="brand-link" onClick={handleNavClick}>
           <span className="brand-text fw-bold" style={{ fontSize: '1rem', letterSpacing: '-0.02em' }}>
             {t('manage_title')}
           </span>
         </Link>
+        {isMobileDrawer && onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close navigation"
+            style={{
+              background: 'none', border: 'none', color: 'rgba(255,255,255,0.6)',
+              minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center',
+              justifyContent: 'center', cursor: 'pointer', flexShrink: 0,
+            }}
+          >
+            <i className="fas fa-times" />
+          </button>
+        )}
       </div>
 
       <div className="sidebar-wrapper">
@@ -61,7 +75,8 @@ export default function ScopeSidebar({ scope, params = {}, onToggle }) {
               .filter(item => !item.superadminOnly || isSuperadmin)
               .map(item => (
                 <li key={item.key} className="nav-item">
-                  <NavLink to={item.href} end={item.href === '/manage'} className={navCls}>
+                  <NavLink to={item.href} end={item.href === '/manage'} className={navCls} onClick={handleNavClick}
+                    style={{ minHeight: 44 }}>
                     <i className={`nav-icon ${item.icon}`} />
                     <p>{item.label}</p>
                   </NavLink>
@@ -88,6 +103,8 @@ export default function ScopeSidebar({ scope, params = {}, onToggle }) {
                         to={href}
                         end={item.key === 'overview'}
                         className={navCls}
+                        onClick={handleNavClick}
+                        style={{ minHeight: 44 }}
                       >
                         <i className={`nav-icon ${item.icon}`} />
                         <p>{item.label}</p>
