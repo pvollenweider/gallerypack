@@ -4,6 +4,9 @@
 /data/
 apps/api/data/
 
+# ── Kubernetes secrets (never commit real values) ─────────
+k8s/secrets.yml
+
 # ── Dependencies ──────────────────────────────────────────
 node_modules/
 
