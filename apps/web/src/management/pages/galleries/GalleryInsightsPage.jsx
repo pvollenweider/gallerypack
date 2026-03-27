@@ -324,6 +324,25 @@ export default function GalleryInsightsPage() {
 
       <h4 className="mb-3">{t('insights_focal_section')}</h4>
 
+      {/* Auto-insights summary cards */}
+      {stats?.insights && (stats.insights.focal || stats.insights.wideTele) && (
+        <div className="mb-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '0.75rem' }}>
+          {[
+            { key: 'focal',    icon: '🔭', insight: stats.insights.focal },
+            { key: 'wideTele', icon: '↔️', insight: stats.insights.wideTele },
+          ].filter(c => c.insight).map(({ key, icon, insight }) => (
+            <div key={key} className="card border-0 shadow-sm" style={{ background: 'var(--bs-tertiary-bg, #f8f9fa)' }}>
+              <div className="card-body p-3">
+                <div className="fw-semibold mb-1" style={{ fontSize: '0.9rem' }}>
+                  <span className="me-2">{icon}</span>{insight.headline}
+                </div>
+                <div className="text-muted" style={{ fontSize: '0.8rem', lineHeight: 1.4 }}>{insight.detail}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {isEmpty && <AdminAlert variant="secondary" message={t('insights_focal_not_built')} />}
       {!isEmpty && noExif && <AdminAlert variant="warning" message={t('insights_focal_no_data')} />}
 

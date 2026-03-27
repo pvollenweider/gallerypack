@@ -14,6 +14,7 @@ import { getGalleryRole } from '../db/helpers.js';
 import { createStorage } from '../../../../packages/shared/src/storage/index.js';
 import { FOCAL_BINS, binFocalLength, parseFocal35 } from '../../../../packages/shared/src/focalBins.js';
 import { photoThumbnails } from '../services/thumbnailService.js';
+import { generateFocalInsight, generateWideTeleInsight } from '../services/autoInsights.js';
 
 const fileStorage = createStorage();
 
@@ -87,7 +88,20 @@ router.get('/:id/focal-stats', async (req, res, next) => {
       .filter(b => b.count > 0)
       .sort((a, b) => b.count - a.count)[0]?.key ?? null;
 
-    res.json({ total, withData, photos: rawPhotos, dominant });
+    // Build a bins summary for auto-insights (server-side, using FOCAL_BINS)
+    const focalBinCounts = FOCAL_BINS.map(b => ({
+      key:   b.key,
+      label: b.label,
+      midMm: b.max === Infinity ? b.min + 50 : (b.min + b.max) / 2,
+      count: counts[b.key],
+    })).filter(b => b.count > 0);
+
+    const insights = {
+      focal:    generateFocalInsight({ withData, bins: focalBinCounts }),
+      wideTele: generateWideTeleInsight({ withData, photos: rawPhotos }),
+    };
+
+    res.json({ total, withData, photos: rawPhotos, dominant, insights });
   } catch (err) {
     next(err);
   }
