@@ -203,19 +203,30 @@ export default function ScopeSidebar({ scope, params = {}, isMobileDrawer = fals
           </>
         )}
 
-        {/* Tools — Inspector (admin+) */}
-        {canAdmin && (
-          <nav className="mt-2 border-top border-secondary pt-2" aria-label="Tools">
-            <ul className="nav sidebar-menu flex-column">
+        {/* Tools — Inspector (admin+) + logout */}
+        <nav className="mt-2 border-top border-secondary pt-2" aria-label="Tools">
+          <ul className="nav sidebar-menu flex-column">
+            {canAdmin && (
               <li className="nav-item">
                 <NavLink to="/inspector" className={navCls} onClick={handleNavClick} style={{ minHeight: 44 }}>
                   <i className="nav-icon fas fa-search" />
                   <p>{t('nav_inspector')}</p>
                 </NavLink>
               </li>
-            </ul>
-          </nav>
-        )}
+            )}
+            <li className="nav-item">
+              <button
+                type="button"
+                className="nav-link w-100 text-start"
+                onClick={logout}
+                style={{ background: 'none', border: 'none', minHeight: 44 }}
+              >
+                <i className="nav-icon fas fa-sign-out-alt" />
+                <p>{t('sign_out')}</p>
+              </button>
+            </li>
+          </ul>
+        </nav>
       </div>
     </aside>
   );
