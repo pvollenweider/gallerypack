@@ -34,12 +34,18 @@ COPY apps/api/         apps/api/
 # Copy built admin SPA from stage 1
 COPY --from=web-build /app/apps/web/dist /app/admin-dist
 
-RUN mkdir -p data src dist
+RUN mkdir -p /srv/gallerypack/public /srv/gallerypack/internal /srv/gallerypack/private \
+    && mkdir -p data
 
 EXPOSE 4000
 ENV NODE_ENV=production
 ENV PORT=4000
 ENV ADMIN_DIST=/app/admin-dist
+ENV STORAGE_ROOT=/srv/gallerypack
+
+LABEL org.opencontainers.image.source="https://github.com/pvollenweider/gallerypack" \
+      org.opencontainers.image.title="gallerypack-api" \
+      org.opencontainers.image.description="GalleryPack API server"
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD node -e "fetch('http://localhost:4000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"

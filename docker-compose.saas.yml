@@ -29,9 +29,10 @@ services:
       db:
         condition: service_healthy
     volumes:
-      - ./src:/app/src                 # source photos (engine reads/writes here)
-      - ./dist:/app/dist               # built galleries (engine writes here)
-      - ./data:/app/data               # persistent server data (license file, etc.)
+      - ./data/private:/srv/gallerypack/private   # original uploads (engine reads/writes)
+      - ./data/public:/srv/gallerypack/public     # built galleries (engine writes, Caddy reads)
+      - ./data/internal:/srv/gallerypack/internal # admin thumbnails, previews (backend only)
+      - ./data/app:/app/data                      # persistent server data (license file, etc.)
     environment:
       PORT:                "4000"
       NODE_ENV:            "production"
@@ -70,8 +71,9 @@ services:
       api:
         condition: service_healthy
     volumes:
-      - ./src:/app/src
-      - ./dist:/app/dist
+      - ./data/private:/srv/gallerypack/private
+      - ./data/public:/srv/gallerypack/public
+      - ./data/internal:/srv/gallerypack/internal
     environment:
       NODE_ENV:       "production"
       DB_HOST:        "db"
@@ -97,7 +99,7 @@ services:
       - "443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./dist:/srv/galleries:ro       # built galleries served as static files
+      - ./data/public:/srv/gallerypack/public:ro  # built galleries served as static files
       - caddy_data:/data
       - caddy_config:/config
     depends_on:

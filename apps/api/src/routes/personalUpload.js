@@ -23,7 +23,7 @@ import { randomUUID } from 'node:crypto';
 import { query }      from '../db/database.js';
 import { validateToken, tokenCoversGallery } from '../services/personalTokenService.js';
 import { generateThumbnails, photoThumbnails } from '../services/thumbnailService.js';
-import { ROOT } from '../../../../packages/engine/src/fs.js';
+import { SRC_ROOT } from '../../../../packages/engine/src/fs.js';
 
 const router = Router();
 
@@ -33,7 +33,7 @@ const MAX_FILES      = 50;
 const MAX_PER_GALLERY = 500;
 
 function photosDir(slug) {
-  return path.join(ROOT, 'src', slug, 'photos');
+  return path.join(SRC_ROOT, slug, 'photos');
 }
 
 /** Extract Bearer token from Authorization header */

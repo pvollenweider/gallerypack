@@ -20,6 +20,7 @@ import { rateLimit }          from './middleware/rateLimit.js';
 import { resolveStudioContext } from './middleware/studioContext.js';
 import { query, getPool } from './db/database.js';
 import { createStorage } from '../../../packages/shared/src/storage/index.js';
+import { DIST_ROOT, INTERNAL_ROOT } from '../../../packages/engine/src/fs.js';
 import { getSettings, getSession } from './db/helpers.js';
 
 import authRoutes        from './routes/auth.js';
@@ -49,8 +50,8 @@ import personalUploadRoutes   from './routes/personalUpload.js';
 const __DIR        = path.dirname(fileURLToPath(import.meta.url));
 const PORT         = process.env.PORT || 4000;
 const ADMIN_DIST   = process.env.ADMIN_DIST   || path.join(__DIR, '../../../../apps/web/dist');
-const DIST_DIR     = process.env.DIST_DIR     || path.join(__DIR, '../../../../dist');
-const THUMB_ROOT   = process.env.THUMB_ROOT   || path.join(__DIR, '../../../../thumbnails');
+const DIST_DIR     = process.env.DIST_DIR     || DIST_ROOT;
+const THUMB_ROOT   = process.env.THUMB_ROOT   || path.join(INTERNAL_ROOT, 'thumbnails');
 
 // ── App ───────────────────────────────────────────────────────────────────────
 const app = express();

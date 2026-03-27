@@ -22,7 +22,7 @@ import {
 import { requireStudioRole } from '../middleware/auth.js';
 import { sendPhotosReadyEmail } from '../services/email.js';
 import { can } from '../authorization/index.js';
-import { ROOT } from '../../../../packages/engine/src/fs.js';
+import { SRC_ROOT, DIST_ROOT } from '../../../../packages/engine/src/fs.js';
 import { createStorage } from '../../../../packages/shared/src/storage/index.js';
 
 const fileStorage = createStorage();
@@ -32,7 +32,7 @@ const IMG_EXTS = new Set(['.jpg','.jpeg','.png','.tiff','.tif','.heic','.heif','
 
 function getFirstPhoto(slug) {
   try {
-    const dir = path.join(ROOT, 'src', slug, 'photos');
+    const dir = path.join(SRC_ROOT, slug, 'photos');
     if (!fs.existsSync(dir)) return null;
     const files = fs.readdirSync(dir).filter(f => IMG_EXTS.has(path.extname(f).toLowerCase())).sort();
     return files[0] || null;
@@ -42,7 +42,7 @@ function getFirstPhoto(slug) {
 function getNeedsRebuild(row) {
   if (!row.built_at) return false;
   try {
-    const dir = path.join(ROOT, 'src', row.slug, 'photos');
+    const dir = path.join(SRC_ROOT, row.slug, 'photos');
     if (!fs.existsSync(dir)) return false;
     return fs.readdirSync(dir)
       .filter(f => IMG_EXTS.has(path.extname(f).toLowerCase()))
@@ -52,7 +52,7 @@ function getNeedsRebuild(row) {
 
 function getPhotoCount(slug) {
   try {
-    const dir = path.join(ROOT, 'src', slug, 'photos');
+    const dir = path.join(SRC_ROOT, slug, 'photos');
     if (!fs.existsSync(dir)) return 0;
     return fs.readdirSync(dir).filter(f => IMG_EXTS.has(path.extname(f).toLowerCase())).length;
   } catch { return 0; }
@@ -69,14 +69,14 @@ function getDiskSize(slug) {
       }
     } catch {}
   }
-  walk(path.join(ROOT, 'src', slug));
-  walk(path.join(ROOT, 'dist', slug));
+  walk(path.join(SRC_ROOT, slug));
+  walk(path.join(DIST_ROOT, slug));
   return total;
 }
 
 async function getDateRange(slug) {
   try {
-    const buf = await fileStorage.read(`dist/${slug}/photos.json`);
+    const buf = await fileStorage.read(`public/${slug}/photos.json`);
     const manifest = JSON.parse(buf.toString('utf8'));
     const dates = Object.values(manifest.photos || {})
       .map(p => p.exif?.date).filter(Boolean).map(d => new Date(d)).sort((a, b) => a - b);
@@ -302,9 +302,9 @@ router.post('/:id/rename', resolveGallery, async (req, res) => {
   );
   if (conflictRows[0]) return res.status(409).json({ error: 'A gallery with this slug already exists' });
 
-  for (const base of ['src', 'dist']) {
-    const oldDir = path.join(ROOT, base, req.gallery.slug);
-    const newDir = path.join(ROOT, base, slug);
+  for (const [base, baseRoot] of [['src', SRC_ROOT], ['dist', DIST_ROOT]]) {
+    const oldDir = path.join(baseRoot, req.gallery.slug);
+    const newDir = path.join(baseRoot, slug);
     if (fs.existsSync(oldDir) && !fs.existsSync(newDir)) {
       try { fs.renameSync(oldDir, newDir); } catch (err) {
         console.error(`[rename] failed to move ${base}/${req.gallery.slug} → ${base}/${slug}:`, err.message);
@@ -330,11 +330,11 @@ router.delete('/:id', resolveGallery, async (req, res) => {
 
   await query('DELETE FROM galleries WHERE id = ?', [req.gallery.id]);
 
-  const srcDir = path.join(ROOT, 'src', req.gallery.slug);
+  const srcDir = path.join(SRC_ROOT, req.gallery.slug);
   try { if (fs.existsSync(srcDir)) fs.rmSync(srcDir, { recursive: true, force: true }); } catch {}
 
   if (req.query.purge === '1') {
-    const distDir = path.join(ROOT, 'dist', req.gallery.slug);
+    const distDir = path.join(DIST_ROOT, req.gallery.slug);
     try { if (fs.existsSync(distDir)) fs.rmSync(distDir, { recursive: true, force: true }); } catch {}
   }
 

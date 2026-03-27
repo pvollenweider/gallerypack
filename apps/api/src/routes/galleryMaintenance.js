@@ -19,7 +19,7 @@ import { query }         from '../db/database.js';
 import { requireAuth }   from '../middleware/auth.js';
 import { can }           from '../authorization/index.js';
 import { getGalleryRole, genId } from '../db/helpers.js';
-import { ROOT, DIST_ROOT, SRC_ROOT } from '../../../../packages/engine/src/fs.js';
+import { DIST_ROOT, SRC_ROOT } from '../../../../packages/engine/src/fs.js';
 
 const router = Router();
 router.use(requireAuth);

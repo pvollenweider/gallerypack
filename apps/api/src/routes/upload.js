@@ -14,13 +14,13 @@ import { randomUUID } from 'crypto';
 import { query }      from '../db/database.js';
 import { getUploadLinkByToken, getPhotographerByUploadLink } from '../db/helpers.js';
 import { emit, EVENTS } from '../services/events.js';
-import { ROOT }       from '../../../../packages/engine/src/fs.js';
+import { SRC_ROOT }       from '../../../../packages/engine/src/fs.js';
 import { generateThumbnails, photoThumbnails } from '../services/thumbnailService.js';
 
 const router = Router();
 
 function photosDir(slug) {
-  return path.join(ROOT, 'src', slug, 'photos');
+  return path.join(SRC_ROOT, slug, 'photos');
 }
 
 // Multer for token-based uploads — destination resolved after token validation
