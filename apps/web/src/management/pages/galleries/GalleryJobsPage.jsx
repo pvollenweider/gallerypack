@@ -55,7 +55,7 @@ export default function GalleryJobsPage() {
                       {new Date(j.createdAt).toLocaleString()}
                     </td>
                     <td className="text-end">
-                      <Link to={`/jobs/${j.id}`} className="btn btn-sm btn-outline-secondary">
+                      <Link to={`/admin/jobs/${j.id}`} className="btn btn-sm btn-outline-secondary">
                         {t('hub_logs')} <i className="fas fa-arrow-right ms-1" />
                       </Link>
                     </td>

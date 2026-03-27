@@ -22,10 +22,10 @@ const ACTION_CONFIG = {
 };
 
 const ACTION_HREF = {
-  build_failed:       a => `/jobs/${a.job_id}`,
-  photos_to_validate: a => `/galleries/${a.gallery_id}?tab=inbox`,
-  gallery_ready:      a => `/galleries/${a.gallery_id}`,
-  no_upload_link:     a => `/galleries/${a.gallery_id}?tab=upload`,
+  build_failed:       a => `/admin/jobs/${a.job_id}`,
+  photos_to_validate: a => `/admin/galleries/${a.gallery_id}/inbox`,
+  gallery_ready:      a => `/admin/galleries/${a.gallery_id}`,
+  no_upload_link:     a => `/admin/galleries/${a.gallery_id}/upload`,
 };
 
 export default function ManageHub() {
@@ -159,7 +159,7 @@ export default function ManageHub() {
                       {data.inbox.by_gallery.map(g => (
                         <tr key={g.gallery_id}>
                           <td>
-                            <Link to={`/galleries/${g.gallery_id}?tab=inbox`}>
+                            <Link to={`/admin/galleries/${g.gallery_id}/inbox`}>
                               {g.gallery_title || g.gallery_id}
                             </Link>
                           </td>
@@ -193,11 +193,11 @@ export default function ManageHub() {
                     <tbody>
                       {data.builds.recent.map(b => (
                         <tr key={b.job_id}>
-                          <td><Link to={`/galleries/${b.gallery_id}`}>{b.gallery_title || b.gallery_id}</Link></td>
+                          <td><Link to={`/admin/galleries/${b.gallery_id}`}>{b.gallery_title || b.gallery_id}</Link></td>
                           <td><span className={`badge bg-${STATUS_COLOR[b.status] || 'secondary'}`}>{b.status}</span></td>
                           <td className="text-muted" style={{ fontSize: '0.8rem' }}>{new Date(b.created_at).toLocaleString()}</td>
                           <td>
-                            <Link to={`/jobs/${b.job_id}`} className="btn btn-sm btn-outline-secondary">
+                            <Link to={`/admin/jobs/${b.job_id}`} className="btn btn-sm btn-outline-secondary">
                               {t('hub_logs')} <i className="fas fa-arrow-right ms-1" />
                             </Link>
                           </td>
