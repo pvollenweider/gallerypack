@@ -15,6 +15,7 @@ import { query }      from '../db/database.js';
 import { getUploadLinkByToken, getPhotographerByUploadLink } from '../db/helpers.js';
 import { emit, EVENTS } from '../services/events.js';
 import { ROOT }       from '../../../../packages/engine/src/fs.js';
+import { generateThumbnails, photoThumbnails } from '../services/thumbnailService.js';
 
 const router = Router();
 
@@ -111,7 +112,14 @@ router.post('/:token/photos', upload.array('photos', 50), async (req, res) => {
          photographer_id = VALUES(photographer_id)`,
       [photoId, link.gallery_id, f.filename, f.originalname, f.size, link.id, photographer?.id ?? null]
     );
-    uploaded.push({ id: photoId, file: f.filename, size: f.size, photographerId: photographer?.id ?? null });
+    // Generate thumbnails — failure does NOT abort the upload
+    try {
+      await generateThumbnails(f.path, photoId);
+    } catch (err) {
+      console.error(`[upload-token] thumbnail generation failed for ${photoId}: ${err.message}`);
+    }
+
+    uploaded.push({ id: photoId, file: f.filename, size: f.size, photographerId: photographer?.id ?? null, thumbnail: photoThumbnails(photoId) });
   }
 
   if (uploaded.length > 0) {

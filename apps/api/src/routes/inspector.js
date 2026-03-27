@@ -11,6 +11,7 @@ import { Router }     from 'express';
 import { randomUUID } from 'crypto';
 import { query }      from '../db/database.js';
 import { requireAuth } from '../middleware/auth.js';
+import { photoThumbnails } from '../services/thumbnailService.js';
 
 const router = Router();
 
@@ -280,6 +281,7 @@ router.get('/photos/:id', async (req, res) => {
     sort_order:        p.sort_order,
     uploaded_at:       p.created_at,
     uploaded_by:       uploadedBy,
+    thumbnail:         photoThumbnails(p.id),
     health:            { warnings },
   });
 });
