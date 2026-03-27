@@ -9,11 +9,11 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useT, useLocale } from '../lib/I18nContext.jsx';
-import { slugify } from '../lib/i18n.js';
+import { slugify, UI_LOCALE_OPTIONS } from '../lib/i18n.js';
 import { useAuth } from '../lib/auth.jsx';
 import { Toast } from '../components/Toast.jsx';
 
-const LOCALES   = ['fr','en','de','es','it','pt','nl','jp'];
+const LOCALES = UI_LOCALE_OPTIONS.map(o => o.value);
 const ACCESS    = ['public','private','password'];
 
 // Full ISO 3166-1 alpha-2 list
@@ -391,7 +391,7 @@ export default function Settings() {
                       <select className="form-control form-control-sm" style={{ maxWidth: 140 }} value={studioForm.locale}
                         onChange={e => setStudioForm(f => ({ ...f, locale: e.target.value }))}>
                         <option value="">—</option>
-                        {LOCALES.map(l => <option key={l} value={l}>{l}</option>)}
+                        {UI_LOCALE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                       </select>
                     </FormRow>
                     <FormRow label={t('field_studio_country')}>
@@ -716,7 +716,7 @@ function FormRow({ label, children }) {
   );
 }
 
-const UI_LOCALES = ['fr', 'en', 'de', 'es', 'it', 'pt', 'nl', 'jp'];
+// UI_LOCALE_OPTIONS imported above via i18n.js
 
 function ProfilePage({ user, setUser }) {
   const t = useT();
@@ -827,7 +827,7 @@ function ProfilePage({ user, setUser }) {
                     <FormRow label={t('profile_language_label')}>
                       <select className="form-control form-control-sm" style={{ maxWidth: 180 }} value={locale} onChange={e => setLocaleSt(e.target.value)}>
                         <option value="">— {t('field_language')} —</option>
-                        {UI_LOCALES.map(l => <option key={l} value={l}>{l}</option>)}
+                        {UI_LOCALE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                       </select>
                     </FormRow>
                     <p className="text-muted" style={{ fontSize: '0.8rem' }}>{t('profile_language_desc')}</p>

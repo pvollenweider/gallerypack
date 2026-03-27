@@ -6,24 +6,53 @@
 // Unauthorized use is strictly prohibited.
 
 import { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import { createTranslator } from './i18n.js';
+import { createTranslator, translations } from './i18n.js';
 import { api } from './api.js';
 
-const I18nCtx    = createContext(createTranslator('en'));
-const LocaleCtx  = createContext({ locale: 'en', setLocale: () => {} });
+const LS_KEY = 'gp_ui_locale';
+
+function resolveLocale(locale) {
+  if (!locale) return 'en';
+  if (translations[locale]) return locale;
+  // Prefix match: 'pt' → 'pt-BR', 'zh' → first zh-* match
+  const prefix = locale.split('-')[0];
+  const match = Object.keys(translations).find(k => k.startsWith(prefix + '-') || k === prefix);
+  return match || 'en';
+}
+
+const I18nCtx   = createContext(createTranslator('en'));
+const LocaleCtx = createContext({ locale: 'en', setLocale: () => {} });
 
 export function I18nProvider({ children }) {
-  const [locale, setLocale] = useState('en');
+  // Seed from localStorage for instant first render in the correct locale.
+  const [locale, setLocaleState] = useState(() => {
+    try {
+      return resolveLocale(localStorage.getItem(LS_KEY) || 'en');
+    } catch {
+      return 'en';
+    }
+  });
 
+  // Override with server-side user preference on mount.
   useEffect(() => {
     Promise.all([
       api.me().catch(() => null),
       api.getSettings().catch(() => ({})),
     ]).then(([user, settings]) => {
-      const l = user?.locale || settings?.defaultLocale || 'en';
-      setLocale(l);
+      const raw = user?.locale || settings?.defaultLocale;
+      if (raw) {
+        const resolved = resolveLocale(raw);
+        setLocaleState(resolved);
+        try { localStorage.setItem(LS_KEY, resolved); } catch {}
+      }
     });
   }, []);
+
+  const setLocale = (newLocale) => {
+    const resolved = resolveLocale(newLocale);
+    setLocaleState(resolved);
+    try { localStorage.setItem(LS_KEY, resolved); } catch {}
+  };
 
   const t = useMemo(() => createTranslator(locale), [locale]);
 
