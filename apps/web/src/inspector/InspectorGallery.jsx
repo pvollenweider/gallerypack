@@ -111,7 +111,7 @@ export default function InspectorGallery() {
                   >
                     {data.active ? t('inspector_disable_btn') : t('inspector_enable_btn')}
                   </button>
-                  <Link to={`/galleries/${id}`} className="btn btn-secondary" style={s.actionBtn}>
+                  <Link to={`/admin/galleries/${id}`} className="btn btn-secondary" style={s.actionBtn}>
                     <i className="fas fa-external-link-alt me-1" />{t('inspector_open_admin')}
                   </Link>
                 </div>
@@ -138,8 +138,8 @@ export default function InspectorGallery() {
                       <div key={i} className="callout" style={{ borderLeftColor: SEV_COLOR[w.severity] || '#333', background: '#111', margin: '0 0 0.4rem', padding: '0.4rem 0.75rem' }}>
                         <span className={`badge bg-${SEV_BADGE[w.severity] || 'secondary'} me-2`} style={{ fontSize: '0.65rem' }}>{w.severity}</span>
                         <span style={{ color: '#ccc', fontSize: '0.85rem' }}>{w.message}</span>
-                        {w.code === 'inbox_not_empty' && <Link to={`/galleries/${id}?tab=inbox`} style={{ marginLeft: '0.75rem', color: '#7dd3fc', fontSize: '0.8rem' }}>{t('inspector_go_inbox')}</Link>}
-                        {w.code === 'build_failed' && w.job_id && <Link to={`/jobs/${w.job_id}`} style={{ marginLeft: '0.75rem', color: '#7dd3fc', fontSize: '0.8rem' }}>{t('inspector_see_build')}</Link>}
+                        {w.code === 'inbox_not_empty' && <Link to={`/admin/galleries/${id}/inbox`} style={{ marginLeft: '0.75rem', color: '#7dd3fc', fontSize: '0.8rem' }}>{t('inspector_go_inbox')}</Link>}
+                        {w.code === 'build_failed' && w.job_id && <Link to={`/admin/jobs/${w.job_id}`} style={{ marginLeft: '0.75rem', color: '#7dd3fc', fontSize: '0.8rem' }}>{t('inspector_see_build')}</Link>}
                       </div>
                     ))}
                   </div>
@@ -179,7 +179,7 @@ export default function InspectorGallery() {
                           {data.last_build.error_message && (
                             <KVRow label={t('inspector_build_error')}><code style={{ color: '#f87171', fontSize: '0.8rem', background: 'none' }}>{data.last_build.error_message}</code></KVRow>
                           )}
-                          <KVRow label=""><Link to={`/jobs/${data.last_build.id}`} style={s.link}>{t('inspector_view_logs')}</Link></KVRow>
+                          <KVRow label=""><Link to={`/admin/jobs/${data.last_build.id}`} style={s.link}>{t('inspector_view_logs')}</Link></KVRow>
                         </>
                       )}
                     </div>

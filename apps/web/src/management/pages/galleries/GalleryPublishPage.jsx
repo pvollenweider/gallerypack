@@ -103,7 +103,7 @@ export default function GalleryPublishPage() {
                       <tr>
                         <th>{t('gal_publish_last_job')}</th>
                         <td>
-                          <Link to={`/jobs/${gallery.lastJobId}`} className="font-monospace" style={{ fontSize: '0.85rem' }}>
+                          <Link to={`/admin/jobs/${gallery.lastJobId}`} className="font-monospace" style={{ fontSize: '0.85rem' }}>
                             {gallery.lastJobId} <i className="fas fa-arrow-right ms-1" />
                           </Link>
                         </td>
@@ -130,7 +130,7 @@ export default function GalleryPublishPage() {
                   <i className="fas fa-exclamation-triangle me-2" />
                   {t('gal_publish_failed')}
                   {gallery.lastJobId && (
-                    <> <Link to={`/jobs/${gallery.lastJobId}`}>{t('gal_publish_view_logs')}</Link></>
+                    <> <Link to={`/admin/jobs/${gallery.lastJobId}`}>{t('gal_publish_view_logs')}</Link></>
                   )}
                 </>
               } />

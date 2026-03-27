@@ -44,7 +44,7 @@ export default function PlatformLayout({ children }) {
   );
 
   if (!user) return <Navigate to="/login" replace />;
-  if (user.platformRole !== 'superadmin') return <Navigate to="/manage" replace />;
+  if (user.platformRole !== 'superadmin') return <Navigate to="/admin" replace />;
 
   return (
     <div className="app-wrapper">
