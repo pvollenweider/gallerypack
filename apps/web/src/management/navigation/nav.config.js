@@ -46,6 +46,9 @@ export const scopeNav = {
 
   gallery: [
     { key: 'overview',   label: 'Overview',   icon: 'fas fa-home',       href: '/admin/galleries/:galleryId' },
+    { key: 'photos',     label: 'Photos',     icon: 'fas fa-images',     href: '/admin/galleries/:galleryId/photos' },
+    { key: 'inbox',      label: 'Inbox',      icon: 'fas fa-inbox',      href: '/admin/galleries/:galleryId/inbox' },
+    { key: 'jobs',       label: 'Jobs',       icon: 'fas fa-hammer',     href: '/admin/galleries/:galleryId/jobs' },
     { key: 'general',    label: 'General',    icon: 'fas fa-info-circle',href: '/admin/galleries/:galleryId/general' },
     { key: 'access',     label: 'Access',     icon: 'fas fa-lock',       href: '/admin/galleries/:galleryId/access' },
     { key: 'downloads',  label: 'Downloads',  icon: 'fas fa-download',   href: '/admin/galleries/:galleryId/downloads' },

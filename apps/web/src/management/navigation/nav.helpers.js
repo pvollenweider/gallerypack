@@ -61,6 +61,9 @@ const SEGMENT_LABELS = {
   publish:       'Publish',
   insights:      'Insights',
   overview:      'Overview',
+  photos:        'Photos',
+  inbox:         'Inbox',
+  jobs:          'Jobs',
 };
 
 /**

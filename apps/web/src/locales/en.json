@@ -679,5 +679,13 @@
   "license_org_limit_tooltip": "Organization limit reached — upgrade your license",
   "invite_title": "You're invited",
   "invite_subtitle": "You've been invited to join {studio} as",
-  "proj_access_v2_note": "Project-level access override — V2. For now, galleries inherit the organization's default access policy. You can still override access on individual galleries."
+  "proj_access_v2_note": "Project-level access override — V2. For now, galleries inherit the organization's default access policy. You can still override access on individual galleries.",
+  "inbox_validate_all": "Validate all",
+  "inbox_reject_all": "Reject all",
+  "inbox_empty": "No photos in inbox.",
+  "inbox_pending": "Pending",
+  "inbox_accepted": "Accepted",
+  "inbox_th_file": "File",
+  "inbox_th_photographer": "Photographer",
+  "inbox_th_date": "Date"
 }

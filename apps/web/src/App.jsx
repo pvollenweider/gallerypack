@@ -32,7 +32,7 @@ import TokensPage      from './management/pages/manage/TokensPage.jsx';
 import { PlatformOverviewPage, SmtpPage, LicensePage, BrandingPage } from './management/pages/platform/index.jsx';
 import { OrganizationsListPage, OrganizationOverviewPage, OrganizationGeneralPage, OrganizationDefaultsPage, OrganizationAccessPage, OrganizationTeamPage, OrganizationProjectsPage } from './management/pages/organizations/index.jsx';
 import { ProjectsListPage, ProjectOverviewPage, ProjectGeneralPage, ProjectGalleriesPage, ProjectAccessPage, ProjectDeliveryPage } from './management/pages/projects/index.jsx';
-import { GalleriesListPage, GalleryOverviewPage, GalleryGeneralPage, GalleryAccessPage, GalleryDownloadsPage, GalleryUploadPage, GalleryPublishPage, GalleryInsightsPage } from './management/pages/galleries/index.jsx';
+import { GalleriesListPage, GalleryOverviewPage, GalleryGeneralPage, GalleryAccessPage, GalleryDownloadsPage, GalleryUploadPage, GalleryPublishPage, GalleryInsightsPage, GalleryPhotosPage, GalleryJobsPage, GalleryInboxPage } from './management/pages/galleries/index.jsx';
 
 // Inspector
 import InspectorLayout     from './inspector/InspectorLayout.jsx';
@@ -119,6 +119,9 @@ export default function App() {
       <Route path="/admin/galleries/:galleryId/upload" element={<ManageLayout><GalleryUploadPage /></ManageLayout>} />
       <Route path="/admin/galleries/:galleryId/publish" element={<ManageLayout><GalleryPublishPage /></ManageLayout>} />
       <Route path="/admin/galleries/:galleryId/insights" element={<ManageLayout><GalleryInsightsPage /></ManageLayout>} />
+      <Route path="/admin/galleries/:galleryId/photos" element={<ManageLayout><GalleryPhotosPage /></ManageLayout>} />
+      <Route path="/admin/galleries/:galleryId/jobs" element={<ManageLayout><GalleryJobsPage /></ManageLayout>} />
+      <Route path="/admin/galleries/:galleryId/inbox" element={<ManageLayout><GalleryInboxPage /></ManageLayout>} />
 
       {/* ── Platform admin — /admin/platform/* (superadmin only) ── */}
       <Route path="/admin/platform" element={<PlatformLayout><PlatformOverviewPage /></PlatformLayout>} />
