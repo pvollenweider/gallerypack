@@ -41,6 +41,7 @@ import dashboardRoutes    from './routes/dashboard.js';
 import inspectorRoutes    from './routes/inspector.js';
 import organizationsRoutes from './routes/organizations.js';
 import focalStatsRoutes       from './routes/focalStats.js';
+import insightsRoutes         from './routes/insights.js';
 import galleryMaintenanceRoutes from './routes/galleryMaintenance.js';
 
 const __DIR        = path.dirname(fileURLToPath(import.meta.url));
@@ -126,6 +127,7 @@ app.use('/upload',                  uploadRateLimit, uploadRoutes);
 app.use('/api/dashboard',           dashboardRoutes);
 app.use('/api/inspector',           inspectorRoutes);
 app.use('/api/galleries',           focalStatsRoutes);
+app.use('/api/galleries',           insightsRoutes);
 app.use('/api/galleries',           galleryMaintenanceRoutes);
 
 // ── Built galleries — static files (fallback when no reverse proxy in front) ──

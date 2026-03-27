@@ -71,8 +71,11 @@ export const api = {
   // Photographer ready notification
   notifyReady: (galleryId) => req('POST', `/galleries/${galleryId}/notify-ready`),
 
-  // Focal stats (Insights tab)
+  // Focal stats (Insights tab — legacy, kept for backwards compat)
   getFocalStats: (galleryId) => req('GET', `/galleries/${galleryId}/focal-stats`),
+
+  // Unified EXIF analytics (V1 — all 5 metrics)
+  getGalleryInsights: (galleryId) => req('GET', `/galleries/${galleryId}/insights`),
 
   // Jobs
   triggerBuild: (galleryId, force = false) => req('POST', `/galleries/${galleryId}/build`, { force }),
