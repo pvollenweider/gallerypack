@@ -5,7 +5,7 @@
 // Use, reproduction, or distribution requires a valid commercial license.
 // Unauthorized use is strictly prohibited.
 
-import { Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams, useLocation } from 'react-router-dom';
 import { useAuth } from './lib/auth.jsx';
 import { I18nProvider } from './lib/I18nContext.jsx';
 import BuildStatus     from './pages/BuildStatus.jsx';
@@ -68,11 +68,21 @@ function JobRedirect() {
   return <Navigate to={`/admin/jobs/${jobId}`} replace />;
 }
 
+/** Redirect /manage/* → /admin/* (backward compat) */
+function ManageRedirect() {
+  const { pathname } = useLocation();
+  const rest = pathname.replace(/^\/manage/, '');
+  return <Navigate to={`/admin${rest}`} replace />;
+}
+
 export default function App() {
   return (
     <I18nProvider>
     <Routes>
       <Route path="/login"                       element={<Login />} />
+
+      {/* ── Backward-compat: /manage/* → /admin/* ── */}
+      <Route path="/manage/*"                    element={<ManageRedirect />} />
 
       {/* ── Backward-compat redirects for old AdminLayout routes ── */}
       <Route path="/"                            element={<Navigate to="/admin" replace />} />
