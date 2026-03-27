@@ -29,10 +29,6 @@
 }
 
 # ── Platform root / single-domain fallback ────────────────────────────────────
-{$BASE_DOMAIN:localhost} {
-    # Alternate: set DOMAIN to override (legacy single-domain deployments)
-}
-
 {$DOMAIN:localhost} {
     # API + Admin SPA
     handle /api/* {
