@@ -1,6 +1,12 @@
 -- Migration 014: Personal upload tokens
 -- Idempotent — safe to run on both old installs (pre-baseline-consolidation) and
 -- new installs where 001_baseline.sql already contains this schema.
+--
+-- NOTE: ADD CONSTRAINT IF NOT EXISTS is not supported in MariaDB 11.
+-- The FK on photos.personal_token_id is handled by:
+--   - 001_baseline.sql for fresh installs (column + FK in CREATE TABLE)
+--   - The original 014 for installs that ran it before this consolidation
+-- The migration runner skips this file entirely if it was already applied.
 
 CREATE TABLE IF NOT EXISTS personal_tokens (
   id            CHAR(36)      NOT NULL PRIMARY KEY,
@@ -22,9 +28,5 @@ CREATE INDEX IF NOT EXISTS idx_personal_tokens_scope ON personal_tokens(scope_ty
 
 ALTER TABLE photos
   ADD COLUMN IF NOT EXISTS personal_token_id CHAR(36) NULL AFTER upload_link_id;
-
-ALTER TABLE photos
-  ADD CONSTRAINT IF NOT EXISTS fk_photos_personal_token
-  FOREIGN KEY (personal_token_id) REFERENCES personal_tokens(id) ON DELETE SET NULL;
 
 CREATE INDEX IF NOT EXISTS idx_photos_personal_token ON photos(personal_token_id);
