@@ -27,8 +27,9 @@ services:
       db:
         condition: service_healthy
     volumes:
-      - /tmp/gallerypack-test/src:/app/src
-      - /tmp/gallerypack-test/dist:/app/dist
+      - /tmp/gallerypack-test/private:/srv/gallerypack/private
+      - /tmp/gallerypack-test/public:/srv/gallerypack/public
+      - /tmp/gallerypack-test/internal:/srv/gallerypack/internal
       - /tmp/gallerypack-test/data:/app/data
     environment:
       PORT:           "4000"
@@ -43,7 +44,6 @@ services:
       ADMIN_PASSWORD: "test1234"
       SESSION_SECRET: "test-secret-not-for-production"
       BASE_URL:       "http://localhost:4001"
-      DIST_DIR:       "/app/dist"
       ADMIN_DIST:     "/app/admin-dist"
       LICENSE_FILE:   "/app/data/gallerypack.license"
     healthcheck:
@@ -62,8 +62,9 @@ services:
       api:
         condition: service_healthy
     volumes:
-      - /tmp/gallerypack-test/src:/app/src
-      - /tmp/gallerypack-test/dist:/app/dist
+      - /tmp/gallerypack-test/private:/srv/gallerypack/private
+      - /tmp/gallerypack-test/public:/srv/gallerypack/public
+      - /tmp/gallerypack-test/internal:/srv/gallerypack/internal
     environment:
       NODE_ENV:  "production"
       DB_HOST:   "db"
@@ -80,7 +81,7 @@ services:
       - "4001:80"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - /tmp/gallerypack-test/dist:/srv/galleries:ro
+      - /tmp/gallerypack-test/public:/srv/gallerypack/public:ro
       - caddy_test_data:/data
       - caddy_test_config:/config
     environment:

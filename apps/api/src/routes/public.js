@@ -10,7 +10,7 @@ import { Router } from 'express';
 import fs   from 'fs';
 import path from 'path';
 import { query } from '../db/database.js';
-import { ROOT }  from '../../../../packages/engine/src/fs.js';
+import { SRC_ROOT }  from '../../../../packages/engine/src/fs.js';
 import { createStorage } from '../../../../packages/shared/src/storage/index.js';
 
 const fileStorage = createStorage();
@@ -19,7 +19,7 @@ const IMG_EXTS = new Set(['.jpg','.jpeg','.png','.tiff','.tif','.heic','.heif','
 
 export async function getPublicDateRange(distSlug) {
   try {
-    const buf = await fileStorage.read(`dist/${distSlug}/photos.json`);
+    const buf = await fileStorage.read(`public/${distSlug}/photos.json`);
     const manifest = JSON.parse(buf.toString('utf8'));
     const dates = Object.values(manifest.photos || {})
       .map(p => p.exif?.date).filter(Boolean).map(d => new Date(d)).sort((a, b) => a - b);
@@ -30,7 +30,7 @@ export async function getPublicDateRange(distSlug) {
 
 export function getPublicPhotoCount(srcSlug) {
   try {
-    const dir = path.join(ROOT, 'src', srcSlug, 'photos');
+    const dir = path.join(SRC_ROOT, srcSlug, 'photos');
     if (!fs.existsSync(dir)) return 0;
     return fs.readdirSync(dir).filter(f => IMG_EXTS.has(path.extname(f).toLowerCase())).length;
   } catch { return 0; }
@@ -68,7 +68,7 @@ router.get('/galleries', async (req, res) => {
 export async function getCoverName(row, distSlug) {
   const slug = distSlug || row.slug;
   try {
-    const buf = await fileStorage.read(`dist/${slug}/photos.json`);
+    const buf = await fileStorage.read(`public/${slug}/photos.json`);
     const manifest = JSON.parse(buf.toString('utf8'));
     const photos = manifest.photos || {};
     if (row.cover_photo && photos[row.cover_photo]) return photos[row.cover_photo].name;

@@ -47,11 +47,9 @@
         reverse_proxy api:4000
     }
 
-    # Built galleries (static files from dist/ only — src/ is NOT mounted here)
-    # Note: password-gallery assets are accessible directly if the slug is known.
-    # See docs/access-modes.md for the full security analysis and roadmap.
+    # Built galleries — only the public tier is mounted here; internal/ and private/ are not
     handle /* {
-        root * /srv/galleries
+        root * /srv/gallerypack/public
         # Rewrite directory requests to their index.html so the file matcher works
         try_files {path} {path}/index.html
         file_server {

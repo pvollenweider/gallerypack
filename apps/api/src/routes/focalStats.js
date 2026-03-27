@@ -47,7 +47,7 @@ router.get('/:id/focal-stats', async (req, res, next) => {
     // Read the built manifest (dist/<distSlug>/photos.json)
     let manifest;
     try {
-      const buf = await fileStorage.read(`dist/${distSlug}/photos.json`);
+      const buf = await fileStorage.read(`public/${distSlug}/photos.json`);
       manifest = JSON.parse(buf.toString('utf8'));
     } catch {
       return res.json({ total: 0, withData: 0, bins: [], dominant: null });

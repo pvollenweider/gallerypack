@@ -22,11 +22,17 @@ import { fileURLToPath } from 'url';
 
 // ── Path constants ────────────────────────────────────────────────────────────
 const __DIR   = path.dirname(fileURLToPath(import.meta.url)); // packages/engine/src/
-export const ROOT    = path.resolve(__DIR, '../../..'); // project root
+export const ROOT    = path.resolve(__DIR, '../../..'); // project root (code, not storage)
 
-export const SRC_ROOT       = path.join(ROOT, 'src');
+// STORAGE_ROOT splits into three access tiers:
+//   public/   — generated galleries (HTML/CSS/JS + images) — served by Caddy
+//   internal/ — admin thumbnails, previews, inbox          — backend only
+//   private/  — original uploads, high-res                 — backend only
+const STORAGE_ROOT  = process.env.STORAGE_ROOT || ROOT;
+export const INTERNAL_ROOT  = path.join(STORAGE_ROOT, 'internal');
+export const SRC_ROOT       = path.join(STORAGE_ROOT, 'private');
 export const BUILD_CFG_PATH = path.join(ROOT, 'build.config.json');
-export const DIST_ROOT      = path.join(ROOT, 'dist');
+export const DIST_ROOT      = path.join(STORAGE_ROOT, 'public');
 export const DIST_VEN       = path.join(DIST_ROOT, 'vendor');
 export const DIST_FONTS     = path.join(DIST_ROOT, 'fonts');
 

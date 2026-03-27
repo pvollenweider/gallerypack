@@ -22,7 +22,7 @@ import {
 import { sendEmail } from '../services/email.js';
 import { requireAuth } from '../middleware/auth.js';
 import { can } from '../authorization/index.js';
-import { ROOT }         from '../../../../packages/engine/src/fs.js';
+import { SRC_ROOT }     from '../../../../packages/engine/src/fs.js';
 import { createStorage } from '../../../../packages/shared/src/storage/index.js';
 import { generateThumbnails, photoThumbnails } from '../services/thumbnailService.js';
 
@@ -32,9 +32,9 @@ export const fileStorage = createStorage();
 const router = Router();
 router.use(requireAuth);
 
-// Source photos path: src/<slug>/photos/ (local) or equivalent prefix (S3)
+// Source photos path: private/<slug>/photos/ (local) or equivalent prefix (S3)
 function photosDir(slug) {
-  return path.join(ROOT, 'src', slug, 'photos');
+  return path.join(SRC_ROOT, slug, 'photos');
 }
 
 async function ensureGalleryBelongsToStudio(req, res) {
@@ -157,7 +157,7 @@ router.get('/:id/photos', async (req, res) => {
   if (galleryRow?.photo_order) {
     try { savedOrder = JSON.parse(galleryRow.photo_order); } catch {}
   } else {
-    const orderFile = path.join(ROOT, 'src', gallery.slug, 'photo_order.json');
+    const orderFile = path.join(SRC_ROOT, gallery.slug, 'photo_order.json');
     try {
       if (fs.existsSync(orderFile)) {
         savedOrder = JSON.parse(fs.readFileSync(orderFile, 'utf8'));

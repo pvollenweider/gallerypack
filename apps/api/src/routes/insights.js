@@ -50,7 +50,7 @@ router.get('/:id/insights', async (req, res, next) => {
 
     let manifest;
     try {
-      const buf = await fileStorage.read(`dist/${distSlug}/photos.json`);
+      const buf = await fileStorage.read(`public/${distSlug}/photos.json`);
       manifest = JSON.parse(buf.toString('utf8'));
     } catch {
       return res.json({

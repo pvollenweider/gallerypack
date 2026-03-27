@@ -18,7 +18,7 @@ import path         from 'node:path';
 import { existsSync } from 'node:fs';
 import { createPool } from 'mysql2/promise';
 import { generateThumbnails, thumbPath, THUMB_SIZES } from '../services/thumbnailService.js';
-import { ROOT } from '../../../../packages/engine/src/fs.js';
+import { SRC_ROOT } from '../../../../packages/engine/src/fs.js';
 
 // ── CLI args ──────────────────────────────────────────────────────────────────
 const args        = process.argv.slice(2);
@@ -58,7 +58,7 @@ async function run() {
       if (allExist) { skipped++; continue; }
     }
 
-    const srcPath = path.join(ROOT, 'src', row.slug, 'photos', row.filename);
+    const srcPath = path.join(SRC_ROOT, row.slug, 'photos', row.filename);
     if (!existsSync(srcPath)) {
       console.warn(`${label} — source file missing, skipping`);
       skipped++;

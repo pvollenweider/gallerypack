@@ -1,0 +1,30 @@
+# Copyright (c) 2026 Philippe Vollenweider
+#
+# This file is part of the GalleryPack commercial platform.
+# This source code is proprietary and confidential.
+# Use, reproduction, or distribution requires a valid commercial license.
+# Unauthorized use is strictly prohibited.
+
+# ── Build the React admin SPA ─────────────────────────────────────────────────
+FROM node:20-alpine AS build
+
+WORKDIR /app
+
+COPY package*.json ./
+COPY packages/shared/package.json packages/shared/
+COPY apps/web/package.json        apps/web/
+RUN npm ci
+
+COPY packages/shared/ packages/shared/
+COPY apps/web/        apps/web/
+
+RUN npm run build --workspace=apps/web
+# Output: /app/apps/web/dist/
+
+# ── Minimal image exporting the built SPA ─────────────────────────────────────
+FROM scratch AS export
+COPY --from=build /app/apps/web/dist /dist
+
+LABEL org.opencontainers.image.source="https://github.com/pvollenweider/gallerypack" \
+      org.opencontainers.image.title="gallerypack-web" \
+      org.opencontainers.image.description="GalleryPack admin SPA build artifact"

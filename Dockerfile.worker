@@ -14,9 +14,15 @@ COPY apps/api/          apps/api/
 COPY workers/           workers/
 COPY build.config.json  ./
 
-RUN mkdir -p data src dist
+RUN mkdir -p /srv/gallerypack/public /srv/gallerypack/internal /srv/gallerypack/private \
+    && mkdir -p data
 
 ENV NODE_ENV=production
+ENV STORAGE_ROOT=/srv/gallerypack
+
+LABEL org.opencontainers.image.source="https://github.com/pvollenweider/gallerypack" \
+      org.opencontainers.image.title="gallerypack-worker" \
+      org.opencontainers.image.description="GalleryPack gallery builder worker"
 
 HEALTHCHECK --interval=60s --timeout=10s --start-period=15s --retries=2 \
   CMD node -e "require('fs').existsSync('/tmp/worker.alive') && (Date.now() - require('fs').statSync('/tmp/worker.alive').mtimeMs < 120000) ? process.exit(0) : process.exit(1)"

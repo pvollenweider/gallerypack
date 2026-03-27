@@ -15,7 +15,7 @@ import { sendGalleryReadyEmail }                               from '../../../ap
 import { emit, EVENTS }                                        from '../../../apps/api/src/services/events.js';
 import { buildGallery }                                        from '../../../packages/engine/src/gallery.js';
 import { downloadVendors, downloadFonts }                      from '../../../packages/engine/src/network.js';
-import { ROOT }                                                from '../../../packages/engine/src/fs.js';
+import { SRC_ROOT, DIST_ROOT, BUILD_CFG_PATH }               from '../../../packages/engine/src/fs.js';
 import { createStorage }                                       from '../../../packages/shared/src/storage/index.js';
 import fs from 'fs';
 
@@ -102,7 +102,7 @@ export async function runJob(jobId) {
       [gallery.id]
     );
     if (validatedRows.length > 0) {
-      const galSrcDir = path.join(ROOT, 'src', gallery.slug);
+      const galSrcDir = path.join(SRC_ROOT, gallery.slug);
       fs.mkdirSync(galSrcDir, { recursive: true });
 
       // photo_order.json — ordered list of filenames (engine filter)
@@ -124,7 +124,7 @@ export async function runJob(jobId) {
     }
 
     // Load build config
-    const buildCfgPath = path.join(ROOT, 'build.config.json');
+    const buildCfgPath = BUILD_CFG_PATH;
     if (!fs.existsSync(buildCfgPath)) throw new Error('build.config.json not found');
     const buildCfg = JSON.parse(fs.readFileSync(buildCfgPath, 'utf8'));
 
@@ -152,13 +152,13 @@ export async function runJob(jobId) {
 
     // Verify artifact exists via storage adapter (works for both local and S3)
     const finalDistName = result?.distName || gallery.slug;
-    const manifestKey   = `dist/${finalDistName}/photos.json`;
+    const manifestKey   = `public/${finalDistName}/photos.json`;
     const artifactOk    = await storage.exists(manifestKey);
     if (!artifactOk) throw new Error(`Build completed but manifest not found: ${manifestKey}`);
 
     // Clean up old flat dist directory if the gallery moved to a project-scoped path
     if (finalDistName !== gallery.slug) {
-      const oldDistDir = path.join(ROOT, 'dist', gallery.slug);
+      const oldDistDir = path.join(DIST_ROOT, gallery.slug);
       try {
         if (fs.existsSync(oldDistDir)) {
           fs.rmSync(oldDistDir, { recursive: true, force: true });
@@ -230,7 +230,7 @@ export async function runJob(jobId) {
 
     // Clean up any temp work directories left by the build (e.g. __tmp_* under dist/)
     try {
-      const tmpPattern = path.join(ROOT, 'dist', `__tmp_${gallery.slug}_*`);
+      const tmpPattern = path.join(DIST_ROOT, `__tmp_${gallery.slug}_*`);
       const { globSync } = await import('glob').catch(() => ({ globSync: null }));
       if (globSync) {
         for (const dir of globSync(tmpPattern)) {

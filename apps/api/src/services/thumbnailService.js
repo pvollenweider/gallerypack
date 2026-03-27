@@ -18,12 +18,12 @@
 import path              from 'node:path';
 import fs                from 'node:fs/promises';
 import { existsSync }    from 'node:fs';
-import { ROOT } from '../../../../packages/engine/src/fs.js';
+import { INTERNAL_ROOT } from '../../../../packages/engine/src/fs.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 export const THUMB_SIZES = { sm: 160, md: 400 };
-const THUMB_ROOT = process.env.THUMB_ROOT || path.join(ROOT, 'thumbnails');
+const THUMB_ROOT = process.env.THUMB_ROOT || path.join(INTERNAL_ROOT, 'thumbnails');
 
 // ── Path / URL helpers ────────────────────────────────────────────────────────
 
