@@ -7,6 +7,7 @@
 
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import 'admin-lte/dist/css/adminlte.min.css';
+import './mobile.css';
 
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';

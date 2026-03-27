@@ -18,10 +18,14 @@ function ManageLayoutInner({ children }) {
   const { user, loading } = useAuth();
   const { pathname } = useLocation();
   const t = useT();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed]   = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const scope = detectScope(pathname);
+  const scope  = detectScope(pathname);
   const params = extractScopeParams(pathname);
+
+  // Close drawer on route change
+  useEffect(() => { setDrawerOpen(false); }, [pathname]);
 
   useEffect(() => {
     document.body.classList.add('sidebar-mini', 'layout-fixed');
@@ -39,6 +43,12 @@ function ManageLayoutInner({ children }) {
     }
   }, [collapsed]);
 
+  // Lock body scroll when mobile drawer is open
+  useEffect(() => {
+    document.body.style.overflow = drawerOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [drawerOpen]);
+
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: '#888' }}>
       {t('loading')}
@@ -49,9 +59,43 @@ function ManageLayoutInner({ children }) {
 
   return (
     <div className="app-wrapper">
-      <Topbar onToggleSidebar={() => setCollapsed(c => !c)} />
+      <Topbar
+        onToggleSidebar={() => setCollapsed(c => !c)}
+        onOpenDrawer={() => setDrawerOpen(true)}
+      />
 
+      {/* Desktop sidebar (hidden on mobile via AdminLTE CSS) */}
       <ScopeSidebar scope={scope} params={params} />
+
+      {/* Mobile drawer — overlay + slide-in panel */}
+      {drawerOpen && (
+        <div
+          onClick={() => setDrawerOpen(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 1050,
+            background: 'rgba(0,0,0,0.55)',
+          }}
+          aria-hidden="true"
+        />
+      )}
+      <div
+        aria-label="Mobile navigation drawer"
+        aria-hidden={!drawerOpen}
+        style={{
+          position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 1051,
+          width: 280,
+          transform: drawerOpen ? 'translateX(0)' : 'translateX(-100%)',
+          transition: 'transform 0.25s ease',
+          overflowY: 'auto',
+        }}
+      >
+        <ScopeSidebar
+          scope={scope}
+          params={params}
+          isMobileDrawer
+          onClose={() => setDrawerOpen(false)}
+        />
+      </div>
 
       <main className="app-main">
         <div className="app-content">

@@ -5,22 +5,28 @@
 // Use, reproduction, or distribution requires a valid commercial license.
 // Unauthorized use is strictly prohibited.
 
-// apps/web/src/components/UploadZone.jsx — robust upload queue (Sprint 15)
+// apps/web/src/components/UploadZone.jsx — robust upload queue with mobile support
 // - Per-file state machine: queued → uploading → done / error
 // - Max 3 concurrent uploads
-// - Auto-retry once on error
+// - Auto-retry up to 3 times with backoff (1s, 2s, 4s)
+// - Offline detection: pauses queue, resumes on reconnect
+// - Mobile: tap-to-select replaces drag zone; folder button hidden on iOS
 // - Client-side thumbnail preview
-// - Files added while upload is in progress are queued automatically
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { api } from '../lib/api.js';
 
 const IMG_EXTS = new Set(['jpg','jpeg','png','tiff','tif','heic','heif','avif','webp']);
-const MAX_CONCURRENT = 3;
+const MAX_CONCURRENT  = 3;
+const MAX_RETRIES     = 3;
+const RETRY_DELAYS_MS = [1000, 2000, 4000];
 
 function isImage(name) {
   return IMG_EXTS.has(name.split('.').pop().toLowerCase());
 }
+
+// True on iOS Safari / iPadOS
+const IS_IOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
 function collectEntry(entry) {
   return new Promise(resolve => {
@@ -54,12 +60,26 @@ export function UploadZone({ galleryId, onDone }) {
   const [items,    setItems]    = useState([]);
   const [dragging, setDragging] = useState(false);
   const [notified, setNotified] = useState(false);
+  const [offline,  setOffline]  = useState(!navigator.onLine);
   const fileRef   = useRef();
   const folderRef = useRef();
   const running   = useRef(0);
   const queueRef  = useRef([]);
+  const pausedRef = useRef(false);
 
   useEffect(() => { queueRef.current = items; }, [items]);
+
+  // Offline / online detection
+  useEffect(() => {
+    const goOffline = () => { setOffline(true);  pausedRef.current = true; };
+    const goOnline  = () => { setOffline(false); pausedRef.current = false; drainQueue(); };
+    window.addEventListener('offline', goOffline);
+    window.addEventListener('online',  goOnline);
+    return () => {
+      window.removeEventListener('offline', goOffline);
+      window.removeEventListener('online',  goOnline);
+    };
+  }, []); // eslint-disable-line
 
   const addFiles = useCallback(async (fileList) => {
     const images = Array.from(fileList).filter(f => isImage(f.name));
@@ -79,11 +99,13 @@ export function UploadZone({ galleryId, onDone }) {
 
   const drainQueue = useCallback(() => {
     const tick = () => {
+      if (pausedRef.current) return;
       if (running.current >= MAX_CONCURRENT) return;
       const next = queueRef.current.find(x => x.status === 'queued');
       if (!next) return;
       running.current += 1;
       setItems(prev => prev.map(x => x.id === next.id ? { ...x, status: 'uploading' } : x));
+
       api.uploadPhotos(galleryId, [next.file], (pct) => {
         setItems(prev => prev.map(x => x.id === next.id ? { ...x, progress: pct } : x));
       }).then(() => {
@@ -93,13 +115,20 @@ export function UploadZone({ galleryId, onDone }) {
         tick();
       }).catch(() => {
         running.current -= 1;
-        const retries = queueRef.current.find(x => x.id === next.id)?.retries || 0;
-        if (retries < 1) {
-          setItems(prev => prev.map(x => x.id === next.id ? { ...x, status: 'queued', retries: retries + 1, progress: 0 } : x));
+        const retries = queueRef.current.find(x => x.id === next.id)?.retries ?? 0;
+        if (retries < MAX_RETRIES) {
+          const delay = RETRY_DELAYS_MS[retries] ?? 4000;
+          // Show retry state in badge
+          setItems(prev => prev.map(x => x.id === next.id
+            ? { ...x, status: 'queued', retries: retries + 1, progress: 0, retryLabel: `Retrying (${retries + 1}/${MAX_RETRIES})…` }
+            : x));
+          setTimeout(() => tick(), delay);
         } else {
-          setItems(prev => prev.map(x => x.id === next.id ? { ...x, status: 'error' } : x));
+          setItems(prev => prev.map(x => x.id === next.id
+            ? { ...x, status: 'error', retryLabel: null }
+            : x));
+          tick();
         }
-        tick();
       });
       if (running.current < MAX_CONCURRENT) tick();
     };
@@ -107,6 +136,10 @@ export function UploadZone({ galleryId, onDone }) {
   }, [galleryId, onDone]);
 
   useEffect(() => { drainQueue(); }, [items.length, drainQueue]);
+
+  function retryItem(id) {
+    setItems(prev => prev.map(x => x.id === id ? { ...x, status: 'queued', progress: 0, retries: 0 } : x));
+  }
 
   function retryFailed() {
     setItems(prev => prev.map(x => x.status === 'error' ? { ...x, status: 'queued', progress: 0, retries: 0 } : x));
@@ -147,17 +180,22 @@ export function UploadZone({ galleryId, onDone }) {
 
   return (
     <div style={s.root}>
+
+      {/* Offline banner */}
+      {offline && (
+        <div style={{ background: '#fef3c7', border: '1px solid #fbbf24', borderRadius: 6, padding: '0.5rem 0.75rem', fontSize: '0.82rem', color: '#92400e' }}>
+          Waiting for network… uploads will resume automatically when you reconnect.
+        </div>
+      )}
+
+      {/* Desktop: drag-and-drop zone */}
       <div
+        className="d-none d-md-block"
         style={{ ...s.zone, ...(dragging ? s.zoneActive : {}) }}
         onDragOver={e => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
       >
-        <input ref={fileRef} type="file" multiple accept="image/*" style={s.hidden}
-          onChange={e => addFiles(e.target.files)} />
-        <input ref={folderRef} type="file" multiple style={s.hidden}
-          webkitdirectory="true" mozdirectory="true"
-          onChange={e => addFiles(e.target.files)} />
         {dragging ? (
           <span style={s.zoneText}>Drop here</span>
         ) : (
@@ -171,6 +209,34 @@ export function UploadZone({ galleryId, onDone }) {
         )}
       </div>
 
+      {/* Mobile: tap-to-select button */}
+      <div className="d-md-none">
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          style={{
+            width: '100%', padding: '1rem', background: '#f8f9fa',
+            border: '2px dashed #ccc', borderRadius: 8, fontSize: '1rem',
+            fontWeight: 600, color: '#555', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+          }}
+        >
+          <i className="fas fa-images" aria-hidden="true" />
+          Add photos
+        </button>
+      </div>
+
+      {/* Hidden file inputs */}
+      <input ref={fileRef} type="file" multiple accept="image/*" style={s.hidden}
+        onChange={e => addFiles(e.target.files)} />
+      {/* Folder input: hidden on iOS (webkitdirectory unsupported) */}
+      {!IS_IOS && (
+        <input ref={folderRef} type="file" multiple style={s.hidden}
+          webkitdirectory="true" mozdirectory="true"
+          onChange={e => addFiles(e.target.files)} />
+      )}
+
+      {/* Stats bar */}
       {items.length > 0 && (
         <div style={s.statsBar}>
           {uploading > 0 && <span style={{ color: '#60a5fa' }}>{uploading} uploading</span>}
@@ -178,26 +244,43 @@ export function UploadZone({ galleryId, onDone }) {
           {done      > 0 && <span style={{ color: '#4ade80' }}>{done} done</span>}
           {errors    > 0 && <span style={{ color: '#f87171' }}>{errors} failed</span>}
           <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
-            {errors > 0 && <button style={s.smallBtn} onClick={retryFailed}>Retry failed</button>}
-            {done > 0 && !hasActive && <button style={s.smallBtn} onClick={clearDone}>Clear done</button>}
+            {errors > 0 && (
+              <button style={s.smallBtn} onClick={retryFailed} aria-label="Retry all failed uploads">
+                Retry failed
+              </button>
+            )}
+            {done > 0 && !hasActive && (
+              <button style={s.smallBtn} onClick={clearDone}>Clear done</button>
+            )}
           </div>
         </div>
       )}
 
+      {/* File cards grid */}
       {items.length > 0 && (
         <div style={s.grid}>
           {items.map(item => (
             <div key={item.id} style={s.card}>
               <div style={s.thumbWrap}>
-                <img src={item.preview} style={s.thumb} alt={item.file.name} />
+                <img src={item.preview} style={s.thumb} alt={item.file.name}
+                  loading="lazy" decoding="async" />
                 {item.status === 'uploading' && (
                   <div style={{ ...s.progressBar, width: `${Math.round(item.progress * 100)}%` }} />
                 )}
               </div>
               <div style={s.cardMeta}>
-                <span style={{ ...s.badge, background: STATUS_BADGE[item.status].bg, color: STATUS_BADGE[item.status].color }}>
-                  {item.status === 'uploading' ? `${Math.round(item.progress * 100)}%` : STATUS_BADGE[item.status].label}
+                <span style={{ ...s.badge, background: STATUS_BADGE[item.status]?.bg, color: STATUS_BADGE[item.status]?.color }}>
+                  {item.retryLabel ?? (item.status === 'uploading' ? `${Math.round(item.progress * 100)}%` : STATUS_BADGE[item.status]?.label)}
                 </span>
+                {item.status === 'error' && (
+                  <button
+                    style={{ ...s.smallBtn, marginTop: 2, minHeight: 28, width: '100%' }}
+                    onClick={() => retryItem(item.id)}
+                    aria-label={`Retry ${item.file.name}`}
+                  >
+                    Retry
+                  </button>
+                )}
               </div>
               <div style={s.cardName} title={item.file.name}>{item.file.name}</div>
             </div>
@@ -205,6 +288,7 @@ export function UploadZone({ galleryId, onDone }) {
         </div>
       )}
 
+      {/* Upload done notification */}
       {done > 0 && !hasActive && !notified && (
         <div>
           <button style={s.doneBtn} onClick={handleDone}>
@@ -212,7 +296,11 @@ export function UploadZone({ galleryId, onDone }) {
           </button>
         </div>
       )}
-      {notified && <p style={{ fontSize: '0.82rem', color: '#059669', fontWeight: 500, margin: 0 }}>✓ Éditeurs notifiés</p>}
+      {notified && (
+        <p style={{ fontSize: '0.82rem', color: '#059669', fontWeight: 500, margin: 0 }}>
+          ✓ Éditeurs notifiés
+        </p>
+      )}
     </div>
   );
 }
