@@ -105,15 +105,15 @@ export default function GalleryDownloadsPage() {
               <div className="alert alert-warning d-flex align-items-start gap-3 mt-3" role="alert">
                 <i className="fas fa-exclamation-triangle mt-1" />
                 <div style={{ flex: 1 }}>
-                  <strong>Downloads are disabled.</strong>
+                  <strong>{t('gal_downloads_disabled')}</strong>
                   <div className="mt-1" style={{ fontSize: '0.85rem' }}>
-                    Original files may still be present in the built output and waste disk space. Strip them now.
+                    {t('gal_downloads_strip_hint')}
                   </div>
                   {stripResult && <div className="mt-1 text-success small">{stripResult.message}</div>}
                   {stripError && <div className="mt-1 text-danger small">{stripError}</div>}
                 </div>
-                <AdminButton variant="outline-warning" size="sm" loading={stripping} loadingLabel="Stripping…" onClick={stripOriginals}>
-                  Strip originals
+                <AdminButton variant="outline-warning" size="sm" loading={stripping} loadingLabel={t('gal_downloads_stripping')} onClick={stripOriginals}>
+                  {t('gal_downloads_strip_btn')}
                 </AdminButton>
               </div>
             )}

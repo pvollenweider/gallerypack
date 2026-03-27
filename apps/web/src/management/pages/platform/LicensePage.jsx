@@ -7,36 +7,11 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '../../../lib/api.js';
+import { useT } from '../../../lib/I18nContext.jsx';
 import { AdminPage, AdminCard, AdminButton, AdminTextarea, AdminAlert } from '../../../components/ui/index.js';
 
-const STATUS_BADGE = {
-  license: <span className="badge bg-success">Active</span>,
-  expired: <span className="badge bg-danger">Expired</span>,
-  free:    <span className="badge bg-secondary">Free tier</span>,
-};
-
-const FEATURES = [
-  { key: 'multi_organization', label: 'Multiple organizations',  icon: 'fas fa-building' },
-  { key: 'custom_domain',      label: 'Custom domain',           icon: 'fas fa-globe' },
-  { key: 'white_label',        label: 'White label',             icon: 'fas fa-paint-brush' },
-  { key: 'api_access',         label: 'API access',              icon: 'fas fa-plug' },
-];
-
-const LIMITS = [
-  { key: 'organization_limit',  label: 'Organizations' },
-  { key: 'gallery_limit',       label: 'Galleries' },
-  { key: 'storage_gb',          label: 'Storage (GB)' },
-  { key: 'collaborator_limit',  label: 'Collaborators' },
-];
-
-const USAGE_KEY = {
-  organization_limit: 'orgs',
-  gallery_limit:      'galleries',
-  storage_gb:         'storageGb',
-  collaborator_limit: 'collaborators',
-};
-
 export default function LicensePage() {
+  const t = useT();
   const [license, setLicense]   = useState(null);
   const [usage,   setUsage]     = useState(null);
   const [loading, setLoading]   = useState(true);
@@ -44,6 +19,33 @@ export default function LicensePage() {
   const [saving,  setSaving]    = useState(false);
   const [saved,   setSaved]     = useState('');
   const [error,   setError]     = useState('');
+
+  const STATUS_BADGE = {
+    license: <span className="badge bg-success">{t('license_status_active')}</span>,
+    expired: <span className="badge bg-danger">{t('license_status_expired')}</span>,
+    free:    <span className="badge bg-secondary">{t('license_status_free')}</span>,
+  };
+
+  const FEATURES = [
+    { key: 'multi_organization', label: t('license_feature_multi_org'),      icon: 'fas fa-building' },
+    { key: 'custom_domain',      label: t('license_feature_custom_domain'),   icon: 'fas fa-globe' },
+    { key: 'white_label',        label: t('license_feature_white_label'),     icon: 'fas fa-paint-brush' },
+    { key: 'api_access',         label: t('license_feature_api'),             icon: 'fas fa-plug' },
+  ];
+
+  const LIMITS = [
+    { key: 'organization_limit',  label: t('license_limit_orgs') },
+    { key: 'gallery_limit',       label: t('license_limit_galleries') },
+    { key: 'storage_gb',          label: t('license_limit_storage') },
+    { key: 'collaborator_limit',  label: t('license_limit_collaborators') },
+  ];
+
+  const USAGE_KEY = {
+    organization_limit: 'orgs',
+    gallery_limit:      'galleries',
+    storage_gb:         'storageGb',
+    collaborator_limit: 'collaborators',
+  };
 
   function load() {
     setLoading(true);
@@ -64,7 +66,7 @@ export default function LicensePage() {
     setSaving(true); setSaved(''); setError('');
     try {
       const r = await api.installPlatformLicense(json.trim());
-      setSaved(`License installed for ${r.license?.licensee?.name ?? 'unknown'}.`);
+      setSaved(t('license_installed_for', { name: r.license?.licensee?.name ?? t('license_unknown') }));
       setJson('');
       load();
     } catch (err) {
@@ -78,12 +80,11 @@ export default function LicensePage() {
   const features = license?.features ?? [];
 
   return (
-    <AdminPage title="License">
+    <AdminPage title={t('license_page_title')}>
       <div className="row">
         <div className="col-lg-7">
 
-          {/* Current license */}
-          <AdminCard title="Current license">
+          <AdminCard title={t('license_current_section')}>
             {loading ? (
               <div className="text-center py-3 text-muted"><i className="fas fa-spinner fa-spin" /></div>
             ) : (
@@ -91,24 +92,24 @@ export default function LicensePage() {
                 <table className="table table-sm mb-0">
                   <tbody>
                     <tr>
-                      <th style={{ width: 140 }}>Status</th>
+                      <th style={{ width: 140 }}>{t('license_status_label')}</th>
                       <td>{STATUS_BADGE[license?.source] ?? STATUS_BADGE.free}</td>
                     </tr>
                     {license?.error && (
-                      <tr><th>Error</th><td className="text-danger small">{license.error}</td></tr>
+                      <tr><th>{t('license_error_label')}</th><td className="text-danger small">{license.error}</td></tr>
                     )}
                     {license?.licensee?.name && (
-                      <tr><th>Licensee</th><td>{license.licensee.name}</td></tr>
+                      <tr><th>{t('license_licensee_label')}</th><td>{license.licensee.name}</td></tr>
                     )}
                     {license?.licensee?.email && (
-                      <tr><th>Email</th><td>{license.licensee.email}</td></tr>
+                      <tr><th>{t('license_email_label')}</th><td>{license.licensee.email}</td></tr>
                     )}
                     {license?.issued_at && (
-                      <tr><th>Issued</th><td>{new Date(license.issued_at).toLocaleDateString()}</td></tr>
+                      <tr><th>{t('license_issued_label')}</th><td>{new Date(license.issued_at).toLocaleDateString()}</td></tr>
                     )}
                     <tr>
-                      <th>Expires</th>
-                      <td>{license?.expires_at ? new Date(license.expires_at).toLocaleDateString() : 'Never'}</td>
+                      <th>{t('license_expires_label')}</th>
+                      <td>{license?.expires_at ? new Date(license.expires_at).toLocaleDateString() : t('license_never_expires')}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -116,7 +117,7 @@ export default function LicensePage() {
                 <hr className="my-3" />
 
                 <p className="text-uppercase fw-semibold text-muted mb-2" style={{ fontSize: '0.72rem', letterSpacing: '0.08em' }}>
-                  Features
+                  {t('license_features_section')}
                 </p>
                 <div className="row g-2 mb-3">
                   {FEATURES.map(({ key, label, icon }) => {
@@ -139,7 +140,7 @@ export default function LicensePage() {
                 </div>
 
                 <p className="text-uppercase fw-semibold text-muted mb-2" style={{ fontSize: '0.72rem', letterSpacing: '0.08em' }}>
-                  Limits &amp; Usage
+                  {t('license_limits_section')}
                 </p>
                 <div className="row g-2">
                   {LIMITS.map(({ key, label }) => {
@@ -172,24 +173,23 @@ export default function LicensePage() {
             )}
           </AdminCard>
 
-          {/* Install new license */}
-          <AdminCard title="Install new license">
+          <AdminCard title={t('license_install_section')}>
             <form onSubmit={install}>
               <AdminTextarea
-                label="License JSON"
+                label={t('license_json_label')}
                 rows={8}
                 value={json}
                 onChange={e => setJson(e.target.value)}
                 placeholder={'{\n  "id": "...",\n  "licensee": { ... },\n  ...\n}'}
                 style={{ fontSize: '0.78rem', fontFamily: 'monospace' }}
-                hint="Paste the signed license JSON provided by GalleryPack."
+                hint={t('license_json_hint')}
               />
 
               <AdminAlert variant="success" message={saved} />
               <AdminAlert message={error} />
 
-              <AdminButton type="submit" loading={saving} loadingLabel="Installing…" disabled={saving || !json.trim()}>
-                Install license
+              <AdminButton type="submit" loading={saving} loadingLabel={t('license_installing')} disabled={saving || !json.trim()}>
+                {t('license_install_btn')}
               </AdminButton>
             </form>
           </AdminCard>
@@ -199,12 +199,12 @@ export default function LicensePage() {
         <div className="col-lg-5">
           <div className="card bg-light">
             <div className="card-body">
-              <h6 className="text-muted mb-2"><i className="fas fa-info-circle me-1" />Notes</h6>
+              <h6 className="text-muted mb-2"><i className="fas fa-info-circle me-1" />{t('license_notes_section')}</h6>
               <ul className="mb-0 ps-3" style={{ fontSize: '0.85rem' }}>
-                <li>The license file is stored at <code>.gallerypack-license</code> in the deployment root.</li>
-                <li>Installing a new license replaces the current one immediately — no restart required.</li>
-                <li>License signatures are verified against the embedded public key.</li>
-                <li>Contact GalleryPack to obtain or renew a license.</li>
+                <li>{t('license_note_file_location')}</li>
+                <li>{t('license_note_no_restart')}</li>
+                <li>{t('license_note_verification')}</li>
+                <li>{t('license_note_contact')}</li>
               </ul>
             </div>
           </div>

@@ -90,10 +90,10 @@ export default function GalleryPhotosPage() {
             variant="outline-secondary"
             size="sm"
             icon={`fas fa-sort-alpha-${sortAsc ? 'down' : 'up'}`}
-            title={sortAsc ? 'A→Z' : 'Z→A'}
+            title={sortAsc ? t('gal_photos_sort_asc') : t('gal_photos_sort_desc')}
             onClick={() => { const next = !sortAsc; setSortAsc(next); sortPhotos(next ? 'asc' : 'desc'); }}
           >
-            {sortAsc ? 'A→Z' : 'Z→A'}
+            {sortAsc ? t('gal_photos_sort_asc') : t('gal_photos_sort_desc')}
           </AdminButton>
         </div>
       }

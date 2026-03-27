@@ -5,27 +5,23 @@
 // Use, reproduction, or distribution requires a valid commercial license.
 // Unauthorized use is strictly prohibited.
 
-// apps/web/src/management/pages/manage/TokensPage.jsx
-// Personal upload tokens — list, create (one-time reveal), revoke.
-
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../../../lib/api.js';
-
-const SCOPE_LABELS = { gallery: 'Gallery', project: 'Project' };
+import { useT } from '../../../lib/I18nContext.jsx';
+import { AdminPage, AdminCard, AdminButton, AdminAlert } from '../../../components/ui/index.js';
 
 function formatDate(d) {
   if (!d) return '—';
   return new Date(d).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-function TokenStatusBadge({ token }) {
-  if (token.revokedAt) return <span className="badge bg-danger">Revoked</span>;
-  if (token.expiresAt && new Date(token.expiresAt) < new Date()) return <span className="badge bg-warning text-dark">Expired</span>;
-  return <span className="badge bg-success">Active</span>;
+function TokenStatusBadge({ token, t }) {
+  if (token.revokedAt) return <span className="badge bg-danger">{t('token_status_revoked')}</span>;
+  if (token.expiresAt && new Date(token.expiresAt) < new Date()) return <span className="badge bg-warning text-dark">{t('token_status_expired')}</span>;
+  return <span className="badge bg-success">{t('token_status_active')}</span>;
 }
 
-// Modal to show the raw token once after creation
-function RevealModal({ raw, onClose }) {
+function RevealModal({ raw, onClose, t }) {
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -41,13 +37,13 @@ function RevealModal({ raw, onClose }) {
           <div className="modal-header border-0 pb-0">
             <h5 className="modal-title">
               <i className="fas fa-key text-warning me-2" />
-              Your new upload token
+              {t('token_reveal_title')}
             </h5>
           </div>
           <div className="modal-body">
             <div className="alert alert-warning py-2 mb-3" style={{ fontSize: '0.82rem' }}>
               <i className="fas fa-exclamation-triangle me-1" />
-              <strong>Copy this token now.</strong> It will never be shown again.
+              {t('token_reveal_warning')}
             </div>
             <div className="input-group">
               <input
@@ -63,12 +59,12 @@ function RevealModal({ raw, onClose }) {
               </button>
             </div>
             <p className="text-muted mt-2 mb-0" style={{ fontSize: '0.78rem' }}>
-              Use it as: <code>Authorization: Bearer {raw}</code>
+              {t('token_reveal_usage', { token: raw })}
             </p>
           </div>
           <div className="modal-footer border-0 pt-0">
             <button type="button" className="btn btn-primary" onClick={onClose}>
-              Done — I've saved my token
+              {t('token_reveal_confirm')}
             </button>
           </div>
         </div>
@@ -77,8 +73,7 @@ function RevealModal({ raw, onClose }) {
   );
 }
 
-// Create token form
-function CreateTokenForm({ onCreated, onCancel }) {
+function CreateTokenForm({ onCreated, onCancel, t }) {
   const [name, setName]           = useState('');
   const [scopeType, setScopeType] = useState('gallery');
   const [scopeId, setScopeId]     = useState('');
@@ -102,12 +97,7 @@ function CreateTokenForm({ onCreated, onCancel }) {
     setSaving(true);
     setError(null);
     try {
-      const result = await api.createToken({
-        name: name.trim(),
-        scopeType,
-        scopeId,
-        expiresAt: expiresAt || null,
-      });
+      const result = await api.createToken({ name: name.trim(), scopeType, scopeId, expiresAt: expiresAt || null });
       onCreated(result);
     } catch (err) {
       setError(err.message);
@@ -116,40 +106,40 @@ function CreateTokenForm({ onCreated, onCancel }) {
   }
 
   return (
-    <div className="card card-body mb-3">
-      <h6 className="mb-3"><i className="fas fa-plus-circle me-1" /> New upload token</h6>
+    <AdminCard title={t('token_create_section')} className="mb-3">
       <form onSubmit={handleSubmit}>
         <div className="row g-2 mb-2">
           <div className="col-12 col-md-4">
-            <label className="form-label small mb-1">Token name</label>
+            <label className="form-label small mb-1">{t('token_name_label')}</label>
             <input
               type="text"
               className="form-control form-control-sm"
-              placeholder="e.g. Lightroom plugin"
+              placeholder={t('token_name_placeholder')}
               value={name}
               onChange={e => setName(e.target.value)}
               required
               maxLength={128}
+              autoFocus
             />
           </div>
           <div className="col-6 col-md-2">
-            <label className="form-label small mb-1">Scope type</label>
+            <label className="form-label small mb-1">{t('token_scope_type_label')}</label>
             <select className="form-select form-select-sm" value={scopeType} onChange={e => setScopeType(e.target.value)}>
-              <option value="gallery">Gallery</option>
-              <option value="project">Project</option>
+              <option value="gallery">{t('token_scope_gallery')}</option>
+              <option value="project">{t('token_scope_project')}</option>
             </select>
           </div>
           <div className="col-6 col-md-3">
-            <label className="form-label small mb-1">{SCOPE_LABELS[scopeType]}</label>
+            <label className="form-label small mb-1">{scopeType === 'gallery' ? t('token_scope_gallery') : t('token_scope_project')}</label>
             <select className="form-select form-select-sm" value={scopeId} onChange={e => setScopeId(e.target.value)} required>
-              <option value="">— select —</option>
+              <option value="">{t('token_scope_select')}</option>
               {scopes.map(s => (
                 <option key={s.id} value={s.id}>{s.title || s.name || s.slug}</option>
               ))}
             </select>
           </div>
           <div className="col-12 col-md-3">
-            <label className="form-label small mb-1">Expires (optional)</label>
+            <label className="form-label small mb-1">{t('token_expires_label')}</label>
             <input
               type="date"
               className="form-control form-control-sm"
@@ -161,19 +151,20 @@ function CreateTokenForm({ onCreated, onCancel }) {
         </div>
         {error && <div className="text-danger small mb-2">{error}</div>}
         <div className="d-flex gap-2">
-          <button type="submit" className="btn btn-sm btn-primary" disabled={saving || !name.trim() || !scopeId}>
-            {saving ? 'Creating…' : 'Create token'}
-          </button>
-          <button type="button" className="btn btn-sm btn-outline-secondary" onClick={onCancel}>
-            Cancel
-          </button>
+          <AdminButton type="submit" size="sm" loading={saving} loadingLabel={t('token_creating')} disabled={!name.trim() || !scopeId}>
+            {t('token_create_btn')}
+          </AdminButton>
+          <AdminButton type="button" variant="outline-secondary" size="sm" onClick={onCancel}>
+            {t('cancel')}
+          </AdminButton>
         </div>
       </form>
-    </div>
+    </AdminCard>
   );
 }
 
 export default function TokensPage() {
+  const t = useT();
   const [tokens, setTokens]       = useState([]);
   const [loading, setLoading]     = useState(true);
   const [showForm, setShowForm]   = useState(false);
@@ -197,7 +188,7 @@ export default function TokensPage() {
   }
 
   async function handleRevoke(token) {
-    if (!window.confirm(`Revoke token "${token.name}"? This cannot be undone.`)) return;
+    if (!window.confirm(t('token_revoke_confirm', { name: token.name }))) return;
     setRevoking(token.id);
     try {
       await api.revokeToken(token.id);
@@ -209,159 +200,119 @@ export default function TokensPage() {
     }
   }
 
-  const active  = tokens.filter(t => !t.revokedAt && (!t.expiresAt || new Date(t.expiresAt) >= new Date()));
-  const inactive = tokens.filter(t => t.revokedAt || (t.expiresAt && new Date(t.expiresAt) < new Date()));
+  const active   = tokens.filter(tk => !tk.revokedAt && (!tk.expiresAt || new Date(tk.expiresAt) >= new Date()));
+  const inactive = tokens.filter(tk => tk.revokedAt || (tk.expiresAt && new Date(tk.expiresAt) < new Date()));
 
   return (
-    <div className="app-content-body">
-      {revealed && (
-        <RevealModal raw={revealed} onClose={() => setRevealed(null)} />
+    <AdminPage
+      title={t('token_page_title')}
+      maxWidth="100%"
+      actions={!showForm && (
+        <AdminButton size="sm" icon="fas fa-plus" onClick={() => setShowForm(true)}>
+          {t('token_new_btn')}
+        </AdminButton>
       )}
+    >
+      {revealed && <RevealModal raw={revealed} onClose={() => setRevealed(null)} t={t} />}
 
-      <div className="app-content-header py-3">
-        <div className="container-fluid">
-          <div className="row g-2 align-items-center">
-            <div className="col">
-              <h2 className="page-title mb-0">
-                <i className="fas fa-key me-2 text-muted" />
-                Upload Tokens
-              </h2>
-            </div>
-            <div className="col-auto">
-              {!showForm && (
-                <button className="btn btn-primary btn-sm" onClick={() => setShowForm(true)}>
-                  <i className="fas fa-plus me-1" />
-                  New token
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+      <div className="alert alert-info py-2 mb-3" style={{ fontSize: '0.82rem' }}>
+        <i className="fas fa-info-circle me-1" />
+        {t('token_intro_text')}
+        <code className="mt-1 d-block">{t('token_example_command')}</code>
       </div>
 
-      <div className="app-content">
-        <div className="container-fluid">
+      {showForm && <CreateTokenForm onCreated={handleCreated} onCancel={() => setShowForm(false)} t={t} />}
 
-          <div className="row mb-3">
-            <div className="col">
-              <div className="alert alert-info py-2" style={{ fontSize: '0.82rem' }}>
-                <i className="fas fa-info-circle me-1" />
-                Personal upload tokens let you upload photos via curl or scripts without logging in.
-                Tokens are scoped to a single gallery or project and shown only once on creation.
-                <br />
-                <code className="mt-1 d-block">
-                  curl -X POST https://example.com/api/upload/token?gallery_id=&lt;uuid&gt; \<br />
-                  &nbsp;&nbsp;-H "Authorization: Bearer gp_…" \<br />
-                  &nbsp;&nbsp;-F "photos=@photo.jpg"
-                </code>
+      {loading ? (
+        <div className="text-center py-5 text-muted"><i className="fas fa-spinner fa-spin fa-2x" /></div>
+      ) : tokens.length === 0 ? (
+        <div className="text-center text-muted py-5">
+          <i className="fas fa-key fa-2x mb-2 opacity-25" style={{ display: 'block' }} />
+          <p className="mb-0">{t('token_empty_text')}</p>
+        </div>
+      ) : (
+        <>
+          {active.length > 0 && (
+            <AdminCard title={t('token_active_section')} noPadding className="mb-3">
+              <div className="table-responsive">
+                <table className="table table-sm mb-0">
+                  <thead className="table-light">
+                    <tr>
+                      <th>{t('token_th_name')}</th>
+                      <th>{t('token_th_prefix')}</th>
+                      <th>{t('token_th_scope')}</th>
+                      <th>{t('token_th_created')}</th>
+                      <th>{t('token_th_last_used')}</th>
+                      <th>{t('token_th_expires')}</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {active.map(tk => (
+                      <tr key={tk.id}>
+                        <td>{tk.name}</td>
+                        <td><code>gp_{tk.prefix}…</code></td>
+                        <td>
+                          <span className="badge bg-secondary me-1">{tk.scopeType}</span>
+                          <code style={{ fontSize: '0.72rem' }}>{tk.scopeId.slice(0, 8)}…</code>
+                        </td>
+                        <td>{formatDate(tk.createdAt)}</td>
+                        <td>{formatDate(tk.lastUsedAt)}</td>
+                        <td>{formatDate(tk.expiresAt)}</td>
+                        <td>
+                          <AdminButton
+                            variant="outline-danger"
+                            size="sm"
+                            onClick={() => handleRevoke(tk)}
+                            loading={revoking === tk.id}
+                            loadingLabel="…"
+                          >
+                            {t('token_revoke_btn')}
+                          </AdminButton>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            </div>
-          </div>
-
-          {showForm && (
-            <CreateTokenForm
-              onCreated={handleCreated}
-              onCancel={() => setShowForm(false)}
-            />
+            </AdminCard>
           )}
 
-          {loading ? (
-            <p className="text-muted">Loading…</p>
-          ) : tokens.length === 0 ? (
-            <div className="text-center text-muted py-5">
-              <i className="fas fa-key fa-2x mb-2 opacity-25" />
-              <p className="mb-0">No tokens yet. Create one to upload via API.</p>
-            </div>
-          ) : (
-            <>
-              {active.length > 0 && (
-                <div className="card mb-3">
-                  <div className="card-header py-2">
-                    <span className="fw-semibold">Active tokens</span>
-                  </div>
-                  <div className="card-body p-0">
-                    <div className="table-responsive">
-                      <table className="table table-sm mb-0 table-responsive-stack">
-                        <thead>
-                          <tr>
-                            <th>Name</th>
-                            <th>Prefix</th>
-                            <th>Scope</th>
-                            <th>Created</th>
-                            <th>Last used</th>
-                            <th>Expires</th>
-                            <th></th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {active.map(t => (
-                            <tr key={t.id}>
-                              <td data-label="Name">{t.name}</td>
-                              <td data-label="Prefix"><code>gp_{t.prefix}…</code></td>
-                              <td data-label="Scope">
-                                <span className="badge bg-secondary me-1">{t.scopeType}</span>
-                                <code style={{ fontSize: '0.72rem' }}>{t.scopeId.slice(0, 8)}…</code>
-                              </td>
-                              <td data-label="Created">{formatDate(t.createdAt)}</td>
-                              <td data-label="Last used">{formatDate(t.lastUsedAt)}</td>
-                              <td data-label="Expires">{formatDate(t.expiresAt)}</td>
-                              <td>
-                                <button
-                                  className="btn btn-outline-danger btn-sm"
-                                  onClick={() => handleRevoke(t)}
-                                  disabled={revoking === t.id}
-                                >
-                                  {revoking === t.id ? '…' : 'Revoke'}
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
+          {inactive.length > 0 && (
+            <details className="mt-2">
+              <summary className="text-muted small" style={{ cursor: 'pointer' }}>
+                {t('token_show_inactive', { n: inactive.length })}
+              </summary>
+              <AdminCard noPadding className="mt-2" style={{ opacity: 0.6 }}>
+                <div className="table-responsive">
+                  <table className="table table-sm mb-0">
+                    <thead className="table-light">
+                      <tr>
+                        <th>{t('token_th_name')}</th>
+                        <th>{t('token_th_prefix')}</th>
+                        <th>{t('token_th_scope')}</th>
+                        <th>{t('hub_col_status')}</th>
+                        <th>{t('token_th_created')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {inactive.map(tk => (
+                        <tr key={tk.id}>
+                          <td>{tk.name}</td>
+                          <td><code>gp_{tk.prefix}…</code></td>
+                          <td><span className="badge bg-secondary">{tk.scopeType}</span></td>
+                          <td><TokenStatusBadge token={tk} t={t} /></td>
+                          <td>{formatDate(tk.createdAt)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              )}
-
-              {inactive.length > 0 && (
-                <details className="mt-2">
-                  <summary className="text-muted small" style={{ cursor: 'pointer' }}>
-                    Show {inactive.length} revoked / expired token{inactive.length > 1 ? 's' : ''}
-                  </summary>
-                  <div className="card mt-2 opacity-50">
-                    <div className="card-body p-0">
-                      <div className="table-responsive">
-                        <table className="table table-sm mb-0">
-                          <thead>
-                            <tr>
-                              <th>Name</th>
-                              <th>Prefix</th>
-                              <th>Scope</th>
-                              <th>Status</th>
-                              <th>Created</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {inactive.map(t => (
-                              <tr key={t.id}>
-                                <td>{t.name}</td>
-                                <td><code>gp_{t.prefix}…</code></td>
-                                <td><span className="badge bg-secondary">{t.scopeType}</span></td>
-                                <td><TokenStatusBadge token={t} /></td>
-                                <td>{formatDate(t.createdAt)}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-                </details>
-              )}
-            </>
+              </AdminCard>
+            </details>
           )}
-        </div>
-      </div>
-    </div>
+        </>
+      )}
+    </AdminPage>
   );
 }

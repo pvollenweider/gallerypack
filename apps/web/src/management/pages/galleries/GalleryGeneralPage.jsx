@@ -125,17 +125,17 @@ export default function GalleryGeneralPage() {
         <div className="col-lg-7">
           <AdminCard>
             <p className="text-uppercase fw-semibold text-danger mb-2" style={{ fontSize: '0.72rem', letterSpacing: '0.08em' }}>
-              Danger zone
+              {t('gal_general_danger_zone')}
             </p>
             <div className="d-flex align-items-center justify-content-between gap-3">
               <div>
-                <div className="fw-semibold" style={{ fontSize: '0.9rem' }}>Flush built output</div>
+                <div className="fw-semibold" style={{ fontSize: '0.9rem' }}>{t('gal_general_flush_title')}</div>
                 <div className="text-muted" style={{ fontSize: '0.8rem' }}>
-                  Delete all built files. Gallery will be unavailable until rebuilt. Source photos are not affected.
+                  {t('gal_general_flush_desc')}
                 </div>
               </div>
               <AdminButton variant="outline-danger" size="sm" onClick={() => setFlushConfirm(true)}>
-                Flush
+                {t('gal_general_flush_btn')}
               </AdminButton>
             </div>
             {flushError && <AdminAlert message={flushError} className="mt-2 mb-0" />}
@@ -149,15 +149,15 @@ export default function GalleryGeneralPage() {
           <div className="modal-dialog modal-dialog-centered" onClick={e => e.stopPropagation()}>
             <div className="modal-content">
               <div className="modal-header border-0">
-                <h5 className="modal-title">Flush built output?</h5>
+                <h5 className="modal-title">{t('gal_general_flush_confirm_title')}</h5>
               </div>
               <div className="modal-body">
-                <p>This will delete all built files for <strong>{form.title}</strong>. The gallery will be unavailable until rebuilt. This cannot be undone.</p>
+                <p>{t('gal_general_flush_warning', { title: form.title })}</p>
               </div>
               <div className="modal-footer border-0">
-                <AdminButton variant="secondary" onClick={() => setFlushConfirm(false)} disabled={flushing}>Cancel</AdminButton>
-                <AdminButton variant="danger" loading={flushing} loadingLabel="Flushing…" onClick={flushDist}>
-                  Flush built output
+                <AdminButton variant="secondary" onClick={() => setFlushConfirm(false)} disabled={flushing}>{t('cancel')}</AdminButton>
+                <AdminButton variant="danger" loading={flushing} loadingLabel={t('gal_general_flushing')} onClick={flushDist}>
+                  {t('gal_general_flush_title')}
                 </AdminButton>
               </div>
             </div>

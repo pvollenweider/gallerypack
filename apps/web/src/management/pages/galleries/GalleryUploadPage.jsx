@@ -174,25 +174,25 @@ export default function GalleryUploadPage() {
           </AdminCard>
 
           {/* Maintenance tools */}
-          <AdminCard title="Photo maintenance">
+          <AdminCard title={t('gal_upload_maintenance_section')}>
             <AdminAlert message={maintError} className="mb-3" />
 
             <div className="d-flex flex-column gap-3">
               {/* Reconcile */}
               <div className="d-flex align-items-start gap-3">
                 <div style={{ flex: 1 }}>
-                  <div className="fw-semibold" style={{ fontSize: '0.9rem' }}>Reconcile photos</div>
+                  <div className="fw-semibold" style={{ fontSize: '0.9rem' }}>{t('gal_upload_reconcile_title')}</div>
                   <div className="text-muted" style={{ fontSize: '0.8rem' }}>
-                    Re-register photos found on disk but missing from the database (e.g. after an interrupted upload).
+                    {t('gal_upload_reconcile_desc')}
                   </div>
                   {reconcileResult && (
                     <div className="mt-1 text-success small">
-                      Added {reconcileResult.added} · Already present {reconcileResult.alreadyPresent} · Total on disk {reconcileResult.total}
+                      {t('gal_upload_reconcile_result', { added: reconcileResult.added, alreadyPresent: reconcileResult.alreadyPresent, total: reconcileResult.total })}
                     </div>
                   )}
                 </div>
-                <AdminButton variant="outline-secondary" size="sm" loading={reconciling} loadingLabel="Scanning…" onClick={reconcile}>
-                  Reconcile
+                <AdminButton variant="outline-secondary" size="sm" loading={reconciling} loadingLabel={t('gal_upload_scanning')} onClick={reconcile}>
+                  {t('gal_upload_reconcile_btn')}
                 </AdminButton>
               </div>
 
@@ -201,21 +201,21 @@ export default function GalleryUploadPage() {
               {/* Deduplicate */}
               <div className="d-flex align-items-start gap-3">
                 <div style={{ flex: 1 }}>
-                  <div className="fw-semibold" style={{ fontSize: '0.9rem' }}>Find duplicates</div>
+                  <div className="fw-semibold" style={{ fontSize: '0.9rem' }}>{t('gal_upload_dedupe_title')}</div>
                   <div className="text-muted" style={{ fontSize: '0.8rem' }}>
-                    Detect byte-identical photos (by SHA-256 hash). Runs a dry-run first — you confirm before any deletion.
+                    {t('gal_upload_dedupe_desc')}
                   </div>
                   {dupeResult && !dupeConfirm && (
                     <div className={`mt-1 small ${dupeResult.totalDuplicates > 0 ? 'text-warning' : 'text-success'}`}>
                       {dupeResult.dryRun
-                        ? `${dupeResult.totalDuplicates} duplicate(s) found`
-                        : `${dupeResult.deleted} duplicate(s) removed`
+                        ? t('gal_upload_dedupe_found', { n: dupeResult.totalDuplicates })
+                        : t('gal_upload_dedupe_removed', { n: dupeResult.deleted })
                       }
                     </div>
                   )}
                 </div>
-                <AdminButton variant="outline-secondary" size="sm" loading={deduping} loadingLabel="Scanning…" onClick={dryRunDedupe}>
-                  Find duplicates
+                <AdminButton variant="outline-secondary" size="sm" loading={deduping} loadingLabel={t('gal_upload_scanning')} onClick={dryRunDedupe}>
+                  {t('gal_upload_dedupe_btn')}
                 </AdminButton>
               </div>
             </div>
@@ -230,20 +230,20 @@ export default function GalleryUploadPage() {
           <div className="modal-dialog modal-dialog-centered" onClick={e => e.stopPropagation()}>
             <div className="modal-content">
               <div className="modal-header border-0">
-                <h5 className="modal-title">Remove {dupeResult.totalDuplicates} duplicate(s)?</h5>
+                <h5 className="modal-title">{t('gal_upload_dedupe_confirm_title', { n: dupeResult.totalDuplicates })}</h5>
               </div>
               <div className="modal-body" style={{ maxHeight: 300, overflowY: 'auto' }}>
                 {dupeResult.duplicateSets.map(set => (
                   <div key={set.hash} className="mb-2 small">
-                    <span className="text-success fw-semibold">Keep:</span> {set.keep} &nbsp;
-                    <span className="text-danger fw-semibold">Delete:</span> {set.dupes.join(', ')}
+                    <span className="text-success fw-semibold">{t('gal_upload_dedupe_keep')}</span> {set.keep} &nbsp;
+                    <span className="text-danger fw-semibold">{t('gal_upload_dedupe_delete')}</span> {set.dupes.join(', ')}
                   </div>
                 ))}
               </div>
               <div className="modal-footer border-0">
-                <AdminButton variant="secondary" onClick={() => setDupeConfirm(false)} disabled={deduping}>Cancel</AdminButton>
-                <AdminButton variant="danger" loading={deduping} loadingLabel="Removing…" onClick={runDedupe}>
-                  Remove duplicates
+                <AdminButton variant="secondary" onClick={() => setDupeConfirm(false)} disabled={deduping}>{t('cancel')}</AdminButton>
+                <AdminButton variant="danger" loading={deduping} loadingLabel={t('gal_upload_dedupe_removing')} onClick={runDedupe}>
+                  {t('gal_upload_dedupe_confirm_btn')}
                 </AdminButton>
               </div>
             </div>

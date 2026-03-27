@@ -42,7 +42,7 @@ export default function GalleryInboxPage() {
   }
 
   async function handleRejectAll() {
-    if (!confirm('Reject and delete all pending photos?')) return;
+    if (!confirm(t('inbox_reject_all_confirm'))) return;
     setRejecting(true);
     try {
       await api.rejectPhotos(galleryId, { all: true });
