@@ -16,6 +16,7 @@ export const globalNav = [
   { key: 'organizations', label: 'Organizations',  icon: 'fas fa-building',       href: '/manage/organizations' },
   { key: 'projects',      label: 'Projects',       icon: 'fas fa-folder-open',    href: '/manage/projects' },
   { key: 'galleries',     label: 'Galleries',      icon: 'fas fa-images',         href: '/manage/galleries' },
+  { key: 'tokens',        label: 'Upload Tokens',  icon: 'fas fa-key',            href: '/manage/tokens' },
 ];
 
 export const scopeNav = {

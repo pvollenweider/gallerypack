@@ -77,6 +77,11 @@ export const api = {
   // Unified EXIF analytics (V1 — all 5 metrics)
   getGalleryInsights: (galleryId) => req('GET', `/galleries/${galleryId}/insights`),
 
+  // Personal upload tokens
+  listTokens:   ()                       => req('GET',    '/tokens'),
+  createToken:  (data)                   => req('POST',   '/tokens', data),
+  revokeToken:  (tokenId)                => req('DELETE', `/tokens/${tokenId}`),
+
   // Jobs
   triggerBuild: (galleryId, force = false) => req('POST', `/galleries/${galleryId}/build`, { force }),
   listJobs:     (galleryId)               => req('GET',  `/galleries/${galleryId}/jobs`),

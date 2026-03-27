@@ -43,6 +43,8 @@ import organizationsRoutes from './routes/organizations.js';
 import focalStatsRoutes       from './routes/focalStats.js';
 import insightsRoutes         from './routes/insights.js';
 import galleryMaintenanceRoutes from './routes/galleryMaintenance.js';
+import personalTokensRoutes   from './routes/personalTokens.js';
+import personalUploadRoutes   from './routes/personalUpload.js';
 
 const __DIR        = path.dirname(fileURLToPath(import.meta.url));
 const PORT         = process.env.PORT || 4000;
@@ -129,6 +131,8 @@ app.use('/api/inspector',           inspectorRoutes);
 app.use('/api/galleries',           focalStatsRoutes);
 app.use('/api/galleries',           insightsRoutes);
 app.use('/api/galleries',           galleryMaintenanceRoutes);
+app.use('/api/tokens',              personalTokensRoutes);
+app.use('/api/upload/token',        uploadRateLimit, personalUploadRoutes);
 
 // ── Built galleries — static files (fallback when no reverse proxy in front) ──
 app.use(express.static(DIST_DIR, { index: 'index.html' }));
