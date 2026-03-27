@@ -65,9 +65,11 @@ export default function InspectorPhoto() {
                 <div className="card" style={s.card}>
                   <div className="card-body p-2">
                     <img
-                      src={`/api/galleries/${data.gallery_id}/photos/${encodeURIComponent(data.filename)}/preview`}
+                      src={data.thumbnail?.md ?? `/api/galleries/${data.gallery_id}/photos/${encodeURIComponent(data.filename)}/preview`}
                       style={{ maxWidth: '100%', maxHeight: 400, borderRadius: 4, display: 'block', border: '1px solid #1e1e2e' }}
                       alt={data.filename}
+                      loading="lazy"
+                      decoding="async"
                     />
                   </div>
                 </div>

@@ -156,7 +156,7 @@ function PhotoLightbox({ photos, index, galleryId, onClose, onPrev, onNext }) {
 
   const photo = photos[index];
   const filename = photo.filename;
-  const src = `/api/galleries/${galleryId}/photos/${encodeURIComponent(filename)}/preview`;
+  const src = photo.thumbnail?.md ?? `/api/galleries/${galleryId}/photos/${encodeURIComponent(filename)}/preview`;
   const total = photos.length;
 
   return (
@@ -405,10 +405,11 @@ export default function GalleryInsightsPage() {
                       style={{ borderRadius: 4, overflow: 'hidden', aspectRatio: '1', background: '#f3f4f6', cursor: 'pointer' }}
                     >
                       <img
-                        src={`/api/galleries/${galleryId}/photos/${encodeURIComponent(photo.filename)}/preview`}
+                        src={photo.thumbnail?.sm ?? `/api/galleries/${galleryId}/photos/${encodeURIComponent(photo.filename)}/preview`}
                         alt={photo.filename}
                         style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform 0.15s' }}
                         loading="lazy"
+                        decoding="async"
                         onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.04)'}
                         onMouseLeave={e => e.currentTarget.style.transform = ''}
                       />

@@ -43,10 +43,11 @@ import organizationsRoutes from './routes/organizations.js';
 import focalStatsRoutes       from './routes/focalStats.js';
 import galleryMaintenanceRoutes from './routes/galleryMaintenance.js';
 
-const __DIR      = path.dirname(fileURLToPath(import.meta.url));
-const PORT       = process.env.PORT || 4000;
-const ADMIN_DIST = process.env.ADMIN_DIST || path.join(__DIR, '../../../../apps/web/dist');
-const DIST_DIR   = process.env.DIST_DIR   || path.join(__DIR, '../../../../dist');
+const __DIR        = path.dirname(fileURLToPath(import.meta.url));
+const PORT         = process.env.PORT || 4000;
+const ADMIN_DIST   = process.env.ADMIN_DIST   || path.join(__DIR, '../../../../apps/web/dist');
+const DIST_DIR     = process.env.DIST_DIR     || path.join(__DIR, '../../../../dist');
+const THUMB_ROOT   = process.env.THUMB_ROOT   || path.join(__DIR, '../../../../thumbnails');
 
 // ── App ───────────────────────────────────────────────────────────────────────
 const app = express();
@@ -94,6 +95,12 @@ app.get('/api/health', async (req, res) => {
 
   res.status(checks.ok ? 200 : 503).json(checks);
 });
+
+// ── Static thumbnail assets (/media/thumbnails/<size>/<photoId>.webp) ────────
+app.use('/media/thumbnails', express.static(THUMB_ROOT, {
+  maxAge: '7d',
+  immutable: false,
+}));
 
 // ── Admin SPA (served before API routes) ─────────────────────────────────────
 app.use('/admin', express.static(ADMIN_DIST));

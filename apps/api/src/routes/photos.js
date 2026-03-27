@@ -24,6 +24,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { can } from '../authorization/index.js';
 import { ROOT }         from '../../../../packages/engine/src/fs.js';
 import { createStorage } from '../../../../packages/shared/src/storage/index.js';
+import { generateThumbnails, photoThumbnails } from '../services/thumbnailService.js';
 
 // Storage adapter — resolved once at startup from env
 export const fileStorage = createStorage();
@@ -138,6 +139,7 @@ router.get('/:id/photos', async (req, res) => {
       sort_order:        p.sort_order,
       upload_link_label: p.upload_link_label || null,
       thumb:             nameMap[p.filename] || null,
+      thumbnail:         photoThumbnails(p.id),
     })));
   }
 
@@ -244,7 +246,14 @@ router.post('/:id/photos', (req, res, next) => {
        ON DUPLICATE KEY UPDATE size_bytes = VALUES(size_bytes), original_name = VALUES(original_name)`,
       [photoId, gallery.id, f.filename, f.originalname, f.size, req.userId]
     );
-    uploaded.push({ id: photoId, file: f.filename, size: f.size });
+    // Generate sm + md thumbnails immediately — failure does NOT abort the upload
+    try {
+      await generateThumbnails(f.path, photoId);
+    } catch (err) {
+      console.error(`[upload] thumbnail generation failed for ${photoId}: ${err.message}`);
+    }
+
+    uploaded.push({ id: photoId, file: f.filename, size: f.size, thumbnail: photoThumbnails(photoId) });
   }
 
   if (uploaded.length > 0) {
