@@ -29,6 +29,7 @@ import ManageLayout    from './management/layout/ManageLayout.jsx';
 import PlatformLayout  from './management/layout/PlatformLayout.jsx';
 import ManageHub       from './management/pages/manage/ManageHub.jsx';
 import TokensPage      from './management/pages/manage/TokensPage.jsx';
+import ProfilePage     from './management/pages/profile/ProfilePage.jsx';
 import { PlatformOverviewPage, SmtpPage, LicensePage, BrandingPage } from './management/pages/platform/index.jsx';
 import { OrganizationsListPage, OrganizationOverviewPage, OrganizationGeneralPage, OrganizationDefaultsPage, OrganizationAccessPage, OrganizationTeamPage, OrganizationProjectsPage } from './management/pages/organizations/index.jsx';
 import { ProjectsListPage, ProjectOverviewPage, ProjectGeneralPage, ProjectGalleriesPage, ProjectAccessPage, ProjectDeliveryPage } from './management/pages/projects/index.jsx';
@@ -95,6 +96,7 @@ export default function App() {
 
       {/* ── Management — /admin/* ── */}
       <Route path="/admin" element={<ManageLayout><ManageHub /></ManageLayout>} />
+      <Route path="/admin/profile" element={<ManageLayout><ProfilePage /></ManageLayout>} />
       <Route path="/admin/tokens" element={<ManageLayout><TokensPage /></ManageLayout>} />
       <Route path="/admin/organizations" element={<ManageLayout><OrganizationsListPage /></ManageLayout>} />
       <Route path="/admin/organizations/:orgId" element={<ManageLayout><OrganizationOverviewPage /></ManageLayout>} />

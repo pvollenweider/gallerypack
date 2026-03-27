@@ -64,6 +64,7 @@ const SEGMENT_LABELS = {
   photos:        'Photos',
   inbox:         'Inbox',
   jobs:          'Jobs',
+  profile:       'Profile',
 };
 
 /**

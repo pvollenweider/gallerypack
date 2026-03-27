@@ -63,9 +63,14 @@ export default function ScopeSidebar({ scope, params = {}, onToggle, isMobileDra
           >
             {(user?.name || user?.email || '?')[0].toUpperCase()}
           </span>
-          <span className="text-white text-truncate" style={{ fontSize: '0.85rem' }}>
-            {user?.name || user?.email}
-          </span>
+          <div className="flex-grow-1 overflow-hidden">
+            <div className="text-white text-truncate" style={{ fontSize: '0.85rem' }}>
+              {user?.name || user?.email}
+            </div>
+            <NavLink to="/admin/profile" className="text-muted" style={{ fontSize: '0.75rem' }} onClick={handleNavClick}>
+              <i className="fas fa-user-cog me-1" />{t('profile_title')}
+            </NavLink>
+          </div>
         </div>
 
         {/* Global navigation */}
