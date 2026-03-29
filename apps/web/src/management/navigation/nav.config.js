@@ -53,7 +53,8 @@ export const scopeNav = {
     { key: 'downloads',  labelKey: 'nav_downloads',  icon: 'fas fa-download',    href: '/admin/galleries/:galleryId/downloads' },
     { key: 'upload',     labelKey: 'nav_upload',     icon: 'fas fa-upload',      href: '/admin/galleries/:galleryId/upload' },
     { key: 'publish',    labelKey: 'nav_publish',    icon: 'fas fa-rocket',      href: '/admin/galleries/:galleryId/publish' },
-    { key: 'insights',   labelKey: 'tab_insights',   icon: 'fas fa-chart-bar',   href: '/admin/galleries/:galleryId/insights' },
+    { key: 'photographers', labelKey: 'nav_photographers', icon: 'fas fa-camera', href: '/admin/galleries/:galleryId/photographers' },
+    { key: 'insights',      labelKey: 'tab_insights',      icon: 'fas fa-chart-bar',   href: '/admin/galleries/:galleryId/insights' },
   ],
 };
 

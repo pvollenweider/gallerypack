@@ -127,8 +127,9 @@ app.get('/api/health', async (req, res) => {
 
 // ── Static thumbnail assets (/media/thumbnails/<size>/<photoId>.webp) ────────
 app.use('/media/thumbnails', express.static(THUMB_ROOT, {
-  maxAge: '7d',
-  immutable: false,
+  maxAge: 0,        // thumbnails are generated async — force revalidation via ETag
+  etag: true,
+  lastModified: true,
 }));
 
 // ── Admin SPA (served before API routes) ─────────────────────────────────────
