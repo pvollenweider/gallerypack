@@ -19,7 +19,7 @@
 
 import path              from 'node:path';
 import fs                from 'node:fs/promises';
-import { existsSync }    from 'node:fs';
+import { existsSync, statSync } from 'node:fs';
 import { INTERNAL_ROOT } from '../../../../packages/engine/src/fs.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -39,13 +39,15 @@ export function thumbUrl(photoId, size) {
 }
 
 /**
- * Returns { sm, md } URLs, null for each size that doesn't exist on disk yet.
+ * Returns { sm, md } URLs, null for each size that doesn't exist on disk yet
+ * or whose file is 0 bytes (failed generation).
  */
 export function photoThumbnails(photoId) {
   const result = {};
   for (const size of Object.keys(THUMB_SIZES)) {
     try {
-      result[size] = existsSync(thumbPath(photoId, size)) ? thumbUrl(photoId, size) : null;
+      const p = thumbPath(photoId, size);
+      result[size] = (existsSync(p) && statSync(p).size > 0) ? thumbUrl(photoId, size) : null;
     } catch {
       result[size] = null;
     }
@@ -101,11 +103,18 @@ export async function generateSingleThumbnail(srcPath, photoId, size) {
   const dest = thumbPath(photoId, size);
   const { default: sharp } = await import('sharp');
   await fs.mkdir(path.dirname(dest), { recursive: true });
-  await sharp(srcPath, { failOn: 'none' })
+
+  // Use toBuffer() so that a failed Sharp pipeline never leaves a 0-byte file on disk.
+  // .toFile() creates the destination before writing; if Sharp errors mid-stream the file
+  // stays at 0 bytes and photoThumbnails() would serve a broken URL indefinitely.
+  const buf = await sharp(srcPath, { failOn: 'none' })
     .rotate()
     .resize(maxDim, maxDim, { fit: 'inside', withoutEnlargement: true })
     .webp({ quality: 80 })
-    .toFile(dest);
+    .toBuffer();
+
+  if (!buf || buf.length === 0) throw new Error('Sharp produced an empty buffer');
+  await fs.writeFile(dest, buf);
   return dest;
 }
 
