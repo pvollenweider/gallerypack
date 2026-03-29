@@ -6,9 +6,10 @@
 // Unauthorized use is strictly prohibited.
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Navigate } from 'react-router-dom';
 import { api } from '../../../lib/api.js';
 import { useT } from '../../../lib/I18nContext.jsx';
+import { useAuth } from '../../../lib/auth.jsx';
 import { AdminPage, AdminCard, AdminInput, AdminBadge, AdminAlert, AdminButton, AdminLoader } from '../../../components/ui/index.js';
 
 const ROLES = ['owner', 'admin', 'collaborator', 'photographer'];
@@ -17,11 +18,15 @@ const ROLE_BADGE = { owner: 'danger', admin: 'primary', collaborator: 'info', ph
 export default function OrganizationTeamPage() {
   const t = useT();
   const { orgId } = useParams();
+  const { user } = useAuth();
+  const canManage = ['admin', 'owner'].includes(user?.studioRole) || user?.platformRole === 'superadmin';
+  const canAccess = canManage;
   const [members,     setMembers]     = useState([]);
   const [invitations, setInvitations] = useState([]);
   const [loading,     setLoading]     = useState(true);
 
   // Invite form
+  const [name,       setName]       = useState('');
   const [email,      setEmail]      = useState('');
   const [role,       setRole]       = useState('collaborator');
   const [inviting,    setInviting]    = useState(false);
@@ -44,9 +49,13 @@ export default function OrganizationTeamPage() {
     e.preventDefault();
     setInviting(true); setInviteMsg(''); setInviteErr(''); setInviteLink(''); setLinkCopied(false);
     try {
-      const inv = await api.createInvitation({ email, role });
+      const inv = await api.createInvitation({ name, email, role });
       setInviteMsg(t('invite_sent_to', { email }));
-      if (inv?.token) setInviteLink(window.location.origin + '/invite/' + inv.token);
+      if (inv?.token) {
+        const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+        setInviteLink(window.location.origin + base + '/invite/' + inv.token);
+      }
+      setName('');
       setEmail('');
       load();
     } catch (err) {
@@ -69,6 +78,8 @@ export default function OrganizationTeamPage() {
       load();
     } catch {}
   }
+
+  if (!canAccess) return <Navigate to={`/admin/organizations/${orgId}`} replace />;
 
   return (
     <AdminPage title={t('org_team_title')} maxWidth="100%">
@@ -122,11 +133,13 @@ export default function OrganizationTeamPage() {
                           <td>{inv.email}</td>
                           <td><AdminBadge color={ROLE_BADGE[inv.role] || 'secondary'}>{inv.role}</AdminBadge></td>
                           <td className="text-muted" style={{ fontSize: '0.8rem' }}>{new Date(inv.created_at).toLocaleDateString()}</td>
+                          {canManage && (
                           <td>
                             <AdminButton variant="outline-danger" size="sm" onClick={() => revokeInvite(inv.id)} aria-label={`Revoke invitation for ${inv.email}`}>
                               <i className="fas fa-times" aria-hidden="true" />
                             </AdminButton>
                           </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
@@ -135,11 +148,20 @@ export default function OrganizationTeamPage() {
               </AdminCard>
             )}
 
-            {/* Invite */}
-            <AdminCard title={t('org_team_invite_section')}>
+            {/* Invite — admin/owner only */}
+            {canManage && <AdminCard title={t('org_team_invite_section')}>
               <form onSubmit={invite}>
                 <div className="row align-items-end">
-                  <div className="col-sm-5 mb-3">
+                  <div className="col-sm-4 mb-3">
+                    <AdminInput
+                      label={t('profile_name')}
+                      value={name}
+                      onChange={e => setName(e.target.value)}
+                      placeholder={t('profile_name_placeholder')}
+                      className="mb-0"
+                    />
+                  </div>
+                  <div className="col-sm-4 mb-3">
                     <AdminInput
                       label={t('login_email')}
                       type="email"
@@ -150,13 +172,13 @@ export default function OrganizationTeamPage() {
                       className="mb-0"
                     />
                   </div>
-                  <div className="col-sm-4 mb-3">
+                  <div className="col-sm-2 mb-3">
                     <label className="form-label">{t('team_th_role')}</label>
                     <select className="form-select" value={role} onChange={e => setRole(e.target.value)}>
                       {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                     </select>
                   </div>
-                  <div className="col-sm-3 mb-3">
+                  <div className="col-sm-2 mb-3">
                     <AdminButton type="submit" loading={inviting} loadingLabel={t('saving')} className="w-100">
                       {t('org_team_send_invite_btn')}
                     </AdminButton>
@@ -181,7 +203,7 @@ export default function OrganizationTeamPage() {
                   </div>
                 )}
               </form>
-            </AdminCard>
+            </AdminCard>}
 
           </div>
         </div>

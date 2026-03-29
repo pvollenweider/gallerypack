@@ -36,7 +36,7 @@ router.post('/', requireAuth, async (req, res) => {
     return res.status(403).json({ error: 'Forbidden' });
   }
 
-  const { email, role, galleryId, galleryRole } = req.body || {};
+  const { email, name, role, galleryId, galleryRole } = req.body || {};
   if (!email) return res.status(400).json({ error: 'email is required' });
   if (!role || !VALID_ROLES.includes(role)) {
     return res.status(400).json({ error: `role must be one of: ${VALID_ROLES.join(', ')}` });
@@ -60,7 +60,7 @@ router.post('/', requireAuth, async (req, res) => {
 
   let invitation;
   try {
-    invitation = await createInvitation(req.studioId, email, role, req.userId, { galleryId: galleryId || null, galleryRole: galleryRole || null });
+    invitation = await createInvitation(req.studioId, email, role, req.userId, { galleryId: galleryId || null, galleryRole: galleryRole || null, name: name || '' });
   } catch (err) {
     if (err.message && (err.message.includes('UNIQUE') || err.message.includes('Duplicate'))) {
       return res.status(409).json({ error: 'An invitation for this email already exists' });

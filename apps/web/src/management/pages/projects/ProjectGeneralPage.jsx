@@ -9,7 +9,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../../lib/api.js';
 import { useT } from '../../../lib/I18nContext.jsx';
-import { AdminPage, AdminCard, AdminInput, AdminSelect, AdminAlert, AdminButton } from '../../../components/ui/index.js';
+import { AdminPage, AdminCard, AdminInput, AdminSelect, AdminAlert, AdminButton, AdminToast } from '../../../components/ui/index.js';
 
 export default function ProjectGeneralPage() {
   const t = useT();
@@ -17,9 +17,8 @@ export default function ProjectGeneralPage() {
   const navigate = useNavigate();
   const [project, setProject] = useState(null);
   const [form,    setForm]    = useState({ name: '', slug: '', description: '', visibility: 'public', standaloneDefault: false });
-  const [saving,  setSaving]  = useState(false);
-  const [saved,   setSaved]   = useState('');
   const [error,   setError]   = useState('');
+  const [toast,   setToast]   = useState('');
 
   // Galleries list (for danger zone)
   const [galleries,    setGalleries]    = useState([]);
@@ -43,21 +42,29 @@ export default function ProjectGeneralPage() {
       .finally(() => setGalLoading(false));
   }, [projectId]);
 
+  async function save(patch) {
+    setError('');
+    try {
+      await api.updateProject(projectId, patch);
+      setToast(t('changes_saved'));
+    } catch (err) { setError(err.message); }
+  }
+
+  function fieldBlur(field) {
+    return () => save({ ...form, [field]: form[field] });
+  }
+
   function set(field) {
     return e => setForm(f => ({ ...f, [field]: e.target.value }));
   }
 
-  async function save(e) {
-    e.preventDefault();
-    setSaving(true); setSaved(''); setError('');
-    try {
-      await api.updateProject(projectId, form);
-      setSaved(t('changes_saved'));
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
+  function setAndSave(field) {
+    return e => {
+      const val = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+      const next = { ...form, [field]: val };
+      setForm(next);
+      save(next);
+    };
   }
 
   async function deleteProject() {
@@ -76,62 +83,61 @@ export default function ProjectGeneralPage() {
 
   return (
     <AdminPage title={t('proj_general_title')} maxWidth="100%">
+      <AdminToast message={toast} onDone={() => setToast('')} />
+
       <div className="row">
         <div className="col-lg-7">
 
-          {/* Settings form */}
-          <form onSubmit={save}>
-            <AdminCard title={t('branding_identity_section')}>
-              <AdminInput
-                label={t('orgs_th_name')}
-                value={form.name}
-                onChange={set('name')}
-                required
+          {/* Settings */}
+          <AdminCard title={t('branding_identity_section')}>
+            <AdminInput
+              label={t('orgs_th_name')}
+              value={form.name}
+              onChange={set('name')}
+              onBlur={fieldBlur('name')}
+              required
+            />
+            <AdminInput
+              label={t('orgs_th_slug')}
+              prefix="/"
+              value={form.slug}
+              onChange={set('slug')}
+              onBlur={fieldBlur('slug')}
+              required
+              pattern="[-a-z0-9]+"
+            />
+            <AdminInput
+              label={t('field_description')}
+              value={form.description}
+              onChange={set('description')}
+              onBlur={fieldBlur('description')}
+            />
+            <AdminSelect
+              label={t('proj_visibility_label')}
+              value={form.visibility}
+              onChange={setAndSave('visibility')}
+            >
+              <option value="public">{t('access_public')}</option>
+              <option value="private">{t('access_private')}</option>
+            </AdminSelect>
+            <div className="form-check form-switch mb-0">
+              <input
+                className="form-check-input"
+                type="checkbox"
+                id="standalone-default-toggle"
+                checked={form.standaloneDefault}
+                onChange={setAndSave('standaloneDefault')}
               />
-              <AdminInput
-                label={t('orgs_th_slug')}
-                prefix="/"
-                value={form.slug}
-                onChange={set('slug')}
-                required
-                pattern="[-a-z0-9]+"
-              />
-              <AdminInput
-                label={t('field_description')}
-                value={form.description}
-                onChange={set('description')}
-              />
-              <AdminSelect
-                label={t('proj_visibility_label')}
-                value={form.visibility}
-                onChange={set('visibility')}
-              >
-                <option value="public">{t('access_public')}</option>
-                <option value="private">{t('access_private')}</option>
-              </AdminSelect>
-              <div className="form-check form-switch mb-0">
-                <input
-                  className="form-check-input"
-                  type="checkbox"
-                  id="standalone-default-toggle"
-                  checked={form.standaloneDefault}
-                  onChange={e => setForm(f => ({ ...f, standaloneDefault: e.target.checked }))}
-                />
-                <label className="form-check-label" htmlFor="standalone-default-toggle">
-                  {t('proj_standalone_default_label')}
-                </label>
-                <div className="text-muted mt-1" style={{ fontSize: '0.8rem' }}>{t('proj_standalone_default_hint')}</div>
-              </div>
-            </AdminCard>
-            <AdminAlert variant="success" message={saved} />
-            <AdminAlert message={error} />
-            <AdminButton type="submit" loading={saving} loadingLabel={t('saving')}>
-              {t('save')}
-            </AdminButton>
-          </form>
+              <label className="form-check-label" htmlFor="standalone-default-toggle">
+                {t('proj_standalone_default_label')}
+              </label>
+              <div className="text-muted mt-1" style={{ fontSize: '0.8rem' }}>{t('proj_standalone_default_hint')}</div>
+            </div>
+          </AdminCard>
+          <AdminAlert message={error} />
 
           {/* Danger zone */}
-          <div className="mt-5">
+          <div className="mt-4">
             <h6 className="text-danger fw-bold mb-2" style={{ letterSpacing: '0.04em', textTransform: 'uppercase', fontSize: '0.75rem' }}>
               <i className="fas fa-exclamation-triangle me-1" />{t('proj_danger_zone')}
             </h6>
@@ -139,9 +145,7 @@ export default function ProjectGeneralPage() {
               <div className="d-flex align-items-center justify-content-between p-3 gap-3">
                 <div>
                   <div className="fw-semibold" style={{ fontSize: '0.9rem' }}>{t('proj_delete_title')}</div>
-                  <div className="text-muted" style={{ fontSize: '0.8rem' }}>
-                    {t('proj_delete_desc')}
-                  </div>
+                  <div className="text-muted" style={{ fontSize: '0.8rem' }}>{t('proj_delete_desc')}</div>
                 </div>
                 <AdminButton
                   variant="outline-danger"
@@ -154,8 +158,6 @@ export default function ProjectGeneralPage() {
 
               {showDanger && (
                 <div style={{ borderTop: '1px solid #fca5a5', background: '#fff5f5', borderRadius: '0 0 7px 7px', padding: '1rem 1.25rem' }}>
-
-                  {/* Gallery list */}
                   {!galLoading && galleries.length > 0 && (
                     <div className="mb-3">
                       <div className="fw-semibold mb-1" style={{ fontSize: '0.82rem', color: '#b91c1c' }}>
@@ -172,13 +174,11 @@ export default function ProjectGeneralPage() {
                       </ul>
                     </div>
                   )}
-
                   {!galLoading && galleries.length === 0 && (
                     <div className="mb-3 text-muted" style={{ fontSize: '0.82rem' }}>
                       <i className="fas fa-info-circle me-1" />{t('proj_delete_no_galleries')}
                     </div>
                   )}
-
                   <label className="form-label fw-semibold" style={{ fontSize: '0.82rem' }}>
                     {t('proj_delete_confirm_label', { name: project?.name ?? '' })}
                   </label>
@@ -190,27 +190,17 @@ export default function ProjectGeneralPage() {
                     placeholder={project?.name ?? ''}
                     autoFocus
                   />
-
-                  {deleteError && (
-                    <div className="text-danger small mb-2">{deleteError}</div>
-                  )}
-
+                  {deleteError && <div className="text-danger small mb-2">{deleteError}</div>}
                   <div className="d-flex gap-2">
                     <AdminButton
-                      variant="danger"
-                      size="sm"
-                      disabled={!canDelete}
-                      loading={deleting}
-                      loadingLabel={t('proj_deleting')}
-                      onClick={deleteProject}
+                      variant="danger" size="sm" disabled={!canDelete}
+                      loading={deleting} loadingLabel={t('proj_deleting')} onClick={deleteProject}
                     >
                       <i className="fas fa-trash me-1" />{t('proj_delete_confirm_btn')}
                     </AdminButton>
                     <AdminButton
-                      variant="outline-secondary"
-                      size="sm"
-                      onClick={() => { setShowDanger(false); setConfirmName(''); }}
-                      disabled={deleting}
+                      variant="outline-secondary" size="sm"
+                      onClick={() => { setShowDanger(false); setConfirmName(''); }} disabled={deleting}
                     >
                       {t('cancel')}
                     </AdminButton>

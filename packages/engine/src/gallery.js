@@ -195,8 +195,9 @@ export async function buildGallery(srcName, { build, project: projectOverride, d
     }
   }
 
+  const isStandalone = !!galCfg.project.standalone;
+
   if (!WEBP_ONLY) {
-    const isStandalone = !!galCfg.project.standalone;
     log('\n\x1b[1m🏗   HTML\x1b[0m');
 
     const distDepth    = distName ? distName.split('/').length : 1;

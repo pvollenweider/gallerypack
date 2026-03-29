@@ -130,11 +130,12 @@ export async function updateOrganization(id, patch) {
   const stuSets = [];
   const stuVals = [];
 
-  if (patch.name    !== undefined) { orgSets.push('name = ?');    orgVals.push(patch.name);    stuSets.push('name = ?');    stuVals.push(patch.name); }
-  if (patch.slug    !== undefined) { orgSets.push('slug = ?');    orgVals.push(patch.slug);    stuSets.push('slug = ?');    stuVals.push(patch.slug); }
-  if (patch.locale  !== undefined) { orgSets.push('locale = ?');  orgVals.push(patch.locale);  stuSets.push('locale = ?');  stuVals.push(patch.locale); }
-  if (patch.country !== undefined) { orgSets.push('country = ?'); orgVals.push(patch.country); stuSets.push('country = ?'); stuVals.push(patch.country); }
-  if (patch.plan    !== undefined) {                                                             stuSets.push('plan = ?');    stuVals.push(patch.plan); }
+  if (patch.name        !== undefined) { orgSets.push('name = ?');        orgVals.push(patch.name);        stuSets.push('name = ?');    stuVals.push(patch.name); }
+  if (patch.description !== undefined) { orgSets.push('description = ?'); orgVals.push(patch.description ?? null); }
+  if (patch.slug        !== undefined) { orgSets.push('slug = ?');        orgVals.push(patch.slug);        stuSets.push('slug = ?');    stuVals.push(patch.slug); }
+  if (patch.locale      !== undefined) { orgSets.push('locale = ?');      orgVals.push(patch.locale);      stuSets.push('locale = ?');  stuVals.push(patch.locale); }
+  if (patch.country     !== undefined) { orgSets.push('country = ?');     orgVals.push(patch.country);     stuSets.push('country = ?'); stuVals.push(patch.country); }
+  if (patch.plan        !== undefined) {                                                                     stuSets.push('plan = ?');    stuVals.push(patch.plan); }
 
   if (!orgSets.length && !stuSets.length) return getOrganization(id);
 
@@ -217,9 +218,14 @@ export async function listOrgMembers(orgId) {
  * @returns {Promise<string|null>}
  */
 export async function getOrgRole(userId, orgId) {
+  // Memberships created via upsertOrgMember set organization_id = orgId.
+  // Memberships created via upsertStudioMembership (invite flow) only set studio_id.
+  // Both cases must be recognised so collaborators can access the org.
   const [rows] = await query(
-    'SELECT role FROM studio_memberships WHERE user_id = ? AND organization_id = ?',
-    [userId, orgId]
+    `SELECT role FROM studio_memberships
+     WHERE user_id = ? AND (organization_id = ? OR (organization_id IS NULL AND studio_id = ?))
+     LIMIT 1`,
+    [userId, orgId, orgId]
   );
   return rows[0]?.role ?? null;
 }

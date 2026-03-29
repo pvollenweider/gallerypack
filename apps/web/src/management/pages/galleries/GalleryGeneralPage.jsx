@@ -10,7 +10,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../../lib/api.js';
 import { useT } from '../../../lib/I18nContext.jsx';
 import { slugify } from '../../../lib/i18n.js';
-import { AdminPage, AdminCard, AdminButton, AdminAlert } from '../../../components/ui/index.js';
+import { AdminPage, AdminCard, AdminButton, AdminAlert, AdminToast } from '../../../components/ui/index.js';
 import InheritedValue from '../../components/InheritedValue.jsx';
 
 export default function GalleryGeneralPage() {
@@ -20,14 +20,13 @@ export default function GalleryGeneralPage() {
 
   // Main form — identity + access + downloads + build (all → api.updateGallery)
   const [form, setForm] = useState({
-    title: '', slug: '', locale: 'en', standalone: false,
+    title: '', slug: '', description: '', locale: 'en', standalone: false,
     access: 'public', password: '',
-    downloadMode: 'display', apacheProtection: false,
+    downloadMode: 'display', allowDownloadGallery: false, apacheProtection: false,
   });
   const [slugEdited, setSlugEdited] = useState(false);
-  const [saving,  setSaving]  = useState(false);
-  const [saved,   setSaved]   = useState('');
-  const [error,   setError]   = useState('');
+  const [error,      setError]      = useState('');
+  const [toast,      setToast]      = useState('');
   const [orgDefault, setOrgDefault] = useState(null);
   const [photoCount, setPhotoCount] = useState(null);
 
@@ -58,10 +57,10 @@ export default function GalleryGeneralPage() {
   useEffect(() => {
     Promise.all([api.getGallery(galleryId), api.getSettings()]).then(([g, s]) => {
       setForm({
-        title: g.title || '', slug: g.slug || '',
+        title: g.title || '', slug: g.slug || '', description: g.description || '',
         locale: g.locale || 'en', standalone: !!g.standalone,
         access: g.access || 'public', password: '',
-        downloadMode: g.downloadMode || 'display', apacheProtection: !!g.apacheProtection,
+        downloadMode: g.downloadMode || 'display', allowDownloadGallery: !!g.allowDownloadGallery, apacheProtection: !!g.apacheProtection,
       });
       setSlugEdited(true);
       setOrgDefault(s?.defaultAccess ?? null);
@@ -89,22 +88,19 @@ export default function GalleryGeneralPage() {
     return e => setForm(f => ({ ...f, [field]: e.target.value }));
   }
 
-  async function save(e) {
-    e.preventDefault();
-    setSaving(true); setSaved(''); setError('');
+  async function saveGallery(patch) {
+    setError('');
     const payload = {
-      title: form.title, slug: form.slug, locale: form.locale, standalone: form.standalone,
-      access: form.access, downloadMode: form.downloadMode, apacheProtection: form.apacheProtection,
+      title: patch.title, slug: patch.slug, description: patch.description, locale: patch.locale, standalone: patch.standalone,
+      access: patch.access, downloadMode: patch.downloadMode, allowDownloadGallery: patch.allowDownloadGallery, apacheProtection: patch.apacheProtection,
     };
-    if (form.access === 'password' && form.password.trim()) payload.password = form.password.trim();
+    if (patch.access === 'password' && patch.password?.trim()) payload.password = patch.password.trim();
     try {
       await api.updateGallery(galleryId, payload);
-      setSaved(t('changes_saved'));
-      setForm(f => ({ ...f, password: '' }));
+      setToast(t('changes_saved'));
+      if (patch.password) setForm(f => ({ ...f, password: '' }));
     } catch (err) {
       setError(err.message);
-    } finally {
-      setSaving(false);
     }
   }
 
@@ -176,26 +172,36 @@ export default function GalleryGeneralPage() {
 
   return (
     <AdminPage title={form.title ? t('gal_settings_title', { title: form.title }) : t('nav_settings')}>
+      <AdminToast message={toast} onDone={() => setToast('')} />
       <div className="row">
         <div className="col-lg-7">
-          <form onSubmit={save}>
+          <div>
 
             {/* Identity */}
             <AdminCard title={t('branding_identity_section')}>
               <div className="mb-3">
                 <label className="form-label">{t('field_title')}</label>
-                <input className="form-control" value={form.title} onChange={handleTitleChange} required />
+                <input className="form-control" value={form.title} onChange={handleTitleChange}
+                  onBlur={() => saveGallery(form)} required />
               </div>
               <div className="mb-3">
                 <label className="form-label">{t('orgs_th_slug')}</label>
                 <div className="input-group">
                   <span className="input-group-text text-muted">/</span>
-                  <input className="form-control" value={form.slug} onChange={handleSlugChange} required pattern="[-a-z0-9]+" />
+                  <input className="form-control" value={form.slug} onChange={handleSlugChange}
+                    onBlur={() => saveGallery(form)} required pattern="[-a-z0-9]+" />
                 </div>
+              </div>
+              <div className="mb-3">
+                <label className="form-label">{t('field_description')}</label>
+                <textarea className="form-control" rows={2} value={form.description}
+                  onChange={set('description')} onBlur={() => saveGallery(form)}
+                  placeholder={t('gal_description_placeholder')} />
               </div>
               <div className="mb-0">
                 <label className="form-label">{t('field_locale')}</label>
-                <input className="form-control" value={form.locale} onChange={set('locale')} placeholder="en" />
+                <input className="form-control" value={form.locale} onChange={set('locale')}
+                  onBlur={() => saveGallery(form)} placeholder="en" />
               </div>
             </AdminCard>
 
@@ -204,7 +210,8 @@ export default function GalleryGeneralPage() {
               {['public', 'private', 'password'].map(v => (
                 <div key={v} className="form-check mb-2">
                   <input className="form-check-input" type="radio" name="access" id={`access-${v}`}
-                    value={v} checked={form.access === v} onChange={set('access')} />
+                    value={v} checked={form.access === v}
+                    onChange={e => { const next = { ...form, access: e.target.value }; setForm(next); saveGallery(next); }} />
                   <label className="form-check-label" htmlFor={`access-${v}`}>
                     {v === 'public'   && t('access_public_full')}
                     {v === 'private'  && t('access_private_full')}
@@ -216,7 +223,8 @@ export default function GalleryGeneralPage() {
                 <div className="mt-3">
                   <label className="form-label">{t('field_password')}</label>
                   <input className="form-control" type="password" value={form.password}
-                    onChange={set('password')} placeholder={t('gal_access_password_hint')}
+                    onChange={set('password')} onBlur={() => { if (form.password) saveGallery(form); }}
+                    placeholder={t('gal_access_password_hint')}
                     autoComplete="new-password" style={{ maxWidth: 300 }} />
                 </div>
               )}
@@ -229,21 +237,32 @@ export default function GalleryGeneralPage() {
             <AdminCard title={t('gal_downloads_section')}>
               <label className="form-label">{t('download_mode_label')}</label>
               <select className="form-select" value={form.downloadMode}
-                onChange={e => setForm(f => ({ ...f, downloadMode: e.target.value }))}>
+                onChange={e => { const next = { ...form, downloadMode: e.target.value }; setForm(next); saveGallery(next); }}>
                 <option value="none">{t('download_mode_none')}</option>
                 <option value="display">{t('download_mode_display')}</option>
                 <option value="original">{t('download_mode_original')}</option>
               </select>
-              <div className="text-muted mt-2 mb-0" style={{ fontSize: '0.8rem' }}>
+              <div className="text-muted mt-2" style={{ fontSize: '0.8rem' }}>
                 {form.downloadMode === 'none'     && t('download_mode_none_hint')}
                 {form.downloadMode === 'display'  && t('download_mode_display_hint')}
                 {form.downloadMode === 'original' && t('download_mode_original_hint')}
               </div>
+              {form.downloadMode !== 'none' && (
+                <div className="form-check form-switch mt-3 mb-0">
+                  <input className="form-check-input" type="checkbox" id="allowDownloadGallery"
+                    checked={form.allowDownloadGallery}
+                    onChange={e => { const next = { ...form, allowDownloadGallery: e.target.checked }; setForm(next); saveGallery(next); }} />
+                  <label className="form-check-label" htmlFor="allowDownloadGallery">
+                    {t('gal_downloads_zip_label')}
+                  </label>
+                  <div className="text-muted mt-1" style={{ fontSize: '0.8rem' }}>{t('gal_downloads_zip_hint')}</div>
+                </div>
+              )}
               {showApacheToggle && (
                 <div className="form-check form-switch mt-3 mb-0">
                   <input className="form-check-input" type="checkbox" id="apacheProtection"
                     checked={form.apacheProtection}
-                    onChange={e => setForm(f => ({ ...f, apacheProtection: e.target.checked }))} />
+                    onChange={e => { const next = { ...form, apacheProtection: e.target.checked }; setForm(next); saveGallery(next); }} />
                   <label className="form-check-label" htmlFor="apacheProtection">
                     {t('gal_downloads_apache_label')}
                   </label>
@@ -272,7 +291,7 @@ export default function GalleryGeneralPage() {
               <div className="form-check form-switch mb-0">
                 <input className="form-check-input" type="checkbox" id="standalone-toggle"
                   checked={form.standalone}
-                  onChange={e => setForm(f => ({ ...f, standalone: e.target.checked }))} />
+                  onChange={e => { const next = { ...form, standalone: e.target.checked }; setForm(next); saveGallery(next); }} />
                 <label className="form-check-label" htmlFor="standalone-toggle">
                   {t('gal_general_standalone_label')}
                 </label>
@@ -280,12 +299,8 @@ export default function GalleryGeneralPage() {
               </div>
             </AdminCard>
 
-            <AdminAlert variant="success" message={saved} />
             <AdminAlert message={error} />
-            <AdminButton type="submit" loading={saving} loadingLabel={t('saving')} className="mb-5">
-              {t('save')}
-            </AdminButton>
-          </form>
+          </div>
 
           {/* Upload links / Photographers */}
           <AdminCard title={t('gal_upload_links_section')} className="mb-4">

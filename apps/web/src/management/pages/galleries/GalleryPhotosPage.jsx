@@ -38,6 +38,10 @@ export default function GalleryPhotosPage() {
   const [buildError,  setBuildError]  = useState('');
   const [activeJobId, setActiveJobId] = useState(null);
 
+  // Thumbnail regen
+  const [reanalyzing, setReanalyzing] = useState(false);
+  const [reanalyzeResult, setReanalyzeResult] = useState(null);
+
   const pollRef = useRef(null);
 
   function loadGallery() {
@@ -87,6 +91,19 @@ export default function GalleryPhotosPage() {
     }
   }
 
+  async function reanalyze() {
+    setReanalyzing(true); setReanalyzeResult(null);
+    try {
+      const r = await api.reanalyzePhotos(galleryId);
+      setReanalyzeResult(r);
+      refreshPhotos().then(p => { if (p.some(x => !x.thumbnail?.sm)) startPolling(); });
+    } catch (err) {
+      setToast(`${t('error')}: ${err.message}`);
+    } finally {
+      setReanalyzing(false);
+    }
+  }
+
   async function handleDelete(filename) {
     if (!confirm(t('delete_photo_confirm', { file: filename }))) return;
     setDeleting(filename);
@@ -128,9 +145,11 @@ export default function GalleryPhotosPage() {
   // Compute public gallery URL
   function galleryPublicUrl(g) {
     if (!g || g.buildStatus !== 'done' || g.access === 'private') return null;
-    const name     = g.distName || g.slug;
+    // distName is the authoritative built path (may already include project prefix, e.g. "projet-1/gallery-1").
+    // When it's set, use it directly. When absent, fall back to building the path from projSlug + slug.
+    if (g.distName) return `${window.location.origin}/${g.distName}/`;
     const projSlug = g.breadcrumb?.project?.slug;
-    const path     = projSlug ? `/${projSlug}/${name}/` : `/${name}/`;
+    const path     = projSlug ? `/${projSlug}/${g.slug}/` : `/${g.slug}/`;
     return window.location.origin + path;
   }
 
@@ -169,6 +188,16 @@ export default function GalleryPhotosPage() {
             onClick={() => build(true)}
             title={t('gal_publish_force')}
           />
+          <AdminButton
+            variant="outline-secondary"
+            size="sm"
+            icon="fas fa-images"
+            loading={reanalyzing}
+            loadingLabel="…"
+            disabled={loading}
+            onClick={reanalyze}
+            title={t('gal_reanalyze_title')}
+          />
         </div>
       }
     >
@@ -194,8 +223,9 @@ export default function GalleryPhotosPage() {
             </div>
             {publicUrl && (
               <a href={publicUrl} target="_blank" rel="noreferrer"
-                className="text-decoration-none" style={{ fontSize: '0.82rem' }}>
-                {publicUrl} <i className="fas fa-external-link-alt ms-1" />
+                className="btn btn-sm btn-success">
+                <i className="fas fa-external-link-alt me-1" />
+                {t('view_gallery_btn')}
               </a>
             )}
             {gallery.lastJobId && buildStatus === 'error' && (

@@ -181,7 +181,7 @@ router.post('/', async (req, res) => {
     authorEmail = st.default_author_email || null,
     date, location,
     locale = defLocale, access = defAccess, password,
-    standalone = false, allowDownloadImage = defDlImg, allowDownloadGallery = defDlGal,
+    standalone = req.project?.standalone_default ?? false, allowDownloadImage = defDlImg, allowDownloadGallery = defDlGal,
     coverPhoto, slideshowInterval, copyright,
   } = req.body || {};
 

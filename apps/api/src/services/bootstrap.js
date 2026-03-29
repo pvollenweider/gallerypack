@@ -88,7 +88,9 @@ export async function bootstrap() {
        JOIN galleries g ON g.id = p.gallery_id
        WHERE p.status = 'validated'`
     );
+    const { default: sharp } = await import('sharp');
     let recovered = 0;
+    let skipped   = 0;
     for (const p of photos) {
       const srcPath = path.join(SRC_ROOT, p.gallery_slug, 'photos', p.filename);
       if (!existsSync(srcPath)) continue;
@@ -98,11 +100,20 @@ export async function bootstrap() {
         try { return statSync(tp).size === 0; } catch { return true; }
       });
       if (missingSizes.length === 0) continue;
+      // Validate source file before re-queuing — skip unreadable files to avoid
+      // an infinite failure loop on every API restart.
+      try {
+        await sharp(srcPath, { failOn: 'none' }).metadata();
+      } catch {
+        skipped++;
+        continue;
+      }
       if (missingSizes.includes('sm')) enqueueSm(srcPath, p.id);
       if (missingSizes.includes('md')) enqueueMd(srcPath, p.id);
       recovered++;
     }
     if (recovered > 0) console.log(`  ✓  Thumbnail recovery: ${recovered} photo(s) re-queued`);
+    if (skipped   > 0) console.warn(`  ⚠  Thumbnail recovery: ${skipped} photo(s) skipped (unreadable by Sharp — delete or re-upload them)`);
   } catch (err) {
     console.warn('  ⚠  Thumbnail recovery scan failed:', err.message);
   }

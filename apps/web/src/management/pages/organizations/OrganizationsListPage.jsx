@@ -184,6 +184,7 @@ export default function OrganizationsListPage() {
                         {org.name}
                       </Link>
                       {org.is_default && <AdminBadge color="secondary" className="ms-2">{t('studios_default_badge')}</AdminBadge>}
+                      {org.description && <small className="text-muted d-block">{org.description}</small>}
                     </td>
                     <td><code className="text-muted">{org.slug}</code></td>
                     <td>{org.locale || '—'}</td>

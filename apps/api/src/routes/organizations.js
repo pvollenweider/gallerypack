@@ -109,8 +109,8 @@ router.patch('/:id', async (req, res) => {
     return res.status(403).json({ error: 'Requires admin role or higher' });
   }
 
-  const { name, slug, plan, locale, country } = req.body || {};
-  const updated = await updateOrganization(org.id, { name, slug, plan, locale, country });
+  const { name, description, slug, plan, locale, country } = req.body || {};
+  const updated = await updateOrganization(org.id, { name, description, slug, plan, locale, country });
   try { await audit(org.id, req.userId, 'organization.update', 'organization', org.id, { name, slug }); } catch {}
   res.json(updated);
 });

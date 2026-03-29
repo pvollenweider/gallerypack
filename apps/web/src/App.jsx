@@ -20,7 +20,7 @@ import UploadPage      from './pages/UploadPage.jsx';
 import ManageLayout    from './management/layout/ManageLayout.jsx';
 import PlatformLayout  from './management/layout/PlatformLayout.jsx';
 import ProfilePage     from './management/pages/profile/ProfilePage.jsx';
-import { PlatformOverviewPage, SmtpPage, LicensePage, BrandingPage } from './management/pages/platform/index.jsx';
+import { PlatformOverviewPage, SmtpPage, LicensePage, BrandingPage, PlatformTeamPage } from './management/pages/platform/index.jsx';
 import { OrganizationsListPage, OrganizationGeneralPage, OrganizationTeamPage, OrganizationProjectsPage } from './management/pages/organizations/index.jsx';
 import { ProjectGeneralPage, ProjectGalleriesPage } from './management/pages/projects/index.jsx';
 import { GalleryGeneralPage, GalleryJobsPage, GalleryInsightsPage, GalleryPhotosPage } from './management/pages/galleries/index.jsx';
@@ -137,10 +137,11 @@ export default function App() {
       <Route path="/admin/organizations/:orgId/projects/:projectId/galleries/:galleryId/downloads"   element={<GallerySettingsRedirect />} />
 
       {/* Platform (superadmin only) */}
-      <Route path="/admin/platform"              element={<PlatformLayout><PlatformOverviewPage /></PlatformLayout>} />
-      <Route path="/admin/platform/smtp"         element={<PlatformLayout><SmtpPage /></PlatformLayout>} />
-      <Route path="/admin/platform/license"      element={<PlatformLayout><LicensePage /></PlatformLayout>} />
+      <Route path="/admin/platform"              element={<Navigate to="/admin/platform/branding" replace />} />
       <Route path="/admin/platform/branding"     element={<PlatformLayout><BrandingPage /></PlatformLayout>} />
+      <Route path="/admin/platform/license"      element={<PlatformLayout><LicensePage /></PlatformLayout>} />
+      <Route path="/admin/platform/smtp"         element={<PlatformLayout><SmtpPage /></PlatformLayout>} />
+      <Route path="/admin/platform/team"         element={<PlatformLayout><PlatformTeamPage /></PlatformLayout>} />
 
       {/* Inspector (superadmin only) */}
       <Route path="/inspector" element={<RequireAuth><InspectorLayout /></RequireAuth>}>

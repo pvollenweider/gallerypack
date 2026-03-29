@@ -47,7 +47,8 @@ function TreeLink({ to, label, depth = 0, end = false, onClick, icon, bold = fal
 export default function ScopeSidebar({ scope, params = {}, isMobileDrawer = false, onClose }) {
   const { user, logout } = useAuth();
   const t = useT();
-  const isSuperadmin = user?.platformRole === 'superadmin';
+  const isSuperadmin  = user?.platformRole === 'superadmin';
+  const canManageOrg  = ['admin', 'owner'].includes(user?.studioRole) || isSuperadmin;
   const { globalStats } = useUpload();
   const uploadTotal  = globalStats.uploading + globalStats.queued;
   const uploadActive = uploadTotal > 0;
@@ -171,7 +172,7 @@ export default function ScopeSidebar({ scope, params = {}, isMobileDrawer = fals
             {hasOrg && orgId && (
               <>
                 <TreeLink to={orgBase} label={orgName} depth={1} end onClick={click} bold />
-                <TreeLink to={`${orgBase}/settings`} label={t('nav_settings')} depth={2} onClick={click} />
+                {canManageOrg && <TreeLink to={`${orgBase}/settings`} label={t('nav_settings')} depth={2} onClick={click} />}
 
                 {/* Project context */}
                 {hasProject && projectId && (
@@ -183,19 +184,7 @@ export default function ScopeSidebar({ scope, params = {}, isMobileDrawer = fals
                     {hasGallery && galleryId && (
                       <>
                         <TreeLink to={projBase} label={t('nav_galleries')} depth={4} end onClick={click} />
-                        {/* Gallery name as non-link label */}
-                        <li style={{ listStyle: 'none' }}>
-                          <span style={{
-                            display: 'block', ...pad(5),
-                            paddingTop: 4, paddingBottom: 2,
-                            fontSize: '0.78rem', fontWeight: 600,
-                            color: 'rgba(255,255,255,0.55)',
-                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                          }}>
-                            {galleryName}
-                          </span>
-                        </li>
-                        <TreeLink to={`${galBase}/photos`}     label={t('nav_photos')}     depth={6} onClick={click} />
+                        <TreeLink to={`${galBase}/photos`} label={galleryName} depth={5} bold onClick={click} />
                         <TreeLink to={`${galBase}/settings`}   label={t('nav_settings')}   depth={6} onClick={click} />
                         <TreeLink to={`${galBase}/jobs`}       label={t('tab_jobs')}       depth={6} onClick={click} />
                         <TreeLink to={`${galBase}/statistics`} label={t('nav_statistics')} depth={6} onClick={click} />
@@ -206,7 +195,7 @@ export default function ScopeSidebar({ scope, params = {}, isMobileDrawer = fals
                   </>
                 )}
 
-                <TreeLink to={`${orgBase}/team`} label={t('nav_team')} depth={2} onClick={click} />
+                {canManageOrg && <TreeLink to={`${orgBase}/team`} label={t('nav_team')} depth={2} onClick={click} />}
               </>
             )}
           </ul>
@@ -262,9 +251,10 @@ export default function ScopeSidebar({ scope, params = {}, isMobileDrawer = fals
                 <TreeLink to="/admin/platform" label={t('nav_platform')} icon="fas fa-server"  depth={0} end onClick={click} />
                 {scope === 'platform' && (
                   <>
-                    <TreeLink to="/admin/platform/smtp"     label={t('nav_smtp')}     depth={1} onClick={click} />
-                    <TreeLink to="/admin/platform/license"  label={t('nav_license')}  depth={1} onClick={click} />
                     <TreeLink to="/admin/platform/branding" label={t('nav_branding')} depth={1} onClick={click} />
+                    <TreeLink to="/admin/platform/license"  label={t('nav_license')}  depth={1} onClick={click} />
+                    <TreeLink to="/admin/platform/smtp"     label={t('nav_smtp')}     depth={1} onClick={click} />
+                    <TreeLink to="/admin/platform/team"     label={t('nav_team')}     depth={1} onClick={click} />
                   </>
                 )}
                 <TreeLink to="/inspector"      label={t('nav_inspector')} icon="fas fa-search" depth={0} onClick={click} />

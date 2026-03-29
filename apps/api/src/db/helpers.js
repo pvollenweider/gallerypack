@@ -596,7 +596,7 @@ export async function getGalleryRole(userId, galleryId) {
 
 const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
-export async function createInvitation(studioId, email, role, createdBy, { galleryId = null, galleryRole = null } = {}) {
+export async function createInvitation(studioId, email, role, createdBy, { galleryId = null, galleryRole = null, name = '' } = {}) {
   // Replace any existing pending invitation for this email (re-invite / role change).
   const [existing] = await query(
     'SELECT * FROM invitations WHERE studio_id = ? AND email = ?',
@@ -614,9 +614,9 @@ export async function createInvitation(studioId, email, role, createdBy, { galle
   const expiresAt = now + INVITATION_TTL_MS;
 
   await query(`
-    INSERT INTO invitations (id, studio_id, email, role, token, token_hash, created_by, created_at, expires_at, gallery_id, gallery_role)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `, [id, studioId, email, role, tokenHash, tokenHash, createdBy, now, expiresAt, galleryId, galleryRole]);
+    INSERT INTO invitations (id, studio_id, email, name, role, token, token_hash, created_by, created_at, expires_at, gallery_id, gallery_role)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `, [id, studioId, email, name || '', role, tokenHash, tokenHash, createdBy, now, expiresAt, galleryId, galleryRole]);
 
   const [rows] = await query('SELECT * FROM invitations WHERE id = ?', [id]);
   return { ...rows[0], token: rawToken };
@@ -647,7 +647,7 @@ export async function acceptInvitation(token, password) {
 
     await conn.query(
       'INSERT INTO users (id, studio_id, email, password_hash, role, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [userId, inv.studio_id, inv.email, passwordHash, inv.role, '', now, now]
+      [userId, inv.studio_id, inv.email, passwordHash, inv.role, inv.name || '', now, now]
     );
 
     const membershipId = genId();
