@@ -24,9 +24,11 @@ export default function OrganizationTeamPage() {
   // Invite form
   const [email,      setEmail]      = useState('');
   const [role,       setRole]       = useState('collaborator');
-  const [inviting,   setInviting]   = useState(false);
-  const [inviteMsg,  setInviteMsg]  = useState('');
-  const [inviteErr,  setInviteErr]  = useState('');
+  const [inviting,    setInviting]    = useState(false);
+  const [inviteMsg,   setInviteMsg]   = useState('');
+  const [inviteErr,   setInviteErr]   = useState('');
+  const [inviteLink,  setInviteLink]  = useState('');
+  const [linkCopied,  setLinkCopied]  = useState(false);
 
   function load() {
     setLoading(true);
@@ -40,10 +42,11 @@ export default function OrganizationTeamPage() {
 
   async function invite(e) {
     e.preventDefault();
-    setInviting(true); setInviteMsg(''); setInviteErr('');
+    setInviting(true); setInviteMsg(''); setInviteErr(''); setInviteLink(''); setLinkCopied(false);
     try {
-      await api.createInvitation({ email, role });
+      const inv = await api.createInvitation({ email, role });
       setInviteMsg(t('invite_sent_to', { email }));
+      if (inv?.token) setInviteLink(window.location.origin + '/invite/' + inv.token);
       setEmail('');
       load();
     } catch (err) {
@@ -51,6 +54,13 @@ export default function OrganizationTeamPage() {
     } finally {
       setInviting(false);
     }
+  }
+
+  function copyLink() {
+    navigator.clipboard.writeText(inviteLink).then(() => {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    });
   }
 
   async function revokeInvite(id) {
@@ -154,6 +164,22 @@ export default function OrganizationTeamPage() {
                 </div>
                 <AdminAlert variant="success" message={inviteMsg} />
                 <AdminAlert message={inviteErr} />
+                {inviteLink && (
+                  <div className="mt-2 p-2 rounded" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                    <div className="text-muted mb-1" style={{ fontSize: '0.78rem' }}>{t('team_invite_link_label')}</div>
+                    <div className="d-flex align-items-center gap-2">
+                      <code style={{ fontSize: '0.78rem', wordBreak: 'break-all', flex: 1 }}>{inviteLink}</code>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-secondary flex-shrink-0"
+                        onClick={copyLink}
+                      >
+                        <i className={`fas ${linkCopied ? 'fa-check text-success' : 'fa-copy'} me-1`} />
+                        {linkCopied ? t('team_invite_link_copied') : t('team_invite_link_copy')}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </form>
             </AdminCard>
 

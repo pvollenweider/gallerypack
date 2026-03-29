@@ -20,7 +20,7 @@ export default function GalleryGeneralPage() {
 
   // Main form — identity + access + downloads + build (all → api.updateGallery)
   const [form, setForm] = useState({
-    title: '', slug: '', author: '', authorEmail: '', locale: 'en', standalone: false,
+    title: '', slug: '', locale: 'en', standalone: false,
     access: 'public', password: '',
     downloadMode: 'display', apacheProtection: false,
   });
@@ -59,7 +59,6 @@ export default function GalleryGeneralPage() {
     Promise.all([api.getGallery(galleryId), api.getSettings()]).then(([g, s]) => {
       setForm({
         title: g.title || '', slug: g.slug || '',
-        author: g.author || '', authorEmail: g.authorEmail || '',
         locale: g.locale || 'en', standalone: !!g.standalone,
         access: g.access || 'public', password: '',
         downloadMode: g.downloadMode || 'display', apacheProtection: !!g.apacheProtection,
@@ -94,8 +93,7 @@ export default function GalleryGeneralPage() {
     e.preventDefault();
     setSaving(true); setSaved(''); setError('');
     const payload = {
-      title: form.title, slug: form.slug, author: form.author,
-      authorEmail: form.authorEmail, locale: form.locale, standalone: form.standalone,
+      title: form.title, slug: form.slug, locale: form.locale, standalone: form.standalone,
       access: form.access, downloadMode: form.downloadMode, apacheProtection: form.apacheProtection,
     };
     if (form.access === 'password' && form.password.trim()) payload.password = form.password.trim();
@@ -177,7 +175,7 @@ export default function GalleryGeneralPage() {
   const downloadsDisabled = form.downloadMode === 'none';
 
   return (
-    <AdminPage title={t('nav_settings')}>
+    <AdminPage title={form.title ? t('gal_settings_title', { title: form.title }) : t('nav_settings')}>
       <div className="row">
         <div className="col-lg-7">
           <form onSubmit={save}>
@@ -193,16 +191,6 @@ export default function GalleryGeneralPage() {
                 <div className="input-group">
                   <span className="input-group-text text-muted">/</span>
                   <input className="form-control" value={form.slug} onChange={handleSlugChange} required pattern="[-a-z0-9]+" />
-                </div>
-              </div>
-              <div className="row">
-                <div className="col-sm-6 mb-3">
-                  <label className="form-label">{t('orgs_th_name')}</label>
-                  <input className="form-control" value={form.author} onChange={set('author')} />
-                </div>
-                <div className="col-sm-6 mb-3">
-                  <label className="form-label">{t('login_email')}</label>
-                  <input className="form-control" type="email" value={form.authorEmail} onChange={set('authorEmail')} />
                 </div>
               </div>
               <div className="mb-0">

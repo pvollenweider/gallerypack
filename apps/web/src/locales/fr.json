@@ -887,5 +887,13 @@
   "insights_click_browse": "cliquer pour parcourir",
 
   "gal_downloads_original_label": "Téléchargement de l'original (full-res)",
-  "gal_downloads_original_hint": "Permet aux membres autorisés de télécharger le fichier source d'origine (RAW, JPEG full-res). Stocké dans le dossier privé."
+  "gal_downloads_original_hint": "Permet aux membres autorisés de télécharger le fichier source d'origine (RAW, JPEG full-res). Stocké dans le dossier privé.",
+
+  "org_settings_title": "Réglages de l'organisation {name}",
+  "proj_name_title": "{name}",
+  "proj_gallery_description_label": "Description",
+  "gal_settings_title": "Réglages — {title}",
+  "team_invite_link_label": "Lien d'invitation (à copier si l'email n'est pas configuré) :",
+  "team_invite_link_copy": "Copier",
+  "team_invite_link_copied": "Copié !"
 }

@@ -18,21 +18,22 @@ export default function ProjectGalleriesPage() {
   const t = useT();
   const { orgId, projectId } = useParams();
   const navigate = useNavigate();
+  const [project,   setProject]   = useState(null);
   const [galleries, setGalleries] = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState('');
 
   // Create form
   const [showCreate, setShowCreate] = useState(false);
-  const [newG,       setNewG]       = useState({ title: '', slug: '' });
+  const [newG,       setNewG]       = useState({ title: '', slug: '', description: '' });
   const [slugEdited, setSlugEdited] = useState(false);
   const [creating,   setCreating]   = useState(false);
   const [createErr,  setCreateErr]  = useState('');
 
   function load() {
     setLoading(true);
-    api.getProjectGalleries(projectId)
-      .then(setGalleries)
+    Promise.all([api.getProject(projectId), api.getProjectGalleries(projectId)])
+      .then(([p, g]) => { setProject(p); setGalleries(g); })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }
@@ -54,7 +55,7 @@ export default function ProjectGalleriesPage() {
   }
 
   function resetForm() {
-    setNewG({ title: '', slug: '' });
+    setNewG({ title: '', slug: '', description: '' });
     setSlugEdited(false);
     setCreateErr('');
   }
@@ -81,7 +82,7 @@ export default function ProjectGalleriesPage() {
 
   return (
     <AdminPage
-      title={t('proj_galleries_title')}
+      title={project?.name || t('proj_galleries_title')}
       maxWidth="100%"
       actions={
         <AdminButton size="sm" onClick={openCreate} icon="fas fa-plus">
@@ -113,6 +114,14 @@ export default function ProjectGalleriesPage() {
                   title={t('orgs_slug_hint')}
                   className="mb-0"
                   hint={!slugEdited && newG.title ? t('slug_auto_hint') : undefined}
+                />
+              </div>
+              <div className="col-sm-12 mb-3">
+                <AdminInput
+                  label={t('proj_gallery_description_label')}
+                  value={newG.description}
+                  onChange={e => setNewG(f => ({ ...f, description: e.target.value }))}
+                  className="mb-0"
                 />
               </div>
             </div>

@@ -83,7 +83,7 @@ export default function OrganizationGeneralPage() {
   }
 
   return (
-    <AdminPage title={t('org_general_title')} maxWidth="100%">
+    <AdminPage title={identity.name ? t('org_settings_title', { name: identity.name }) : '…'} maxWidth="100%">
       <div className="row">
         <div className="col-lg-7">
 

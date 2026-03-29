@@ -892,5 +892,13 @@
   "insights_click_browse": "click to browse",
 
   "gal_downloads_original_label": "Original file download (full-res)",
-  "gal_downloads_original_hint": "Allow authorized members to download the original source file (RAW, full-res JPEG). Served from private storage."
+  "gal_downloads_original_hint": "Allow authorized members to download the original source file (RAW, full-res JPEG). Served from private storage.",
+
+  "org_settings_title": "Settings — {name}",
+  "proj_name_title": "{name}",
+  "proj_gallery_description_label": "Description",
+  "gal_settings_title": "Settings — {title}",
+  "team_invite_link_label": "Invitation link (copy and share if email is not configured):",
+  "team_invite_link_copy": "Copy",
+  "team_invite_link_copied": "Copied!"
 }
