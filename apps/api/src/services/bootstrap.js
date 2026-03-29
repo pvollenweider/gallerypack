@@ -34,7 +34,7 @@ export async function bootstrap() {
 
     // Create default studio (is_default = true for single-tenant fallback routing)
     const studio = await createStudio({
-      name:      process.env.STUDIO_NAME || 'GalleryPack',
+      name:      process.env.STUDIO_NAME || 'Default',
       slug:      'default',
       plan:      'free',
       isDefault: true,
