@@ -267,8 +267,8 @@ export default function GalleryPhotosPage() {
           {/* Maintenance results */}
           {reconcileResult && (
             <div className="d-flex align-items-start gap-2 mb-3 p-3 rounded"
-              style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', fontSize: '0.85rem' }}>
-              <i className="fas fa-check-circle text-success mt-1" style={{ flexShrink: 0 }} />
+              style={{ background: reconcileResult.missingFiles?.length > 0 ? '#fffbeb' : '#f0fdf4', border: `1px solid ${reconcileResult.missingFiles?.length > 0 ? '#fde68a' : '#bbf7d0'}`, fontSize: '0.85rem' }}>
+              <i className={`fas fa-${reconcileResult.missingFiles?.length > 0 ? 'exclamation-triangle text-warning' : 'check-circle text-success'} mt-1`} style={{ flexShrink: 0 }} />
               <div className="flex-grow-1">
                 <strong>{t('gal_reconcile_title')}</strong>
                 <span className="ms-2 text-muted">
@@ -279,6 +279,11 @@ export default function GalleryPhotosPage() {
                     {t('gal_reconcile_corrupt', { n: reconcileResult.corruptFiles.length })}: {reconcileResult.corruptFiles.join(', ')}
                   </div>
                 )}
+                {reconcileResult.missingFiles?.length > 0 && (
+                  <div className="text-warning mt-1">
+                    {t('gal_reconcile_missing', { n: reconcileResult.missingFiles.length })}: {reconcileResult.missingFiles.join(', ')}
+                  </div>
+                )}
               </div>
               <button type="button" className="btn-close btn-close-sm ms-1" onClick={() => setReconcileResult(null)} />
             </div>
@@ -286,8 +291,8 @@ export default function GalleryPhotosPage() {
 
           {reanalyzeResult && (
             <div className="d-flex align-items-start gap-2 mb-3 p-3 rounded"
-              style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', fontSize: '0.85rem' }}>
-              <i className="fas fa-check-circle text-success mt-1" style={{ flexShrink: 0 }} />
+              style={{ background: reanalyzeResult.errors?.length > 0 ? '#fffbeb' : '#f0fdf4', border: `1px solid ${reanalyzeResult.errors?.length > 0 ? '#fde68a' : '#bbf7d0'}`, fontSize: '0.85rem' }}>
+              <i className={`fas fa-${reanalyzeResult.errors?.length > 0 ? 'exclamation-triangle text-warning' : 'check-circle text-success'} mt-1`} style={{ flexShrink: 0 }} />
               <div className="flex-grow-1">
                 <strong>{t('gal_reanalyze_title')}</strong>
                 <span className="ms-2 text-muted">
@@ -296,6 +301,11 @@ export default function GalleryPhotosPage() {
                 {reanalyzeResult.deleted?.length > 0 && (
                   <div className="text-danger mt-1">
                     {t('gal_reconcile_corrupt', { n: reanalyzeResult.deleted.length })}: {reanalyzeResult.deleted.join(', ')}
+                  </div>
+                )}
+                {reanalyzeResult.errors?.length > 0 && (
+                  <div className="text-warning mt-1">
+                    {reanalyzeResult.errors.length} {t('gal_reanalyze_errors')}: {reanalyzeResult.errors.slice(0, 3).join(' · ')}{reanalyzeResult.errors.length > 3 ? ' …' : ''}
                   </div>
                 )}
               </div>

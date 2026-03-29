@@ -680,6 +680,8 @@
   "gal_reconcile_title": "Synchroniser depuis le disque",
   "gal_reconcile_result": "+{added} ajoutée(s), {purged} supprimée(s) (total : {total})",
   "gal_reconcile_corrupt": "{n} fichier(s) corrompu(s) supprimé(s)",
+  "gal_reconcile_missing": "{n} fichier(s) présent(s) en DB mais absent(s) sur disque",
+  "gal_reanalyze_errors": "erreur(s) de génération de miniature",
   "gal_upload_th_label": "Libellé",
   "gal_upload_th_token": "Token",
   "gal_upload_th_created": "Créé le",

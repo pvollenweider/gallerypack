@@ -142,15 +142,20 @@ router.post('/:id/photos/reconcile', async (req, res, next) => {
     const [dbRows] = await query('SELECT id, filename FROM photos WHERE gallery_id = ?', [gallery.id]);
     const dbSet = new Set(dbRows.map(r => r.filename));
 
-    const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    const nowStr = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    const nowMs  = Date.now();
     let added   = 0;
     let purged  = 0;
-    const corruptFiles = [];
+    const corruptFiles  = [];
+    const missingFiles  = [];
 
     // Remove DB entries whose source file is corrupt (undecodable by Sharp even with failOn:none)
     for (const row of dbRows) {
       const fullPath = path.join(photosDir, row.filename);
-      if (!existsSync(fullPath)) continue; // missing-from-disk handled separately
+      if (!existsSync(fullPath)) {
+        missingFiles.push(row.filename); // in DB but not on disk — report but don't auto-delete
+        continue;
+      }
       try {
         await sharp(fullPath, { failOn: 'none' }).metadata();
       } catch {
@@ -189,13 +194,13 @@ router.post('/:id/photos/reconcile', async (req, res, next) => {
       await query(
         `INSERT IGNORE INTO photos (id, gallery_id, filename, size_bytes, sort_order, status, created_at)
          VALUES (?, ?, ?, ?, 0, 'validated', ?)`,
-        [id, gallery.id, filename, sizeBytes, now]
+        [id, gallery.id, filename, sizeBytes, nowStr]
       );
       added++;
     }
 
     if (added > 0 || purged > 0) {
-      await query('UPDATE galleries SET needs_rebuild = 1, updated_at = ? WHERE id = ?', [now, gallery.id]);
+      await query('UPDATE galleries SET needs_rebuild = 1, updated_at = ? WHERE id = ?', [nowMs, gallery.id]);
     }
 
     res.json({
@@ -203,6 +208,7 @@ router.post('/:id/photos/reconcile', async (req, res, next) => {
       added,
       purged,
       corruptFiles,
+      missingFiles,
       alreadyPresent,
       total: diskFiles.length,
     });
@@ -266,7 +272,6 @@ router.post('/:id/photos/deduplicate', async (req, res, next) => {
 
     // Delete duplicates
     let deleted = 0;
-    const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
     for (const { dupes } of duplicateSets) {
       for (const dupe of dupes) {
         // Remove file from disk
@@ -278,7 +283,7 @@ router.post('/:id/photos/deduplicate', async (req, res, next) => {
     }
 
     if (deleted > 0) {
-      await query('UPDATE galleries SET needs_rebuild = 1, updated_at = ? WHERE id = ?', [now, gallery.id]);
+      await query('UPDATE galleries SET needs_rebuild = 1, updated_at = ? WHERE id = ?', [Date.now(), gallery.id]);
     }
 
     res.json({

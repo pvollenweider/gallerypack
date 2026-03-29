@@ -539,6 +539,8 @@
   "gal_reconcile_title": "Sync from disk",
   "gal_reconcile_result": "+{added} added, {purged} removed (total: {total})",
   "gal_reconcile_corrupt": "{n} corrupt file(s) deleted",
+  "gal_reconcile_missing": "{n} file(s) in DB but missing from disk",
+  "gal_reanalyze_errors": "thumbnail error(s)",
   "gal_upload_title": "Upload",
   "gal_upload_links_section": "Upload links",
   "gal_upload_no_links": "No upload links yet.",
