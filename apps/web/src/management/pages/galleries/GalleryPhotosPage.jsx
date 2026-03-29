@@ -38,9 +38,13 @@ export default function GalleryPhotosPage() {
   const [buildError,  setBuildError]  = useState('');
   const [activeJobId, setActiveJobId] = useState(null);
 
-  // Thumbnail regen
-  const [reanalyzing, setReanalyzing] = useState(false);
+  // Thumbnail regen + EXIF
+  const [reanalyzing,    setReanalyzing]    = useState(false);
   const [reanalyzeResult, setReanalyzeResult] = useState(null);
+
+  // Disk sync (reconcile)
+  const [reconciling,    setReconciling]    = useState(false);
+  const [reconcileResult, setReconcileResult] = useState(null);
 
   const pollRef = useRef(null);
 
@@ -92,7 +96,7 @@ export default function GalleryPhotosPage() {
   }
 
   async function reanalyze() {
-    setReanalyzing(true); setReanalyzeResult(null);
+    setReanalyzing(true); setReanalyzeResult(null); setReconcileResult(null);
     try {
       const r = await api.reanalyzePhotos(galleryId);
       setReanalyzeResult(r);
@@ -101,6 +105,19 @@ export default function GalleryPhotosPage() {
       setToast(`${t('error')}: ${err.message}`);
     } finally {
       setReanalyzing(false);
+    }
+  }
+
+  async function reconcile() {
+    setReconciling(true); setReconcileResult(null); setReanalyzeResult(null);
+    try {
+      const r = await api.reconcilePhotos(galleryId);
+      setReconcileResult(r);
+      refreshPhotos().then(p => { if (p.some(x => !x.thumbnail?.sm)) startPolling(); });
+    } catch (err) {
+      setToast(`${t('error')}: ${err.message}`);
+    } finally {
+      setReconciling(false);
     }
   }
 
@@ -191,6 +208,16 @@ export default function GalleryPhotosPage() {
           <AdminButton
             variant="outline-secondary"
             size="sm"
+            icon="fas fa-folder-open"
+            loading={reconciling}
+            loadingLabel="…"
+            disabled={loading}
+            onClick={reconcile}
+            title={t('gal_reconcile_title')}
+          />
+          <AdminButton
+            variant="outline-secondary"
+            size="sm"
             icon="fas fa-images"
             loading={reanalyzing}
             loadingLabel="…"
@@ -236,6 +263,45 @@ export default function GalleryPhotosPage() {
           </div>
 
           {buildError && <AdminAlert message={buildError} className="mb-3" />}
+
+          {/* Maintenance results */}
+          {reconcileResult && (
+            <div className="d-flex align-items-start gap-2 mb-3 p-3 rounded"
+              style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', fontSize: '0.85rem' }}>
+              <i className="fas fa-check-circle text-success mt-1" style={{ flexShrink: 0 }} />
+              <div className="flex-grow-1">
+                <strong>{t('gal_reconcile_title')}</strong>
+                <span className="ms-2 text-muted">
+                  {t('gal_reconcile_result', { added: reconcileResult.added, purged: reconcileResult.purged, total: reconcileResult.total })}
+                </span>
+                {reconcileResult.corruptFiles?.length > 0 && (
+                  <div className="text-danger mt-1">
+                    {t('gal_reconcile_corrupt', { n: reconcileResult.corruptFiles.length })}: {reconcileResult.corruptFiles.join(', ')}
+                  </div>
+                )}
+              </div>
+              <button type="button" className="btn-close btn-close-sm ms-1" onClick={() => setReconcileResult(null)} />
+            </div>
+          )}
+
+          {reanalyzeResult && (
+            <div className="d-flex align-items-start gap-2 mb-3 p-3 rounded"
+              style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', fontSize: '0.85rem' }}>
+              <i className="fas fa-check-circle text-success mt-1" style={{ flexShrink: 0 }} />
+              <div className="flex-grow-1">
+                <strong>{t('gal_reanalyze_title')}</strong>
+                <span className="ms-2 text-muted">
+                  {t('gal_reanalyze_result', { thumbs: reanalyzeResult.thumbsGenerated, exif: reanalyzeResult.exifExtracted })}
+                </span>
+                {reanalyzeResult.deleted?.length > 0 && (
+                  <div className="text-danger mt-1">
+                    {t('gal_reconcile_corrupt', { n: reanalyzeResult.deleted.length })}: {reanalyzeResult.deleted.join(', ')}
+                  </div>
+                )}
+              </div>
+              <button type="button" className="btn-close btn-close-sm ms-1" onClick={() => setReanalyzeResult(null)} />
+            </div>
+          )}
 
           {activeJobId && (
             <div className="mb-4">
