@@ -107,8 +107,6 @@ export function renderLanding(galleries, siteTitle = 'GalleryPack', isLoggedIn =
     <span class="brand">GalleryPack</span>
     <span class="sep">·</span>
     <a href="https://github.com/pvollenweider/gallerypack" target="_blank" rel="noreferrer">GitHub</a>
-    <span class="sep">·</span>
-    <a href="/admin/">Admin</a>
   </footer>
 </body>
 </html>`;
@@ -163,8 +161,6 @@ export function renderProjectIndex(projects, siteTitle = 'GalleryPack', isLogged
   </main>
   <footer>
     <span class="brand">GalleryPack</span>
-    <span class="sep">·</span>
-    <a href="/admin/">Admin</a>
   </footer>
 </body>
 </html>`;
@@ -283,8 +279,6 @@ export function renderProjectListing(projectSlug, projectName, galleries, siteTi
   </main>
   <footer class="footer">
     <a href="/">← ${esc(siteTitle)}</a>
-    <span class="sep">·</span>
-    <a href="/admin/">Admin</a>
   </footer>
 </body>
 </html>`;
