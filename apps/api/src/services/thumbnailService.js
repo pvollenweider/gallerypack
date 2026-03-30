@@ -107,7 +107,7 @@ export async function generateSingleThumbnail(srcPath, photoId, size) {
   // Use toBuffer() so that a failed Sharp pipeline never leaves a 0-byte file on disk.
   // .toFile() creates the destination before writing; if Sharp errors mid-stream the file
   // stays at 0 bytes and photoThumbnails() would serve a broken URL indefinitely.
-  const buf = await sharp(srcPath, { failOn: 'none' })
+  const buf = await sharp(srcPath, { failOn: 'none', sequentialRead: true })
     .rotate()
     .resize(maxDim, maxDim, { fit: 'inside', withoutEnlargement: true })
     .webp({ quality: 80 })

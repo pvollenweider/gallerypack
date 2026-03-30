@@ -101,8 +101,26 @@ router.post('/:token/photos', upload.array('photos', 50), async (req, res) => {
     });
   }
 
-  const uploaded = [];
+  // Validate each file with Sharp before inserting — rejects corrupt files and
+  // iOS Live Photos (JPEG + embedded H.264) that would crash libvips during processing.
+  const { default: sharp } = await import('sharp');
+  const validFiles    = [];
+  const rejectedFiles = [];
   for (const f of req.files || []) {
+    try {
+      await sharp(f.path, { failOn: 'none', sequentialRead: true }).metadata();
+      validFiles.push(f);
+    } catch {
+      try { fs.unlinkSync(f.path); } catch {}
+      rejectedFiles.push(f.originalname || f.filename);
+    }
+  }
+  if (rejectedFiles.length > 0) {
+    console.warn(`[upload-token] rejected ${rejectedFiles.length} undecodable file(s): ${rejectedFiles.join(', ')}`);
+  }
+
+  const uploaded = [];
+  for (const f of validFiles) {
     const photoId = randomUUID();
     await query(
       `INSERT INTO photos (id, gallery_id, filename, original_name, size_bytes, status, upload_link_id, photographer_id)

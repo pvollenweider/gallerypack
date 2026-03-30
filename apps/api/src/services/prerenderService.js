@@ -114,11 +114,25 @@ export function enqueuePrerender(srcPath, filename) {
     const { default: sharp } = await import('sharp');
     const cfg = getBuildCfg();
 
+    // Pre-validate: check the file is decodable before queuing full processing.
+    // This catches Live Photos (JPEG + embedded H.264 video) and other corrupt files
+    // that would cause a SIGBUS crash in libvips during actual decoding.
+    try {
+      await sharp(srcPath, { failOn: 'none', sequentialRead: true }).metadata();
+    } catch (err) {
+      log(`  ✗ skipped (undecodable): ${err.message}`);
+      return;
+    }
+
+    // sequentialRead: true — use sequential I/O instead of mmap to prevent SIGBUS
+    // crashes on corrupt JPEG data (e.g. iOS Live Photos with embedded H.264 video).
+    const sharpOpts = { failOn: 'none', sequentialRead: true };
+
     const jobs = [
       // full — layout-independent
       {
         out:    path.join(dir, 'full.webp'),
-        build:  () => sharp(srcPath, { failOn: 'none' }).rotate()
+        build:  () => sharp(srcPath, sharpOpts).rotate()
                   .resize(cfg.fullSize, cfg.fullSize, { fit: 'inside', withoutEnlargement: true })
                   .webp({ quality: cfg.quality.full }),
         label:  `full ≤${cfg.fullSize}px`,
@@ -126,7 +140,7 @@ export function enqueuePrerender(srcPath, filename) {
       // grid small (position !big)
       {
         out:    path.join(dir, 'grid-small.webp'),
-        build:  () => sharp(srcPath, { failOn: 'none' }).rotate()
+        build:  () => sharp(srcPath, sharpOpts).rotate()
                   .resize(cfg.gridSizeSmall, cfg.gridSizeSmall, { fit: 'cover', position: 'centre' })
                   .webp({ quality: cfg.quality.grid }),
         label:  `grid-small ${cfg.gridSizeSmall}×${cfg.gridSizeSmall}`,
@@ -134,7 +148,7 @@ export function enqueuePrerender(srcPath, filename) {
       // grid big (position 0 or 8 mod 12)
       {
         out:    path.join(dir, 'grid-big.webp'),
-        build:  () => sharp(srcPath, { failOn: 'none' }).rotate()
+        build:  () => sharp(srcPath, sharpOpts).rotate()
                   .resize(cfg.gridSizeBig, cfg.gridSizeBig, { fit: 'cover', position: 'centre' })
                   .webp({ quality: cfg.quality.grid }),
         label:  `grid-big ${cfg.gridSizeBig}×${cfg.gridSizeBig}`,
@@ -142,7 +156,7 @@ export function enqueuePrerender(srcPath, filename) {
       // grid-sm small (mobile, position !big)
       {
         out:    path.join(dir, 'grid-sm-small.webp'),
-        build:  () => sharp(srcPath, { failOn: 'none' }).rotate()
+        build:  () => sharp(srcPath, sharpOpts).rotate()
                   .resize(cfg.gridSizeMobileSmall, cfg.gridSizeMobileSmall, { fit: 'cover', position: 'centre' })
                   .webp({ quality: cfg.quality.grid }),
         label:  `grid-sm-small ${cfg.gridSizeMobileSmall}×${cfg.gridSizeMobileSmall}`,
@@ -150,7 +164,7 @@ export function enqueuePrerender(srcPath, filename) {
       // grid-sm big (mobile, position 0 or 8 mod 12)
       {
         out:    path.join(dir, 'grid-sm-big.webp'),
-        build:  () => sharp(srcPath, { failOn: 'none' }).rotate()
+        build:  () => sharp(srcPath, sharpOpts).rotate()
                   .resize(cfg.gridSizeMobileBig, cfg.gridSizeMobileBig, { fit: 'cover', position: 'centre' })
                   .webp({ quality: cfg.quality.grid }),
         label:  `grid-sm-big ${cfg.gridSizeMobileBig}×${cfg.gridSizeMobileBig}`,
@@ -160,7 +174,8 @@ export function enqueuePrerender(srcPath, filename) {
     for (const { out, build, label } of jobs) {
       if (existsSync(out)) continue; // already generated in a previous attempt
       try {
-        await build().toFile(out);
+        const buf = await build().toBuffer();
+        await fs.writeFile(out, buf);
         log(`  ✓ ${label}`);
       } catch (err) {
         log(`  ✗ ${label}: ${err.message}`);
