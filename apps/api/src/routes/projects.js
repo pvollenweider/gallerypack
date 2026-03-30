@@ -23,6 +23,7 @@ import {
 } from '../db/helpers.js';
 import { can } from '../authorization/index.js';
 import { query } from '../db/database.js';
+import { prerenderProject, prerenderRoot } from '../services/prerender.js';
 import { randomUUID } from 'crypto';
 import { SRC_ROOT, DIST_ROOT, INTERNAL_ROOT } from '../../../../packages/engine/src/fs.js';
 
@@ -123,6 +124,9 @@ router.patch('/:id', async (req, res) => {
 
   const updated = await updateProject(project.id, updates);
   try { await audit(req.studioId, req.userId, 'project.update', 'project', project.id, {}); } catch {}
+  const newSlug = updates.slug || project.slug;
+  prerenderProject(newSlug).catch(() => {});
+  prerenderRoot().catch(() => {});
   res.json(projectToJson(updated));
 });
 

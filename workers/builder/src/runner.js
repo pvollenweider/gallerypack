@@ -14,6 +14,7 @@ import { query }                                                from '../../../a
 import { getJob, updateJobStatus, appendEvent, getSettings }   from '../../../apps/api/src/db/helpers.js';
 import { sendGalleryReadyEmail }                               from '../../../apps/api/src/services/email.js';
 import { emit, EVENTS }                                        from '../../../apps/api/src/services/events.js';
+import { prerenderProject, prerenderRoot }                     from '../../../apps/api/src/services/prerender.js';
 import { buildGallery }                                        from '../../../packages/engine/src/gallery.js';
 import { downloadVendors, downloadFonts }                      from '../../../packages/engine/src/network.js';
 import { SRC_ROOT, DIST_ROOT, BUILD_CFG_PATH }               from '../../../packages/engine/src/fs.js';
@@ -216,6 +217,11 @@ export async function runJob(jobId) {
       gallerySlug:  result?.distName || gallery.slug,
       newPhotoCount,
     });
+
+    // Re-generate static index.html for the project listing (and root if needed)
+    const pSlug = gallery.project_slug;
+    if (pSlug) prerenderProject(pSlug).catch(() => {});
+    prerenderRoot().catch(() => {});
 
     // Legacy: send gallery-ready email to the author if configured
     if (gallery.author_email) {

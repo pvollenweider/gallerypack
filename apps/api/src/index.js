@@ -56,6 +56,7 @@ import { uploadThrottle }      from './middleware/uploadThrottle.js';
 import { uploadChecksum }      from './middleware/uploadChecksum.js';
 import { initQueues, closeQueues } from './services/queues.js';
 import { startCleanupCron }        from './jobs/cleanExpiredUploads.js';
+import { prerenderAll }            from './services/prerender.js';
 
 const __DIR        = path.dirname(fileURLToPath(import.meta.url));
 const PORT         = process.env.PORT || 4000;
@@ -362,6 +363,7 @@ process.on('SIGTERM', async () => {
     await bootstrap();
     await initQueues();       // BullMQ — graceful no-op if Redis unavailable
     startCleanupCron();       // purge incomplete tus uploads hourly
+    prerenderAll();           // pre-generate static index.html for / and /{slug}/
     app.listen(PORT, () => {
       logger.info({ port: PORT }, 'GalleryPack API listening');
     });

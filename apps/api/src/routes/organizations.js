@@ -41,6 +41,7 @@ import {
 } from '../services/organization.js';
 import { ROLE_HIERARCHY, audit, genId, hashPassword } from '../db/helpers.js';
 import { query } from '../db/database.js';
+import { prerenderRoot } from '../services/prerender.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -113,6 +114,7 @@ router.patch('/:id', async (req, res) => {
   const { name, description, slug, plan, locale, country } = req.body || {};
   const updated = await updateOrganization(org.id, { name, description, slug, plan, locale, country });
   try { await audit(org.id, req.userId, 'organization.update', 'organization', org.id, { name, slug }); } catch {}
+  prerenderRoot().catch(() => {});
   res.json(updated);
 });
 
