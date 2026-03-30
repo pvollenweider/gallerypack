@@ -21,15 +21,22 @@ function fmtDateRange(dateRange, fallback) {
   const from = parse(src.from);
   const to   = parse(src.to || src.from);
   if (!from) return fallback || null;
-  const sameDay   = from.toISOString().slice(0,10) === to.toISOString().slice(0,10);
+  const diff      = Math.round((to - from) / 86400000);
   const sameMonth = from.getFullYear() === to.getFullYear() && from.getMonth() === to.getMonth();
   const sameYear  = from.getFullYear() === to.getFullYear();
-  const mY  = d => d.toLocaleDateString('fr-CH', { month:'long', year:'numeric' });
-  const dM  = d => d.toLocaleDateString('fr-CH', { day:'numeric', month:'long', year:'numeric' });
-  const shM = d => d.toLocaleDateString('fr-CH', { month:'short', year:'numeric' });
-  if (sameDay)   return dM(from);
+  const loc = 'fr-CH';
+  const dNum = d => d.getDate();
+  const mLong = d => d.toLocaleDateString(loc, { month: 'long' });
+  const mY  = d => d.toLocaleDateString(loc, { month: 'long', year: 'numeric' });
+  const shM = d => d.toLocaleDateString(loc, { month: 'short', year: 'numeric' });
+  if (diff === 0) return from.toLocaleDateString(loc, { day: 'numeric', month: 'long', year: 'numeric' });
+  if (diff === 1 && sameMonth) return `Les ${dNum(from)} et ${dNum(to)} ${mLong(from)} ${from.getFullYear()}`;
+  if (diff <= 4) {
+    if (sameMonth) return `Du ${dNum(from)} au ${dNum(to)} ${mLong(from)} ${from.getFullYear()}`;
+    return `Du ${dNum(from)} ${mLong(from)} au ${dNum(to)} ${mLong(to)} ${from.getFullYear()}`;
+  }
   if (sameMonth) return mY(from);
-  if (sameYear)  return `${from.toLocaleDateString('fr-CH',{month:'long'})} – ${mY(to)}`;
+  if (sameYear)  return `${mLong(from)} – ${mY(to)}`;
   return `${shM(from)} – ${shM(to)}`;
 }
 
@@ -173,7 +180,7 @@ export function renderProjectIndex(projects, siteTitle = 'GalleryPack', isLogged
 </html>`;
 }
 
-export function renderProjectListing(projectSlug, projectName, galleries, siteTitle = 'GalleryPack', isLoggedIn = false) {
+export function renderProjectListing(projectSlug, projectName, galleries, siteTitle = 'GalleryPack', isLoggedIn = false, projectDescHtml = '') {
   const cards = galleries.length === 0
     ? '<p style="color:#666;text-align:center;padding:3rem 0;grid-column:1/-1">No galleries published yet.</p>'
     : galleries.map(g => {
@@ -210,8 +217,10 @@ export function renderProjectListing(projectSlug, projectName, galleries, siteTi
     .back:hover{color:#fff}
     .logo{font-weight:700;letter-spacing:-0.02em;font-size:1rem;color:#fff;text-decoration:none;flex:1;text-align:center}
     .admin-link{font-size:0.82rem;color:#aaa;text-decoration:none;padding:0.3rem 0.75rem;border:1px solid #444;border-radius:5px}
-    main{max-width:1100px;width:100%;margin:0 auto;padding:1.5rem}
-    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem}
+    main{width:100%}
+    .grid{max-width:1100px;width:100%;margin:0 auto;padding:1.5rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem}
+    .proj-desc{max-width:1100px;width:100%;margin:0 auto;padding:1.5rem 1.5rem 0;color:#bbb;font-size:0.9rem;line-height:1.7}
+    .proj-desc p{margin:0 0 0.75em}.proj-desc h1,.proj-desc h2,.proj-desc h3{color:#ddd;margin:0 0 0.5em}
     footer{border-top:1px solid #333;padding:0.75rem 1.5rem;display:flex;align-items:center;gap:0.5rem;font-size:0.78rem;color:#555}
     footer a{color:#555;text-decoration:none}
     footer .brand{font-weight:600;color:#777;letter-spacing:-0.01em}
@@ -225,6 +234,7 @@ export function renderProjectListing(projectSlug, projectName, galleries, siteTi
     ${adminBtn}
   </header>
   <main style="flex:1">
+    ${projectDescHtml ? `<div class="proj-desc">${projectDescHtml}</div>` : ''}
     <div class="grid">${cards}</div>
   </main>
   <footer>

@@ -118,9 +118,22 @@ export default function ProjectGalleriesPage() {
       title={project?.name || t('proj_galleries_title')}
       maxWidth="100%"
       actions={
-        <AdminButton size="sm" onClick={openCreate} icon="fas fa-plus">
-          {t('proj_new_gallery_btn')}
-        </AdminButton>
+        <div className="d-flex gap-2">
+          {project?.slug && (
+            <a
+              href={`/${project.slug}/`}
+              target="_blank"
+              rel="noreferrer"
+              className="btn btn-sm btn-outline-success"
+            >
+              <i className="fas fa-external-link-alt me-1" />
+              Page publique
+            </a>
+          )}
+          <AdminButton size="sm" onClick={openCreate} icon="fas fa-plus">
+            {t('proj_new_gallery_btn')}
+          </AdminButton>
+        </div>
       }
     >
       {showCreate && (

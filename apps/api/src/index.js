@@ -7,6 +7,7 @@
 
 // apps/api/src/index.js — GalleryPack API server entry point
 import express    from 'express';
+import { marked }  from 'marked';
 import cookieParser from 'cookie-parser';
 import path       from 'path';
 import fs         from 'fs';
@@ -220,11 +221,12 @@ app.get(/^\/([^/]+)\/?$/, async (req, res, next) => {
   if (fs.existsSync(indexHtml)) return next();
 
   const [projRows] = await query(
-    'SELECT id, name FROM projects WHERE slug = ? LIMIT 1',
+    'SELECT id, name, description FROM projects WHERE slug = ? LIMIT 1',
     [projectSlug]
   );
   const project = projRows[0];
   if (!project) return next();
+  const projectDescHtml = project.description ? marked.parse(project.description) : '';
 
   const [galRows] = await query(
     `SELECT g.slug, g.title, g.date, g.location, g.cover_photo
@@ -251,7 +253,7 @@ app.get(/^\/([^/]+)\/?$/, async (req, res, next) => {
   const isLoggedIn = token ? !!(await getSession(token)) : false;
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.send(renderProjectListing(projectSlug, project.name, galleries, siteTitle, isLoggedIn));
+  res.send(renderProjectListing(projectSlug, project.name, galleries, siteTitle, isLoggedIn, projectDescHtml));
 });
 
 // ── Public project index ──────────────────────────────────────────────────────
