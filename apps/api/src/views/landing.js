@@ -112,56 +112,101 @@ export function renderLanding(galleries, siteTitle = 'GalleryPack', isLoggedIn =
 </html>`;
 }
 
-export function renderProjectIndex(projects, siteTitle = 'GalleryPack', isLoggedIn = false) {
+export function renderProjectIndex(projects, siteTitle = 'GalleryPack', isLoggedIn = false, orgName = '', orgDescHtml = '') {
+  const title = orgName || siteTitle;
   const cards = projects.length === 0
-    ? '<p style="color:#666;text-align:center;padding:3rem 0;grid-column:1/-1">No projects published yet.</p>'
+    ? `<p class="empty">Aucun projet publié pour l'instant.</p>`
     : projects.map(p => {
         const href  = `/${p.slug}/`;
         const thumb = p.coverName
-          ? `<img src="/${p.slug}/${p.coverSlug}/img/grid/${p.coverName}.webp" style="width:100%;height:100%;object-fit:cover;display:block" alt="" onerror="this.style.display='none'">`
-          : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2.5rem;color:#555">&#128247;</div>`;
-        const galleryLabel = p.galleryCount === 1 ? '1 gallery' : `${p.galleryCount} galleries`;
+          ? `<img src="/${p.slug}/${p.coverSlug}/img/grid/${p.coverName}.webp" class="card-img" alt="" loading="lazy" onerror="this.style.display='none'">`
+          : `<div class="card-img-placeholder">&#128247;</div>`;
+        const galleryLabel = p.galleryCount === 1 ? '1 galerie' : `${p.galleryCount} galeries`;
         const dateLabel = fmtDateRange(p.dateRange, null);
-        const inner = `
-          <div style="position:relative;height:180px;background:#2a2a2a;overflow:hidden">${thumb}</div>
-          <div style="padding:0.75rem 1rem 0.85rem">
-            <h3 style="margin:0 0 0.15rem;font-size:0.95rem;font-weight:600;color:#eee">${esc(p.name)}</h3>
-            ${dateLabel ? `<p style="margin:0 0 0.15rem;font-size:0.78rem;color:#aaa">${esc(dateLabel)}</p>` : ''}
-            ${p.description ? `<p style="margin:0 0 0.25rem;font-size:0.8rem;color:#bbb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.description)}</p>` : ''}
-            <p style="margin:0;font-size:0.75rem;color:#666">${galleryLabel}</p>
-          </div>`;
-        return `<a href="${href}" style="background:#272727;border-radius:10px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,0.3);text-decoration:none;display:block;transition:box-shadow 0.15s" onmouseover="this.style.boxShadow='0 4px 20px rgba(0,0,0,0.5)'" onmouseout="this.style.boxShadow='0 1px 6px rgba(0,0,0,0.3)'">${inner}</a>`;
+        const descLine = p.description
+          ? `<p class="card-desc">${esc(p.description)}</p>`
+          : '';
+        return `<a href="${href}" class="card">
+          <div class="card-cover">${thumb}</div>
+          <div class="card-body">
+            <h3 class="card-title">${esc(p.name)}</h3>
+            ${dateLabel ? `<p class="card-meta">${esc(dateLabel)}</p>` : ''}
+            ${descLine}
+            <p class="card-count">${galleryLabel}</p>
+          </div>
+        </a>`;
       }).join('');
 
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>${esc(siteTitle)}</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>${esc(title)}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#1c1c1c;min-height:100vh}
-    header{background:#222;border-bottom:1px solid #333;padding:0 1.5rem;height:52px;display:flex;align-items:center;justify-content:space-between}
-    .logo{font-weight:700;letter-spacing:-0.02em;font-size:1rem;color:#fff;text-decoration:none}
-    main{max-width:1100px;width:100%;margin:0 auto;padding:1.5rem}
-    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem}
-    footer{border-top:1px solid #333;padding:0.75rem 1.5rem;display:flex;align-items:center;gap:0.5rem;font-size:0.78rem;color:#555}
-    footer a{color:#555;text-decoration:none}
-    footer .brand{font-weight:600;color:#777;letter-spacing:-0.01em}
-    footer .sep{color:#444}
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--bg:#1c1c1c;--ink:#e8e4dd;--muted:#706860;--accent:#c8a96e;--bar:56px}
+    html,body{background:var(--bg);color:var(--ink);font-family:'Poppins',sans-serif;min-height:100vh}
+
+    .bar{position:fixed;top:0;left:0;right:0;height:var(--bar);
+      display:flex;align-items:center;padding:0 22px;
+      background:rgba(0,0,0,.85);backdrop-filter:blur(18px) saturate(120%);
+      -webkit-backdrop-filter:blur(18px) saturate(120%);
+      border-bottom:1px solid rgba(255,255,255,.07);z-index:90}
+    .bar-title{font-size:13px;font-weight:600;letter-spacing:-.01em;color:var(--ink)}
+
+    .hero{max-width:1320px;margin:0 auto;padding:calc(var(--bar) + 52px) 32px 40px;text-align:center}
+    .hero-title{font-size:clamp(26px,4.5vw,52px);font-weight:600;color:var(--ink);
+      margin:0 0 14px;letter-spacing:-.02em;line-height:1.15}
+    .hero-desc{max-width:700px;margin:0 auto;font-size:14px;font-weight:300;
+      color:rgba(232,228,221,.65);line-height:1.85;text-align:left}
+    .hero-desc p{margin:0 0 14px}.hero-desc p:last-child{margin-bottom:0}
+    .hero-desc h2,.hero-desc h3{color:rgba(232,228,221,.9);margin:20px 0 8px;font-weight:600}
+    .hero-desc a{color:var(--accent);text-decoration:none}.hero-desc a:hover{text-decoration:underline}
+    .hero-divider{width:40px;height:1px;background:rgba(255,255,255,.1);margin:0 auto 48px}
+
+    .grid{max-width:1320px;margin:0 auto;padding:0 24px 64px;
+      display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.5rem;justify-content:center}
+    .empty{color:var(--muted);text-align:center;padding:4rem 0;grid-column:1/-1;font-size:14px}
+
+    .card{background:#232323;border:1px solid rgba(255,255,255,.06);border-radius:10px;
+      overflow:hidden;text-decoration:none;display:flex;flex-direction:column;
+      transition:border-color .2s,box-shadow .2s}
+    .card:hover{border-color:rgba(200,169,110,.3);box-shadow:0 8px 32px rgba(0,0,0,.45)}
+    .card-cover{position:relative;aspect-ratio:4/3;background:#2a2a2a;overflow:hidden}
+    .card-img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .4s}
+    .card:hover .card-img{transform:scale(1.03)}
+    .card-img-placeholder{width:100%;height:100%;display:flex;align-items:center;
+      justify-content:center;font-size:2.5rem;color:#444}
+    .card-body{padding:1rem 1.1rem 1.1rem;display:flex;flex-direction:column;gap:5px;flex:1}
+    .card-title{font-size:15px;font-weight:600;color:var(--ink);letter-spacing:-.01em;line-height:1.3}
+    .card-meta{font-size:11px;color:var(--muted);letter-spacing:.04em}
+    .card-desc{font-size:12px;color:rgba(232,228,221,.45);line-height:1.6;
+      display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-top:2px}
+    .card-count{font-size:10px;color:rgba(255,255,255,.2);letter-spacing:.06em;
+      text-transform:uppercase;margin-top:auto;padding-top:6px}
+
+    .footer{border-top:1px solid rgba(255,255,255,.06);padding:24px;
+      text-align:center;font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+      color:rgba(255,255,255,.15)}
   </style>
 </head>
-<body style="display:flex;flex-direction:column;min-height:100vh">
-  <header>
-    <a class="logo" href="/">${esc(siteTitle)}</a>
-  </header>
-  <main style="flex:1">
+<body>
+  <nav class="bar">
+    <span class="bar-title">${esc(title)}</span>
+  </nav>
+  <main>
+    <div class="hero">
+      <h1 class="hero-title">${esc(title)}</h1>
+      ${orgDescHtml ? `<div class="hero-desc">${orgDescHtml}</div>` : ''}
+    </div>
+    <div class="hero-divider"></div>
     <div class="grid">${cards}</div>
   </main>
-  <footer>
-    <span class="brand">GalleryPack</span>
-  </footer>
+  <footer class="footer">GalleryPack</footer>
 </body>
 </html>`;
 }

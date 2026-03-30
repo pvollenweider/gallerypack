@@ -281,7 +281,7 @@ export function buildLegalNotice(cfg) {
   const p           = cfg.project;
   const locale      = (p.locale || 'en').slice(0, 2).toLowerCase();
   const T           = LEGAL_MD_I18N[locale] || LEGAL_MD_I18N.en;
-  const displayName = p.author || T.anon;
+  const displayName = p.author || (p.photographers && p.photographers.length > 0 ? p.photographers.join(', ') : T.anon);
   const year        = p.date ? p.date.slice(0, 4) : new Date().getFullYear();
 
   const workLines = [
@@ -1817,7 +1817,7 @@ function buildLegalHTML(l) {
   // Custom template takes full priority over the built-in multilingual strings.
   if (PROJECT.legalHtml) return PROJECT.legalHtml;
   const T  = LEGAL_I18N[l] || LEGAL_I18N.en;
-  const a  = PROJECT.author || T.anon;
+  const a  = PROJECT.author || (PROJECT.photographers && PROJECT.photographers.length > 0 ? PROJECT.photographers.join(', ') : T.anon);
   const yr = PROJECT.date ? PROJECT.date.slice(0,4) : new Date().getFullYear();
   const em = PROJECT.authorEmail
     ? \`<a href="mailto:\${PROJECT.authorEmail}">\${PROJECT.authorEmail}</a>\`
@@ -1864,7 +1864,7 @@ function buildLegalText(l) {
   // Custom template takes full priority over the built-in multilingual strings.
   if (PROJECT.legalTxt) return PROJECT.legalTxt;
   const T    = LEGAL_I18N[l] || LEGAL_I18N.en;
-  const a    = PROJECT.author || T.anon;
+  const a    = PROJECT.author || (PROJECT.photographers && PROJECT.photographers.length > 0 ? PROJECT.photographers.join(', ') : T.anon);
   const yr   = PROJECT.date ? PROJECT.date.slice(0,4) : new Date().getFullYear();
   const em   = PROJECT.authorEmail || '';
   const strip = s => s.replace(/<[^>]*>/g, '');

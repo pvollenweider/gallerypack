@@ -288,6 +288,10 @@ app.get('/', async (req, res) => {
   const studioRow  = studioRows[0];
   const settings   = studioRow ? await getSettings(studioRow.id) : null;
   const siteTitle  = settings?.site_title || 'GalleryPack';
+  const [orgRows]  = await query('SELECT name, description FROM organizations WHERE is_default = 1 LIMIT 1');
+  const org        = orgRows[0] ?? null;
+  const orgName    = org?.name || siteTitle;
+  const orgDescHtml = org?.description ? marked.parse(org.description) : '';
   const token      = req.cookies?.session;
   const isLoggedIn = token ? !!(await getSession(token)) : false;
 
@@ -331,7 +335,7 @@ app.get('/', async (req, res) => {
   }));
 
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.send(renderProjectIndex(projects, siteTitle, isLoggedIn));
+  res.send(renderProjectIndex(projects, siteTitle, isLoggedIn, orgName, orgDescHtml));
 });
 
 // ── Error handler ─────────────────────────────────────────────────────────────

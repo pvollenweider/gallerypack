@@ -1,6 +1,6 @@
 {
   "name": "@gallerypack/shared",
-  "version": "0.0.1",
+  "version": "1.7.0",
   "license": "AGPL-3.0-only",
   "description": "Shared types, storage interface, and utilities",
   "type": "module",

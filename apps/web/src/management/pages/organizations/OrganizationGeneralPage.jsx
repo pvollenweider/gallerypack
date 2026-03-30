@@ -5,12 +5,13 @@
 // Use, reproduction, or distribution requires a valid commercial license.
 // Unauthorized use is strictly prohibited.
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
+import SimpleMDE from 'react-simplemde-editor';
 import { api } from '../../../lib/api.js';
 import { useT } from '../../../lib/I18nContext.jsx';
 import { useAuth } from '../../../lib/auth.jsx';
-import { AdminPage, AdminCard, AdminInput, AdminAlert, AdminToast } from '../../../components/ui/index.js';
+import { AdminPage, AdminCard, AdminInput, AdminAlert, AdminToast, AdminButton } from '../../../components/ui/index.js';
 
 const LOCALES = [
   { value: 'en', label: 'English' }, { value: 'fr', label: 'French' },
@@ -25,6 +26,8 @@ export default function OrganizationGeneralPage() {
   const { user } = useAuth();
 
   const canManage = ['admin', 'owner'].includes(user?.studioRole) || user?.platformRole === 'superadmin';
+
+  const mdeOptions = useMemo(() => ({ minHeight: '120px', maxHeight: '300px', spellChecker: false, status: false, toolbar: ['bold','italic','|','unordered-list','ordered-list','|','link','|','preview'] }), []);
 
   const [identity,    setIdentity]    = useState({ name: '', slug: '', description: '', locale: 'en', country: '' });
   const [identityErr, setIdentityErr] = useState('');
@@ -101,13 +104,19 @@ export default function OrganizationGeneralPage() {
               onChange={setId('slug')} onBlur={handleBlur}
               pattern="[-a-z0-9]+" title={t('orgs_slug_hint')} required hint={t('org_slug_hint')}
             />
-            <AdminInput
-              label={t('field_description')} value={identity.description}
-              onChange={setId('description')} onBlur={handleBlur}
-              className="mb-0"
-            />
           </AdminCard>
           <AdminAlert message={identityErr} />
+
+          <AdminCard title={t('field_description')}>
+            <SimpleMDE
+              value={identity.description}
+              onChange={val => setIdentity(f => ({ ...f, description: val }))}
+              options={mdeOptions}
+            />
+            <div className="d-flex justify-content-end mt-2">
+              <AdminButton size="sm" onClick={() => saveIdentity(identityRef.current)}>{t('save')}</AdminButton>
+            </div>
+          </AdminCard>
 
           <AdminCard title={t('org_locale_label')}>
             <div className="row">
