@@ -19,6 +19,7 @@
 //   thumbnail_queue_size{priority}        — current sm/md queue depth
 //   prerender_queue_size                  — current prerender queue depth
 //   tus_incomplete_uploads_total          — counter for uploads started but not finished
+//   tus_checksum_mismatch_total           — per-chunk Upload-Checksum failures (460)
 //   http_requests_total{method,route,status_code} — HTTP request counter (via pino-http hook)
 //   http_request_duration_seconds{method,route}   — HTTP latency histogram
 
@@ -76,6 +77,11 @@ export const prerenderQueueSizeGauge = new client.Gauge({
 });
 
 // ── tus upload lifecycle ───────────────────────────────────────────────────────
+
+export const tusChecksumMismatchTotal = new client.Counter({
+  name: 'gallerypack_tus_checksum_mismatch_total',
+  help: 'Number of tus PATCH requests rejected due to Upload-Checksum mismatch',
+});
 
 export const tusIncompleteUploads = new client.Gauge({
   name: 'gallerypack_tus_incomplete_uploads',

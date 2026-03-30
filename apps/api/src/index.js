@@ -16,6 +16,7 @@ import { runMigrations } from './db/migrations/run.js';
 import { logger }        from './lib/logger.js';
 import pinoHttp          from 'pino-http';
 import { registry, httpRequestsTotal, httpRequestDuration } from './lib/metrics.js';
+import { initSentry, sentryErrorHandler } from './lib/sentry.js';
 import { bootstrap }     from './services/bootstrap.js';
 import { loadLicense }   from './services/license.js';
 import { errorHandler }       from './middleware/error.js';
@@ -50,13 +51,19 @@ import galleryMaintenanceRoutes from './routes/galleryMaintenance.js';
 import personalTokensRoutes   from './routes/personalTokens.js';
 import personalUploadRoutes   from './routes/personalUpload.js';
 import tusRoutes               from './routes/tus.js';
+import { uploadThrottle }      from './middleware/uploadThrottle.js';
+import { uploadChecksum }      from './middleware/uploadChecksum.js';
 import { initQueues, closeQueues } from './services/queues.js';
+import { startCleanupCron }        from './jobs/cleanExpiredUploads.js';
 
 const __DIR        = path.dirname(fileURLToPath(import.meta.url));
 const PORT         = process.env.PORT || 4000;
 const ADMIN_DIST   = process.env.ADMIN_DIST   || path.join(__DIR, '../../../../apps/web/dist');
 const DIST_DIR     = process.env.DIST_DIR     || DIST_ROOT;
 const THUMB_ROOT   = process.env.THUMB_ROOT   || path.join(INTERNAL_ROOT, 'thumbnails');
+
+// ── Sentry (must init before app) ────────────────────────────────────────────
+initSentry();
 
 // ── App ───────────────────────────────────────────────────────────────────────
 const app = express();
@@ -166,7 +173,7 @@ app.use('/api/auth',                authRoutes);
 app.use('/api/galleries',           galleriesRoutes);
 app.use('/api/galleries',           accessRoutes);
 app.use('/api/galleries',           authUploadRateLimit, photosRoutes);
-app.use('/api/tus',                 authUploadRateLimit, tusRoutes);
+app.use('/api/tus',                 authUploadRateLimit, uploadChecksum, uploadThrottle, tusRoutes);
 app.use('/api/galleries',           jobsRoutes);
 app.use('/api/jobs',                jobsRoutes); // for /api/jobs/:jobId and /api/jobs/:jobId/stream
 app.use('/api/invites',             scopedInvitesRouter); // canonical scoped invites (Sprint 5)
@@ -300,6 +307,7 @@ app.get('/', async (req, res) => {
 });
 
 // ── Error handler ─────────────────────────────────────────────────────────────
+app.use(sentryErrorHandler);  // must be before custom error handler
 app.use(errorHandler);
 
 // ── Safety net — log unhandled rejections without crashing ───────────────────
@@ -320,7 +328,8 @@ process.on('SIGTERM', async () => {
     loadLicense();
     await runMigrations();
     await bootstrap();
-    await initQueues();   // BullMQ — graceful no-op if Redis unavailable
+    await initQueues();       // BullMQ — graceful no-op if Redis unavailable
+    startCleanupCron();       // purge incomplete tus uploads hourly
     app.listen(PORT, () => {
       logger.info({ port: PORT }, 'GalleryPack API listening');
     });

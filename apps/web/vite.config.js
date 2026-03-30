@@ -7,9 +7,18 @@
 
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { sentryVitePlugin } from '@sentry/vite-plugin';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    // Upload source maps to Sentry at build time only if auth token is provided
+    ...(process.env.SENTRY_AUTH_TOKEN ? [sentryVitePlugin({
+      org:     process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT || 'gallerypack-web',
+      authToken: process.env.SENTRY_AUTH_TOKEN,
+    })] : []),
+  ],
   server: {
     port: 5173,
     proxy: {

@@ -37,6 +37,35 @@ import { extractExif }   from '../../../../packages/engine/src/exif.js';
 import { audit, getUploadLinkByToken, getPhotographerByUploadLink } from '../db/helpers.js';
 import { emit, EVENTS } from './events.js';
 import { uploadLogger as log } from '../lib/logger.js';
+
+// ── Storage quota helpers ─────────────────────────────────────────────────────
+
+async function checkStorageQuota(studioId, additionalBytes) {
+  const [rows] = await query(
+    'SELECT storage_quota_bytes, storage_used_bytes FROM studios WHERE id = ?', [studioId]
+  );
+  const studio = rows[0];
+  if (!studio || studio.storage_quota_bytes === null) return;   // unlimited
+  const projected = (Number(studio.storage_used_bytes) || 0) + additionalBytes;
+  if (projected > Number(studio.storage_quota_bytes)) {
+    const limitMB = Math.round(Number(studio.storage_quota_bytes) / 1_048_576);
+    throw { status_code: 413, body: `Storage quota exceeded. Limit: ${limitMB} MB.` };
+  }
+}
+
+async function incrementStorageUsed(studioId, bytes) {
+  await query(
+    'UPDATE studios SET storage_used_bytes = GREATEST(0, storage_used_bytes + ?) WHERE id = ?',
+    [bytes, studioId]
+  );
+}
+
+export async function decrementStorageUsed(studioId, bytes) {
+  await query(
+    'UPDATE studios SET storage_used_bytes = GREATEST(0, storage_used_bytes - ?) WHERE id = ?',
+    [bytes, studioId]
+  );
+}
 import {
   uploadTotal, uploadBytesTotal, uploadDuration, uploadFileSize,
   tusIncompleteUploads,
@@ -172,6 +201,7 @@ async function finaliseUpload({ upload, galleryId, userId, studioId, req }) {
 
   try { await audit(studioId, userId, 'photo.upload', 'gallery', gallery.id, { filename: destName, via: 'tus' }); } catch {}
 
+  await incrementStorageUsed(studioId, sizeByte);
   uploadTotal.inc({ status: 'success' });
   uploadBytesTotal.inc({ status: 'success' }, sizeByte);
   uploadFileSize.observe(sizeByte);
@@ -193,7 +223,6 @@ export function createTusServer(studioId) {
     path: '/api/tus',              // used by tus for self-referential Upload-Location URLs
     datastore,
     maxSize: MAX_FILE_SIZE_BYTES,
-
     // ── onCreate: validate gallery access before accepting any bytes ──────────
     async onUploadCreate(req, res, upload) {
       const meta      = decodeMetadata(upload.metadata);
@@ -213,6 +242,11 @@ export function createTusServer(studioId) {
       }
 
       // Attach to upload for use in onUploadFinish
+      // Check storage quota before accepting any bytes
+      if (upload.size > 0) {
+        await checkStorageQuota(studioId, upload.size);
+      }
+
       upload._galleryId  = galleryId;
       upload._userId     = userId;
       upload._studioId   = studioId;

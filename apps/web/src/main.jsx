@@ -5,6 +5,7 @@
 // Use, reproduction, or distribution requires a valid commercial license.
 // Unauthorized use is strictly prohibited.
 
+import * as Sentry from '@sentry/react';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import 'admin-lte/dist/css/adminlte.min.css';
 import './mobile.css';
@@ -17,6 +18,17 @@ import App from './App.jsx';
 
 // In production the app is mounted at /admin — Vite sets import.meta.env.BASE_URL
 // React Router needs the same basename so links resolve correctly.
+// Sentry — no-op if VITE_SENTRY_DSN not set
+if (import.meta.env.VITE_SENTRY_DSN) {
+  Sentry.init({
+    dsn:         import.meta.env.VITE_SENTRY_DSN,
+    release:     import.meta.env.VITE_SENTRY_RELEASE,
+    environment: import.meta.env.MODE,
+    tracesSampleRate: import.meta.env.PROD ? 0.1 : 1.0,
+    integrations: [Sentry.browserTracingIntegration()],
+  });
+}
+
 const basename = import.meta.env.BASE_URL.replace(/\/$/, '') || '';
 
 createRoot(document.getElementById('root')).render(

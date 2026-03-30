@@ -26,6 +26,7 @@ import { SRC_ROOT }     from '../../../../packages/engine/src/fs.js';
 import { createStorage } from '../../../../packages/shared/src/storage/index.js';
 import { enqueueSm, enqueueMd, photoThumbnails, thumbPath } from '../services/thumbnailService.js';
 import { enqueuePrerender, uploadStarted, uploadFinished } from '../services/prerenderService.js';
+import { decrementStorageUsed } from '../services/tusService.js';
 import { extractExif } from '../../../../packages/engine/src/exif.js';
 import { runSharp } from '../services/sharpProcess.js';
 
@@ -452,8 +453,10 @@ router.delete('/:id/photos/:filename', async (req, res) => {
   const filePath = path.join(photosDir(gallery.slug), safe);
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found' });
 
+  const fileSize = fs.statSync(filePath).size;
   fs.unlinkSync(filePath);
   await query('DELETE FROM photos WHERE gallery_id = ? AND filename = ?', [gallery.id, safe]);
+  await decrementStorageUsed(req.studioId, fileSize);
   await query(
     'UPDATE galleries SET needs_rebuild = 1, updated_at = ? WHERE id = ?',
     [Date.now(), req.params.id]
