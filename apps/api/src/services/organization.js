@@ -191,9 +191,9 @@ export async function listOrgMembers(orgId) {
     SELECT sm.role, u.id, u.email, u.name, u.bio, u.role AS user_role, u.is_photographer, u.created_at
     FROM studio_memberships sm
     JOIN users u ON u.id = sm.user_id
-    WHERE sm.organization_id = ?
+    WHERE sm.organization_id = ? OR (sm.organization_id IS NULL AND sm.studio_id = ?)
     ORDER BY sm.created_at ASC
-  `, [orgId]);
+  `, [orgId, orgId]);
 
   const [galleryAccess] = await query(`
     SELECT gra.user_id, gra.role AS gallery_role, g.id AS gallery_id, g.title AS gallery_title
