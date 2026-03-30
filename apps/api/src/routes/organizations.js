@@ -39,7 +39,7 @@ import {
   addOrgDomain,
   removeOrgDomain,
 } from '../services/organization.js';
-import { ROLE_HIERARCHY, audit } from '../db/helpers.js';
+import { ROLE_HIERARCHY, audit, genId, hashPassword } from '../db/helpers.js';
 import { query } from '../db/database.js';
 
 const router = Router();
@@ -134,6 +134,63 @@ router.get('/:id/members', requireStudioRole('admin'), async (req, res) => {
   const org = await loadOrg(req, res);
   if (!org) return;
   res.json(await listOrgMembers(org.id));
+});
+
+// POST /organizations/:id/members/create — create user directly and add to org (no invitation sent)
+router.post('/:id/members/create', async (req, res) => {
+  const org = await loadOrg(req, res);
+  if (!org) return;
+  const callerRole = isSuperadmin(req) ? 'owner' : (await getOrgRole(req.userId, org.id));
+  if (!['admin', 'owner'].includes(callerRole)) {
+    return res.status(403).json({ error: 'Requires admin role or higher' });
+  }
+
+  const { name, email, password, role = 'collaborator' } = req.body || {};
+  if (!email) return res.status(400).json({ error: 'email is required' });
+  if (!password) return res.status(400).json({ error: 'password is required' });
+  if (!ROLE_HIERARCHY.includes(role)) return res.status(400).json({ error: `role must be one of: ${ROLE_HIERARCHY.join(', ')}` });
+
+  const [existing] = await query('SELECT id FROM users WHERE email = ?', [email]);
+  if (existing[0]) return res.status(409).json({ error: 'A user with this email already exists' });
+
+  const id  = genId();
+  const now = Date.now();
+  await query(
+    `INSERT INTO users (id, studio_id, organization_id, email, password_hash, role, name, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, org.id, org.id, email, hashPassword(password), role, name || '', now, now]
+  );
+  await upsertOrgMember(org.id, id, role);
+  try { await audit(org.id, req.userId, 'member.created', 'user', id, { email, role }); } catch {}
+
+  const members = await listOrgMembers(org.id);
+  const member  = members.find(m => m.id === id);
+  res.status(201).json(member);
+});
+
+// PATCH /organizations/:id/members/:userId — update member profile (name, bio, isPhotographer)
+router.patch('/:id/members/:userId', async (req, res) => {
+  const org = await loadOrg(req, res);
+  if (!org) return;
+  const callerRole = isSuperadmin(req) ? 'owner' : (await getOrgRole(req.userId, org.id));
+  if (!['admin', 'owner'].includes(callerRole)) {
+    return res.status(403).json({ error: 'Requires admin role or higher' });
+  }
+
+  const { userId } = req.params;
+  const { name, bio, isPhotographer } = req.body || {};
+  const sets = [];
+  const vals = [];
+  if (name          !== undefined) { sets.push('name = ?');            vals.push(name ?? ''); }
+  if (bio           !== undefined) { sets.push('bio = ?');             vals.push(bio ?? null); }
+  if (isPhotographer !== undefined) { sets.push('is_photographer = ?'); vals.push(isPhotographer ? 1 : 0); }
+  if (!sets.length) return res.status(400).json({ error: 'Nothing to update' });
+
+  sets.push('updated_at = ?');
+  vals.push(Date.now(), userId);
+  await query(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`, vals);
+  try { await audit(org.id, req.userId, 'member.profile_updated', 'user', userId, { name, bio, isPhotographer }); } catch {}
+  res.json({ ok: true });
 });
 
 router.put('/:id/members/:userId', async (req, res) => {
