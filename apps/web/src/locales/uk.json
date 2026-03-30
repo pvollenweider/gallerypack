@@ -800,5 +800,12 @@
   "cta_gal_no_photos_title": "Фото ще немає",
   "cta_gal_no_photos_desc": "Завантажте фотографії для початку — перетягніть або використайте посилання для завантаження.",
   "cta_gal_not_published_title": "Готово до публікації?",
-  "cta_gal_not_published_desc": "Фотографії готові. Зберіть та опублікуйте галерею, щоб зробити її доступною."
+  "cta_gal_not_published_desc": "Фотографії готові. Зберіть та опублікуйте галерею, щоб зробити її доступною.",
+  "republish_all": "Republish all",
+  "republishing": "Republishing…",
+  "public_page": "Public page",
+  "build_all_queued": "{queued} gallery(s) queued for rendering",
+  "build_all_queued_of": "{queued} of {total} gallery(s) queued",
+  "build_all_error": "Error: {message}",
+  "th_photographers": "Photographers"
 }

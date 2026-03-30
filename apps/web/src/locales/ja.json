@@ -800,5 +800,12 @@
   "cta_gal_no_photos_title": "写真がまだありません",
   "cta_gal_no_photos_desc": "写真をアップロードして始めましょう — ドラッグ＆ドロップまたはアップロードリンクを使用してください。",
   "cta_gal_not_published_title": "公開する準備はできていますか？",
-  "cta_gal_not_published_desc": "写真の準備ができています。ギャラリーをビルドして公開し、アクセス可能にしてください。"
+  "cta_gal_not_published_desc": "写真の準備ができています。ギャラリーをビルドして公開し、アクセス可能にしてください。",
+  "republish_all": "Republish all",
+  "republishing": "Republishing…",
+  "public_page": "Public page",
+  "build_all_queued": "{queued} gallery(s) queued for rendering",
+  "build_all_queued_of": "{queued} of {total} gallery(s) queued",
+  "build_all_error": "Error: {message}",
+  "th_photographers": "Photographers"
 }

@@ -800,5 +800,12 @@
   "cta_gal_no_photos_title": "Δεν υπάρχουν ακόμη φωτογραφίες",
   "cta_gal_no_photos_desc": "Μεταφορτώστε φωτογραφίες για να ξεκινήσετε — σύρτε και αποθέστε ή χρησιμοποιήστε σύνδεσμο μεταφόρτωσης.",
   "cta_gal_not_published_title": "Έτοιμο για δημοσίευση;",
-  "cta_gal_not_published_desc": "Οι φωτογραφίες είναι έτοιμες. Κατασκευάστε και δημοσιεύστε τη γκαλερί για να γίνει προσβάσιμη."
+  "cta_gal_not_published_desc": "Οι φωτογραφίες είναι έτοιμες. Κατασκευάστε και δημοσιεύστε τη γκαλερί για να γίνει προσβάσιμη.",
+  "republish_all": "Republish all",
+  "republishing": "Republishing…",
+  "public_page": "Public page",
+  "build_all_queued": "{queued} gallery(s) queued for rendering",
+  "build_all_queued_of": "{queued} of {total} gallery(s) queued",
+  "build_all_error": "Error: {message}",
+  "th_photographers": "Photographers"
 }

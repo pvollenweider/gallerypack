@@ -800,5 +800,12 @@
   "cta_gal_no_photos_title": "사진이 없습니다",
   "cta_gal_no_photos_desc": "사진을 업로드하여 시작하세요 — 드래그 앤 드롭하거나 업로드 링크를 사용하세요.",
   "cta_gal_not_published_title": "게시할 준비가 되셨나요?",
-  "cta_gal_not_published_desc": "사진이 준비되었습니다. 갤러리를 빌드하고 게시하여 접근 가능하게 만드세요."
+  "cta_gal_not_published_desc": "사진이 준비되었습니다. 갤러리를 빌드하고 게시하여 접근 가능하게 만드세요.",
+  "republish_all": "Republish all",
+  "republishing": "Republishing…",
+  "public_page": "Public page",
+  "build_all_queued": "{queued} gallery(s) queued for rendering",
+  "build_all_queued_of": "{queued} of {total} gallery(s) queued",
+  "build_all_error": "Error: {message}",
+  "th_photographers": "Photographers"
 }

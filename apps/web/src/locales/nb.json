@@ -800,5 +800,12 @@
   "cta_gal_no_photos_title": "Ingen bilder ennå",
   "cta_gal_no_photos_desc": "Last opp bilder for å komme i gang — dra og slipp eller bruk en opplastingslenke.",
   "cta_gal_not_published_title": "Klar til publisering?",
-  "cta_gal_not_published_desc": "Bildene er klare. Bygg og publiser galleriet for å gjøre det tilgjengelig."
+  "cta_gal_not_published_desc": "Bildene er klare. Bygg og publiser galleriet for å gjøre det tilgjengelig.",
+  "republish_all": "Republish all",
+  "republishing": "Republishing…",
+  "public_page": "Public page",
+  "build_all_queued": "{queued} gallery(s) queued for rendering",
+  "build_all_queued_of": "{queued} of {total} gallery(s) queued",
+  "build_all_error": "Error: {message}",
+  "th_photographers": "Photographers"
 }

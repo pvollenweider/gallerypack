@@ -28,9 +28,9 @@ export default function OrganizationOverviewPage() {
     setBuildingAll(true);
     try {
       const r = await api.buildAllStudioGalleries();
-      setBuildToast(`${r.queued} galerie(s) sur ${r.total} en file de rendu`);
+      setBuildToast(t('build_all_queued_of', { queued: r.queued, total: r.total }));
     } catch (err) {
-      setBuildToast(`Erreur : ${err.message}`);
+      setBuildToast(t('build_all_error', { message: err.message }));
     } finally {
       setBuildingAll(false);
     }
@@ -56,10 +56,10 @@ export default function OrganizationOverviewPage() {
       actions={
         <AdminButton
           variant="outline-secondary" size="sm"
-          loading={buildingAll} loadingLabel="Republication…"
+          loading={buildingAll} loadingLabel={t('republishing')}
           onClick={buildAll} icon="fas fa-sync-alt"
         >
-          Republier tout
+          {t('republish_all')}
         </AdminButton>
       }
     >

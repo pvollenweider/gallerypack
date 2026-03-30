@@ -800,5 +800,12 @@
   "cta_gal_no_photos_title": "Henüz fotoğraf yok",
   "cta_gal_no_photos_desc": "Başlamak için fotoğraf yükleyin — sürükleyip bırakın veya yükleme bağlantısı kullanın.",
   "cta_gal_not_published_title": "Yayınlamaya hazır mısınız?",
-  "cta_gal_not_published_desc": "Fotoğraflar hazır. Erişilebilir kılmak için galeriyi derleyin ve yayınlayın."
+  "cta_gal_not_published_desc": "Fotoğraflar hazır. Erişilebilir kılmak için galeriyi derleyin ve yayınlayın.",
+  "republish_all": "Republish all",
+  "republishing": "Republishing…",
+  "public_page": "Public page",
+  "build_all_queued": "{queued} gallery(s) queued for rendering",
+  "build_all_queued_of": "{queued} of {total} gallery(s) queued",
+  "build_all_error": "Error: {message}",
+  "th_photographers": "Photographers"
 }

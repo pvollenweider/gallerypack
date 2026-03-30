@@ -800,5 +800,12 @@
   "cta_gal_no_photos_title": "Nenhuma foto ainda",
   "cta_gal_no_photos_desc": "Faça upload de fotos para começar — arraste e solte ou use um link de upload.",
   "cta_gal_not_published_title": "Pronto para publicar?",
-  "cta_gal_not_published_desc": "As fotos estão prontas. Compile e publique a galeria para torná-la acessível."
+  "cta_gal_not_published_desc": "As fotos estão prontas. Compile e publique a galeria para torná-la acessível.",
+  "republish_all": "Republish all",
+  "republishing": "Republishing…",
+  "public_page": "Public page",
+  "build_all_queued": "{queued} gallery(s) queued for rendering",
+  "build_all_queued_of": "{queued} of {total} gallery(s) queued",
+  "build_all_error": "Error: {message}",
+  "th_photographers": "Photographers"
 }

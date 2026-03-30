@@ -55,9 +55,9 @@ export default function ProjectGalleriesPage() {
     setBuildingAll(true);
     try {
       const r = await api.buildAllProjectGalleries(projectId);
-      setBuildAllToast(`${r.queued} galerie(s) en file de rendu`);
+      setBuildAllToast(t('build_all_queued', { queued: r.queued }));
     } catch (err) {
-      setBuildAllToast(`Erreur: ${err.message}`);
+      setBuildAllToast(t('build_all_error', { message: err.message }));
     } finally {
       setBuildingAll(false);
     }
@@ -143,16 +143,16 @@ export default function ProjectGalleriesPage() {
               className="btn btn-sm btn-outline-success"
             >
               <i className="fas fa-external-link-alt me-1" />
-              Page publique
+              {t('public_page')}
             </a>
           )}
           {galleries.length > 0 && (
             <AdminButton
               variant="outline-secondary" size="sm"
-              loading={buildingAll} loadingLabel="Republication…"
+              loading={buildingAll} loadingLabel={t('republishing')}
               onClick={buildAll} icon="fas fa-sync-alt"
             >
-              Republier tout
+              {t('republish_all')}
             </AdminButton>
           )}
           <AdminButton size="sm" onClick={openCreate} icon="fas fa-plus">
@@ -231,7 +231,7 @@ export default function ProjectGalleriesPage() {
                   <th>{t('proj_th_title')}</th>
                   <th>{t('proj_th_status')}</th>
                   <th className="d-none d-md-table-cell">Date</th>
-                  <th className="d-none d-lg-table-cell">Photographes</th>
+                  <th className="d-none d-lg-table-cell">{t('th_photographers')}</th>
                   <th></th>
                 </tr>
               </thead>

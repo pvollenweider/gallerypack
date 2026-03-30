@@ -800,5 +800,12 @@
   "cta_gal_no_photos_title": "Nog geen foto's",
   "cta_gal_no_photos_desc": "Upload foto's om te beginnen — sleep en zet neer of gebruik een uploadlink.",
   "cta_gal_not_published_title": "Klaar om te publiceren?",
-  "cta_gal_not_published_desc": "Foto's zijn gereed. Bouw en publiceer de galerij om deze toegankelijk te maken."
+  "cta_gal_not_published_desc": "Foto's zijn gereed. Bouw en publiceer de galerij om deze toegankelijk te maken.",
+  "republish_all": "Republish all",
+  "republishing": "Republishing…",
+  "public_page": "Public page",
+  "build_all_queued": "{queued} gallery(s) queued for rendering",
+  "build_all_queued_of": "{queued} of {total} gallery(s) queued",
+  "build_all_error": "Error: {message}",
+  "th_photographers": "Photographers"
 }
