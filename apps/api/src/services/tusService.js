@@ -88,10 +88,13 @@ function tusStoreDir() {
   return path.join(INTERNAL_ROOT, 'tus');
 }
 
-function decodeMetadata(metadataHeader) {
-  if (!metadataHeader) return {};
+function decodeMetadata(metadata) {
+  if (!metadata) return {};
+  // @tus/server v2: metadata is already a parsed Record<string, string|null>
+  if (typeof metadata === 'object') return metadata;
+  // Legacy / raw Upload-Metadata header string (base64-encoded key-value pairs)
   const out = {};
-  for (const pair of metadataHeader.split(',')) {
+  for (const pair of metadata.split(',')) {
     const [key, b64] = pair.trim().split(' ');
     if (key && b64) {
       try { out[key] = Buffer.from(b64, 'base64').toString('utf8'); } catch {}
@@ -224,10 +227,13 @@ export function createTusServer(studioId) {
     datastore,
     maxSize: MAX_FILE_SIZE_BYTES,
     // ── onCreate: validate gallery access before accepting any bytes ──────────
-    async onUploadCreate(req, res, upload) {
+    // @tus/server v2: hooks receive (req: FetchRequest, upload) — no res param.
+    // The original Express req is accessible via req.node?.req (srvx bridge).
+    async onUploadCreate(req, upload) {
+      const nodeReq   = req.node?.req ?? req;
       const meta      = decodeMetadata(upload.metadata);
       const galleryId = meta.galleryId;
-      const userId    = req._tusUserId;          // set by auth middleware (see tusMiddleware)
+      const userId    = nodeReq._tusUserId;      // set by tus.js before server.handle()
 
       if (!galleryId) {
         throw { status_code: 400, body: 'Missing galleryId in Upload-Metadata' };
@@ -254,17 +260,18 @@ export function createTusServer(studioId) {
 
       tusIncompleteUploads.inc();
 
-      return res;
+      return {};
     },
 
     // ── onUploadFinish: run the full photo pipeline ───────────────────────────
-    async onUploadFinish(req, res, upload) {
+    async onUploadFinish(req, upload) {
+      const nodeReq   = req.node?.req ?? req;
       uploadStarted();
       const durationS = upload._createdAt ? (Date.now() - upload._createdAt) / 1000 : 0;
       try {
         const meta      = decodeMetadata(upload.metadata);
         const galleryId = meta.galleryId || upload._galleryId;
-        const userId    = req._tusUserId  || upload._userId;
+        const userId    = nodeReq._tusUserId  || upload._userId;
 
         const outcome = await finaliseUpload({
           upload,
@@ -285,7 +292,7 @@ export function createTusServer(studioId) {
         uploadFinished();
       }
 
-      return res;
+      return {};
     },
   });
 
@@ -308,18 +315,19 @@ export function getPublicTusServer() {
       datastore,
       maxSize:  MAX_FILE_SIZE_BYTES,
 
-      async onUploadCreate(req, res, upload) {
-        const token = req._uploadToken;
+      async onUploadCreate(req, upload) {
+        const nodeReq = req.node?.req ?? req;
+        const token   = nodeReq._uploadToken;
         if (!token) throw { status_code: 400, body: 'Missing upload token' };
 
         const link = await getUploadLinkByToken(token);
         if (!link) throw { status_code: 401, body: 'Invalid or expired upload link' };
 
         upload._link = link;
-        return res;
+        return {};
       },
 
-      async onUploadFinish(req, res, upload) {
+      async onUploadFinish(req, upload) {
         const link = upload._link;
         if (!link) throw { status_code: 401, body: 'Invalid or expired upload link' };
 
@@ -423,7 +431,7 @@ export function getPublicTusServer() {
           uploadFinished();
         }
 
-        return res;
+        return {};
       },
     });
 
