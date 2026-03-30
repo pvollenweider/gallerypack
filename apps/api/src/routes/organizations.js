@@ -40,6 +40,7 @@ import {
   removeOrgDomain,
 } from '../services/organization.js';
 import { ROLE_HIERARCHY, audit } from '../db/helpers.js';
+import { query } from '../db/database.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -156,6 +157,28 @@ router.put('/:id/members/:userId', async (req, res) => {
   await upsertOrgMember(org.id, userId, role);
   try { await audit(org.id, req.userId, 'member.role_changed', 'user', userId, { to: role }); } catch {}
   res.json({ ok: true, userId, role });
+});
+
+// GET /organizations/:id/photographers — org members with is_photographer = true
+router.get('/:id/photographers', async (req, res) => {
+  const org = await loadOrg(req, res);
+  if (!org) return;
+  const members = await listOrgMembers(org.id);
+  res.json(members.filter(m => m.is_photographer));
+});
+
+// PATCH /organizations/:id/members/:userId/photographer — toggle is_photographer flag
+router.patch('/:id/members/:userId/photographer', async (req, res) => {
+  const org = await loadOrg(req, res);
+  if (!org) return;
+  const callerRole = isSuperadmin(req) ? 'owner' : (await getOrgRole(req.userId, org.id));
+  if (!['admin', 'owner'].includes(callerRole)) {
+    return res.status(403).json({ error: 'Requires admin role or higher' });
+  }
+  const { userId } = req.params;
+  await query('UPDATE users SET is_photographer = NOT is_photographer WHERE id = ?', [userId]);
+  const [rows] = await query('SELECT is_photographer FROM users WHERE id = ?', [userId]);
+  res.json({ ok: true, isPhotographer: !!rows[0]?.is_photographer });
 });
 
 router.delete('/:id/members/:userId', async (req, res) => {

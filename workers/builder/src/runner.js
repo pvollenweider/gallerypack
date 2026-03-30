@@ -99,9 +99,9 @@ export async function runJob(jobId) {
     // The engine's listPhotos() respects this file and treats it as the full ordered list.
     // This excludes 'uploaded' photos that are still pending review.
     const [validatedRows] = await query(
-      `SELECT ph.filename, pg.name AS photographer_name
+      `SELECT ph.filename, u.name AS photographer_name
        FROM photos ph
-       LEFT JOIN photographers pg ON pg.id = ph.photographer_id
+       LEFT JOIN users u ON u.id = ph.photographer_id
        WHERE ph.gallery_id = ? AND ph.status IN ('validated', 'published')
        ORDER BY ph.sort_order ASC, ph.created_at ASC`,
       [gallery.id]

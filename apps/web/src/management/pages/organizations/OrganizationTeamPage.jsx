@@ -79,6 +79,13 @@ export default function OrganizationTeamPage() {
     } catch {}
   }
 
+  async function togglePhotographer(userId) {
+    try {
+      await api.toggleOrgPhotographer(orgId, userId);
+      load();
+    } catch {}
+  }
+
   if (!canAccess) return <Navigate to={`/admin/organizations/${orgId}`} replace />;
 
   return (
@@ -101,15 +108,30 @@ export default function OrganizationTeamPage() {
                         <th>{t('inspector_th_name')}</th>
                         <th>{t('inspector_th_email')}</th>
                         <th>{t('team_th_role')}</th>
+                        <th>{t('team_th_photographer')}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {members.map(m => (
-                        <tr key={m.user_id}>
+                        <tr key={m.id}>
                           <td>{m.name || '—'}</td>
                           <td className="text-muted" style={{ fontSize: '0.85rem' }}>{m.email}</td>
                           <td>
                             <AdminBadge color={ROLE_BADGE[m.role] || 'secondary'}>{m.role}</AdminBadge>
+                          </td>
+                          <td>
+                            {canManage ? (
+                              <button
+                                type="button"
+                                className={`btn btn-sm ${m.is_photographer ? 'btn-primary' : 'btn-outline-secondary'}`}
+                                onClick={() => togglePhotographer(m.id)}
+                                title={m.is_photographer ? t('team_remove_photographer') : t('team_make_photographer')}
+                              >
+                                <i className="fas fa-camera" />
+                              </button>
+                            ) : (
+                              m.is_photographer ? <i className="fas fa-camera text-primary" /> : null
+                            )}
                           </td>
                         </tr>
                       ))}

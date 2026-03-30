@@ -23,7 +23,7 @@ import ProfilePage     from './management/pages/profile/ProfilePage.jsx';
 import { PlatformOverviewPage, SmtpPage, LicensePage, BrandingPage, PlatformTeamPage } from './management/pages/platform/index.jsx';
 import { OrganizationsListPage, OrganizationGeneralPage, OrganizationTeamPage, OrganizationProjectsPage } from './management/pages/organizations/index.jsx';
 import { ProjectGeneralPage, ProjectGalleriesPage } from './management/pages/projects/index.jsx';
-import { GalleryGeneralPage, GalleryJobsPage, GalleryInsightsPage, GalleryPhotosPage, GalleryPhotographersPage } from './management/pages/galleries/index.jsx';
+import { GalleryGeneralPage, GalleryJobsPage, GalleryInsightsPage, GalleryPhotosPage } from './management/pages/galleries/index.jsx';
 
 // Inspector
 import InspectorLayout     from './inspector/InspectorLayout.jsx';
@@ -135,7 +135,6 @@ export default function App() {
       <Route path="/admin/organizations/:orgId/projects/:projectId/galleries/:galleryId/general"     element={<GallerySettingsRedirect />} />
       <Route path="/admin/organizations/:orgId/projects/:projectId/galleries/:galleryId/access"      element={<GallerySettingsRedirect />} />
       <Route path="/admin/organizations/:orgId/projects/:projectId/galleries/:galleryId/downloads"       element={<GallerySettingsRedirect />} />
-      <Route path="/admin/organizations/:orgId/projects/:projectId/galleries/:galleryId/photographers"   element={<W><GalleryPhotographersPage /></W>} />
 
       {/* Platform (superadmin only) */}
       <Route path="/admin/platform"              element={<Navigate to="/admin/platform/branding" replace />} />

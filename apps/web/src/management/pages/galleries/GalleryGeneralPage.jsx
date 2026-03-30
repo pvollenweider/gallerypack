@@ -61,7 +61,7 @@ export default function GalleryGeneralPage() {
   const [copied,      setCopied]      = useState('');
 
   useEffect(() => {
-    Promise.all([api.getGallery(galleryId), api.getSettings(), api.listPhotographers(galleryId)]).then(([g, s, pgs]) => {
+    Promise.all([api.getGallery(galleryId), api.getSettings(), api.listOrgPhotographers(orgId)]).then(([g, s, pgs]) => {
       setForm({
         title: g.title || '', slug: g.slug || '', description: g.description || '',
         descriptionMd: g.descriptionMd || '',

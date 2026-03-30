@@ -15,4 +15,3 @@ export { default as GalleryInsightsPage } from './GalleryInsightsPage.jsx';
 export { default as GalleryPhotosPage }   from './GalleryPhotosPage.jsx';
 export { default as GalleryJobsPage }     from './GalleryJobsPage.jsx';
 export { default as GalleryInboxPage }         from './GalleryInboxPage.jsx';
-export { default as GalleryPhotographersPage } from './GalleryPhotographersPage.jsx';

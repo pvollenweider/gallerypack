@@ -570,16 +570,16 @@ router.get('/:id/photographers', async (req, res) => {
   res.json(await listPhotographers(gallery.id));
 });
 
-// GET /api/galleries/:id/photographers/active — photographers with at least one photo in this gallery
+// GET /api/galleries/:id/photographers/active — users with at least one photo attributed in this gallery
 router.get('/:id/photographers/active', async (req, res) => {
   const gallery = await ensureGalleryBelongsToStudio(req, res);
   if (!gallery) return;
   const [rows] = await query(
-    `SELECT DISTINCT pg.*
-     FROM photographers pg
-     INNER JOIN photos ph ON ph.photographer_id = pg.id
+    `SELECT DISTINCT u.id, u.name, u.email, u.is_photographer
+     FROM users u
+     INNER JOIN photos ph ON ph.photographer_id = u.id
      WHERE ph.gallery_id = ? AND ph.status != 'rejected'
-     ORDER BY pg.name ASC`,
+     ORDER BY u.name ASC`,
     [gallery.id]
   );
   res.json(rows);
@@ -644,10 +644,8 @@ router.patch('/:id/photos/:photoId', async (req, res) => {
   const { photographerId } = req.body || {};
   // photographerId = null clears attribution
   if (photographerId !== undefined && photographerId !== null) {
-    const pg = await getPhotographer(photographerId);
-    if (!pg || pg.gallery_id !== gallery.id) {
-      return res.status(400).json({ error: 'Photographer not found in this gallery' });
-    }
+    const [urows] = await query('SELECT id FROM users WHERE id = ?', [photographerId]);
+    if (!urows[0]) return res.status(400).json({ error: 'User not found' });
   }
 
   await setPhotoPhotographer(req.params.photoId, photographerId ?? null);
@@ -668,10 +666,8 @@ router.patch('/:id/photos/bulk-attribute', async (req, res) => {
     return res.status(400).json({ error: 'photoIds array is required' });
   }
   if (photographerId) {
-    const pg = await getPhotographer(photographerId);
-    if (!pg || pg.gallery_id !== gallery.id) {
-      return res.status(400).json({ error: 'Photographer not found in this gallery' });
-    }
+    const [urows] = await query('SELECT id FROM users WHERE id = ?', [photographerId]);
+    if (!urows[0]) return res.status(400).json({ error: 'User not found' });
   }
 
   const count = await bulkSetPhotoPhotographer(photoIds, photographerId ?? null);

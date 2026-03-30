@@ -19,7 +19,7 @@ const STATUS_BADGE   = { done: 'success', error: 'danger', running: 'primary', q
 
 export default function GalleryPhotosPage() {
   const t = useT();
-  const { galleryId } = useParams();
+  const { orgId, galleryId } = useParams();
   const { user } = useAuth();
   const canEdit = CAN_EDIT_ROLES.includes(user?.studioRole) || user?.platformRole === 'superadmin';
 
@@ -79,7 +79,7 @@ export default function GalleryPhotosPage() {
   }
 
   useEffect(() => {
-    Promise.all([api.getGallery(galleryId), api.listPhotos(galleryId), api.listPhotographers(galleryId)])
+    Promise.all([api.getGallery(galleryId), api.listPhotos(galleryId), api.listOrgPhotographers(orgId)])
       .then(([g, p, pgs]) => {
         setGallery(g);
         setPhotos(p);

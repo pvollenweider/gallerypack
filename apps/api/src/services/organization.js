@@ -188,7 +188,7 @@ export async function setDefaultOrganization(id) {
  */
 export async function listOrgMembers(orgId) {
   const [memberRows] = await query(`
-    SELECT sm.role, u.id, u.email, u.name, u.role AS user_role, u.created_at
+    SELECT sm.role, u.id, u.email, u.name, u.role AS user_role, u.is_photographer, u.created_at
     FROM studio_memberships sm
     JOIN users u ON u.id = sm.user_id
     WHERE sm.organization_id = ?
