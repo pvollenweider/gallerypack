@@ -77,10 +77,6 @@ export function renderLanding(galleries, siteTitle = 'GalleryPack', isLoggedIn =
           : `<div style="background:#272727;border-radius:10px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,0.3);opacity:0.5">${inner}</div>`;
       }).join('');
 
-  const adminHeaderBtn = isLoggedIn
-    ? `<a class="admin-link" href="/admin/">Admin</a>`
-    : '';
-
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -92,7 +88,6 @@ export function renderLanding(galleries, siteTitle = 'GalleryPack', isLoggedIn =
     body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#1c1c1c;min-height:100vh}
     header{background:#222;border-bottom:1px solid #333;padding:0 1.5rem;height:52px;display:flex;align-items:center;justify-content:space-between}
     .logo{font-weight:700;letter-spacing:-0.02em;font-size:1rem;color:#fff;text-decoration:none}
-    .admin-link{font-size:0.82rem;color:#aaa;text-decoration:none;padding:0.3rem 0.75rem;border:1px solid #444;border-radius:5px}
     main{max-width:1100px;width:100%;margin:0 auto;padding:1.5rem}
     .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem}
     footer{border-top:1px solid #333;padding:0.75rem 1.5rem;display:flex;align-items:center;gap:0.5rem;font-size:0.78rem;color:#555}
@@ -104,7 +99,6 @@ export function renderLanding(galleries, siteTitle = 'GalleryPack', isLoggedIn =
 <body style="display:flex;flex-direction:column;min-height:100vh">
   <header>
     <a class="logo" href="/">${esc(siteTitle)}</a>
-    ${adminHeaderBtn}
   </header>
   <main style="flex:1">
     <div class="grid">${cards}</div>
@@ -141,8 +135,6 @@ export function renderProjectIndex(projects, siteTitle = 'GalleryPack', isLogged
         return `<a href="${href}" style="background:#272727;border-radius:10px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,0.3);text-decoration:none;display:block;transition:box-shadow 0.15s" onmouseover="this.style.boxShadow='0 4px 20px rgba(0,0,0,0.5)'" onmouseout="this.style.boxShadow='0 1px 6px rgba(0,0,0,0.3)'">${inner}</a>`;
       }).join('');
 
-  const adminHeaderBtn = isLoggedIn ? `<a class="admin-link" href="/admin/">Admin</a>` : '';
-
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -154,7 +146,6 @@ export function renderProjectIndex(projects, siteTitle = 'GalleryPack', isLogged
     body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#1c1c1c;min-height:100vh}
     header{background:#222;border-bottom:1px solid #333;padding:0 1.5rem;height:52px;display:flex;align-items:center;justify-content:space-between}
     .logo{font-weight:700;letter-spacing:-0.02em;font-size:1rem;color:#fff;text-decoration:none}
-    .admin-link{font-size:0.82rem;color:#aaa;text-decoration:none;padding:0.3rem 0.75rem;border:1px solid #444;border-radius:5px}
     main{max-width:1100px;width:100%;margin:0 auto;padding:1.5rem}
     .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem}
     footer{border-top:1px solid #333;padding:0.75rem 1.5rem;display:flex;align-items:center;gap:0.5rem;font-size:0.78rem;color:#555}
@@ -166,7 +157,6 @@ export function renderProjectIndex(projects, siteTitle = 'GalleryPack', isLogged
 <body style="display:flex;flex-direction:column;min-height:100vh">
   <header>
     <a class="logo" href="/">${esc(siteTitle)}</a>
-    ${adminHeaderBtn}
   </header>
   <main style="flex:1">
     <div class="grid">${cards}</div>
@@ -208,8 +198,6 @@ export function renderProjectListing(projectSlug, projectName, galleries, siteTi
         </a>`;
       }).join('');
 
-  const adminBtn = isLoggedIn ? `<a class="bar-admin" href="/admin/">Admin</a>` : '';
-
   return `<!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -234,12 +222,6 @@ export function renderProjectListing(projectSlug, projectName, galleries, siteTi
       color:var(--muted);text-decoration:none;transition:color .2s}
     .bar-back:hover{color:var(--ink)}
     .bar-title{font-size:13px;font-weight:600;letter-spacing:-.01em;color:var(--ink)}
-    .bar-admin{font-size:10px;letter-spacing:.08em;text-transform:uppercase;
-      color:var(--muted);text-decoration:none;
-      border:1px solid rgba(255,255,255,.12);border-radius:4px;padding:4px 10px;
-      transition:color .2s,border-color .2s}
-    .bar-admin:hover{color:var(--ink);border-color:rgba(255,255,255,.3)}
-
     /* ── Hero ── */
     .hero{max-width:1320px;margin:0 auto;padding:calc(var(--bar) + 52px) 32px 40px;text-align:center}
     .hero-title{font-size:clamp(26px,4.5vw,52px);font-weight:600;color:var(--ink);
@@ -253,7 +235,7 @@ export function renderProjectListing(projectSlug, projectName, galleries, siteTi
 
     /* ── Grid ── */
     .grid{max-width:1320px;margin:0 auto;padding:0 24px 64px;
-      display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.5rem}
+      display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.5rem;justify-content:center}
     .empty{color:var(--muted);text-align:center;padding:4rem 0;grid-column:1/-1;font-size:14px}
 
     /* ── Card ── */
@@ -290,7 +272,6 @@ export function renderProjectListing(projectSlug, projectName, galleries, siteTi
   <nav class="bar">
     <a class="bar-back" href="/">← ${esc(siteTitle)}</a>
     <span class="bar-title">${esc(projectName)}</span>
-    ${adminBtn}
   </nav>
   <main>
     <div class="hero">
