@@ -17,6 +17,7 @@ import {
   createViewerTokenDb, listViewerTokens, deleteViewerToken,
   listGalleryRoleAssignments, upsertGalleryRoleAssignment, removeGalleryRoleAssignment,
   GALLERY_ROLE_HIERARCHY_V2,
+  createJob,
   audit,
 } from '../db/helpers.js';
 import { requireStudioRole } from '../middleware/auth.js';
@@ -427,6 +428,33 @@ router.delete('/:id/viewer-tokens/:tokenId', resolveGallery, async (req, res) =>
 });
 
 // ── Notify ready ──────────────────────────────────────────────────────────────
+
+// ── POST /api/projects/:projectId/galleries/build-all — queue builds for all galleries ──
+router.post('/build-all', requireStudioRole('admin'), async (req, res) => {
+  const [rows] = await query(
+    "SELECT id FROM galleries WHERE project_id = ? AND studio_id = ? AND status != 'archived'",
+    [req.params.projectId, req.studioId]
+  );
+  if (!rows.length) return res.json({ queued: 0 });
+
+  let queued = 0;
+  const errors = [];
+  for (const { id } of rows) {
+    // Skip if a build is already queued/running for this gallery
+    const [existing] = await query(
+      "SELECT COUNT(*) AS n FROM build_jobs WHERE studio_id = ? AND gallery_id = ? AND status IN ('queued','running')",
+      [req.studioId, id]
+    );
+    if (existing[0].n > 0) continue;
+    try {
+      await createJob({ galleryId: id, studioId: req.studioId, triggeredBy: req.user.id, force: false });
+      queued++;
+    } catch (e) { errors.push(id); }
+  }
+
+  try { await audit(req.studioId, req.userId, 'project.build_all', 'project', req.params.projectId, { queued, total: rows.length }); } catch {}
+  res.json({ queued, total: rows.length, errors });
+});
 
 router.post('/:id/notify-ready', resolveGallery, async (req, res) => {
   const galleryRole = await getGalleryRole(req.userId, req.gallery.id);

@@ -117,8 +117,9 @@ export const api = {
   createProject:       (data)      => req('POST',   '/projects', data),
   updateProject:       (id, data)  => req('PATCH',  `/projects/${id}`, data),
   deleteProject:       (id)        => req('DELETE', `/projects/${id}`),
-  getProjectGalleries: (projectId) => req('GET',    `/projects/${projectId}/galleries`),
-  createProjectGallery:(projectId, data) => req('POST', `/projects/${projectId}/galleries`, data),
+  getProjectGalleries:    (projectId)       => req('GET',  `/projects/${projectId}/galleries`),
+  createProjectGallery:   (projectId, data) => req('POST', `/projects/${projectId}/galleries`, data),
+  buildAllProjectGalleries:(projectId)      => req('POST', `/projects/${projectId}/galleries/build-all`),
 
   // Dashboard
   getDashboard: () => req('GET', '/dashboard'),

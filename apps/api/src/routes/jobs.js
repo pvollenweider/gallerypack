@@ -45,13 +45,13 @@ router.post('/:id/build', async (req, res) => {
     return res.status(403).json({ error: 'Forbidden' });
   }
 
-  // Enforce max 1 concurrent build per studio
+  // Prevent duplicate queued builds for the same gallery
   const [runningRows] = await query(
-    "SELECT COUNT(*) AS n FROM build_jobs WHERE studio_id = ? AND status IN ('queued','running')",
-    [req.studioId]
+    "SELECT COUNT(*) AS n FROM build_jobs WHERE studio_id = ? AND gallery_id = ? AND status IN ('queued','running')",
+    [req.studioId, gallery.id]
   );
   if (runningRows[0].n >= 1) {
-    return res.status(429).json({ error: 'A build is already in progress. Please wait for it to finish.' });
+    return res.status(429).json({ error: 'A build for this gallery is already queued or running.' });
   }
 
   const { force = false } = req.body || {};

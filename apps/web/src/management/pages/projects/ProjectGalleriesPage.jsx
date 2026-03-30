@@ -10,7 +10,7 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../../lib/api.js';
 import { useT } from '../../../lib/I18nContext.jsx';
 import { slugify } from '../../../lib/i18n.js';
-import { AdminPage, AdminCard, AdminInput, AdminAlert, AdminButton, AdminBadge } from '../../../components/ui/index.js';
+import { AdminPage, AdminCard, AdminInput, AdminAlert, AdminButton, AdminBadge, AdminToast } from '../../../components/ui/index.js';
 
 const STATUS_BADGE = { done: 'success', error: 'danger', running: 'primary', queued: 'warning', draft: 'secondary' };
 
@@ -46,6 +46,22 @@ export default function ProjectGalleriesPage() {
   const [galleries, setGalleries] = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState('');
+
+  // Rebuild all
+  const [buildingAll,  setBuildingAll]  = useState(false);
+  const [buildAllToast, setBuildAllToast] = useState('');
+
+  async function buildAll() {
+    setBuildingAll(true);
+    try {
+      const r = await api.buildAllProjectGalleries(projectId);
+      setBuildAllToast(`${r.queued} galerie(s) en file de rendu`);
+    } catch (err) {
+      setBuildAllToast(`Erreur: ${err.message}`);
+    } finally {
+      setBuildingAll(false);
+    }
+  }
 
   // Create form
   const [showCreate, setShowCreate] = useState(false);
@@ -130,12 +146,22 @@ export default function ProjectGalleriesPage() {
               Page publique
             </a>
           )}
+          {galleries.length > 0 && (
+            <AdminButton
+              variant="outline-secondary" size="sm"
+              loading={buildingAll} loadingLabel="Republication…"
+              onClick={buildAll} icon="fas fa-sync-alt"
+            >
+              Republier tout
+            </AdminButton>
+          )}
           <AdminButton size="sm" onClick={openCreate} icon="fas fa-plus">
             {t('proj_new_gallery_btn')}
           </AdminButton>
         </div>
       }
     >
+      <AdminToast message={buildAllToast} onDone={() => setBuildAllToast('')} />
       {showCreate && (
         <AdminCard title={t('proj_new_gallery_btn')} className="mb-3">
           <form onSubmit={create}>
