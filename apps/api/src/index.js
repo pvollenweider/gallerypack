@@ -229,12 +229,29 @@ app.get(/^\/([^/]+)\/?$/, async (req, res, next) => {
   const projectDescHtml = project.description ? marked.parse(project.description) : '';
 
   const [galRows] = await query(
-    `SELECT g.slug, g.title, g.date, g.location, g.cover_photo
+    `SELECT g.id, g.slug, g.title, g.date, g.location, g.description, g.cover_photo
      FROM galleries g
      WHERE g.project_id = ? AND g.access = 'public' AND g.build_status = 'done'
      ORDER BY g.date DESC, g.created_at DESC`,
     [project.id]
   );
+
+  // Batch-fetch photographer names per gallery (most prolific first)
+  const galIds = galRows.map(g => g.id);
+  const pgMap  = {};
+  if (galIds.length > 0) {
+    const [pgRows] = await query(
+      `SELECT p.gallery_id, u.name, COUNT(*) AS cnt
+       FROM photos p JOIN users u ON u.id = p.photographer_id
+       WHERE p.gallery_id IN (${galIds.map(() => '?').join(',')})
+       GROUP BY p.gallery_id, p.photographer_id ORDER BY cnt DESC`,
+      galIds
+    );
+    for (const r of pgRows) {
+      if (!pgMap[r.gallery_id]) pgMap[r.gallery_id] = [];
+      pgMap[r.gallery_id].push(r.name);
+    }
+  }
 
   const galleries = await Promise.all(galRows.map(async g => {
     const distSlug = `${projectSlug}/${g.slug}`;
@@ -243,7 +260,12 @@ app.get(/^\/([^/]+)\/?$/, async (req, res, next) => {
       getPublicPhotoCount(g.slug),
       getPublicDateRange(distSlug),
     ]);
-    return { slug: g.slug, title: g.title, date: g.date, location: g.location, coverName, photoCount, dateRange };
+    return {
+      slug: g.slug, title: g.title, date: g.date, location: g.location,
+      description: g.description || null,
+      photographers: pgMap[g.id] || [],
+      coverName, photoCount, dateRange,
+    };
   }));
 
   const [studioRows] = await query('SELECT id FROM studios LIMIT 1');

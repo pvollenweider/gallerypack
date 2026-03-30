@@ -190,15 +190,23 @@ export function renderProjectListing(projectSlug, projectName, galleries, siteTi
           : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2.5rem;color:#555">&#128247;</div>`;
         const dateLabel  = fmtDateRange(g.dateRange, g.date);
         const photoLabel = g.photoCount === 1 ? '1 photo' : `${g.photoCount || 0} photos`;
+        const pgLine = g.photographers?.length > 0
+          ? `<p style="margin:0 0 0.3rem;font-size:0.8rem;color:#9ca3af">${g.photographers.map(n => esc(n)).join(' · ')}</p>`
+          : '';
+        const descLine = g.description
+          ? `<p style="margin:0 0 0.3rem;font-size:0.8rem;color:#9ca3af;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(g.description)}</p>`
+          : '';
         const inner = `
-          <div style="position:relative;height:180px;background:#2a2a2a;overflow:hidden">${thumb}</div>
-          <div style="padding:0.75rem 1rem 0.85rem">
-            <h3 style="margin:0 0 0.15rem;font-size:0.95rem;font-weight:600;color:#eee">${esc(g.title || g.slug)}</h3>
-            ${dateLabel ? `<p style="margin:0 0 0.15rem;font-size:0.78rem;color:#aaa">${esc(dateLabel)}</p>` : ''}
-            ${g.location ? `<p style="margin:0 0 0.15rem;font-size:0.78rem;color:#aaa">${esc(g.location)}</p>` : ''}
-            <p style="margin:0;font-size:0.75rem;color:#666">${photoLabel}</p>
+          <div style="position:relative;height:220px;background:#2a2a2a;overflow:hidden">${thumb}</div>
+          <div style="padding:0.9rem 1.1rem 1rem">
+            <h3 style="margin:0 0 0.25rem;font-size:1rem;font-weight:600;color:#eee;line-height:1.3">${esc(g.title || g.slug)}</h3>
+            ${pgLine}
+            ${dateLabel ? `<p style="margin:0 0 0.25rem;font-size:0.8rem;color:#777">${esc(dateLabel)}</p>` : ''}
+            ${g.location ? `<p style="margin:0 0 0.25rem;font-size:0.8rem;color:#777">${esc(g.location)}</p>` : ''}
+            ${descLine}
+            <p style="margin:0;font-size:0.75rem;color:#555">${photoLabel}</p>
           </div>`;
-        return `<a href="${href}" style="background:#272727;border-radius:10px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,0.3);text-decoration:none;display:block;transition:box-shadow 0.15s" onmouseover="this.style.boxShadow='0 4px 20px rgba(0,0,0,0.5)'" onmouseout="this.style.boxShadow='0 1px 6px rgba(0,0,0,0.3)'">${inner}</a>`;
+        return `<a href="${href}" style="background:#272727;border-radius:12px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,0.3);text-decoration:none;display:block;transition:box-shadow 0.15s" onmouseover="this.style.boxShadow='0 6px 24px rgba(0,0,0,0.55)'" onmouseout="this.style.boxShadow='0 1px 6px rgba(0,0,0,0.3)'">${inner}</a>`;
       }).join('');
 
   const adminBtn = isLoggedIn ? `<a class="admin-link" href="/admin/">Admin</a>` : '';
@@ -218,8 +226,8 @@ export function renderProjectListing(projectSlug, projectName, galleries, siteTi
     .logo{font-weight:700;letter-spacing:-0.02em;font-size:1rem;color:#fff;text-decoration:none;flex:1;text-align:center}
     .admin-link{font-size:0.82rem;color:#aaa;text-decoration:none;padding:0.3rem 0.75rem;border:1px solid #444;border-radius:5px}
     main{width:100%}
-    .grid{max-width:1100px;width:100%;margin:0 auto;padding:1.5rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem}
-    .proj-desc{max-width:1100px;width:100%;margin:0 auto;padding:1.5rem 1.5rem 0;color:#bbb;font-size:0.9rem;line-height:1.7}
+    .grid{max-width:1200px;width:100%;margin:0 auto;padding:1.5rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.25rem}
+    .proj-desc{max-width:1200px;width:100%;margin:0 auto;padding:1.5rem 1.5rem 0;color:#bbb;font-size:0.9rem;line-height:1.7}
     .proj-desc p{margin:0 0 0.75em}.proj-desc h1,.proj-desc h2,.proj-desc h3{color:#ddd;margin:0 0 0.5em}
     footer{border-top:1px solid #333;padding:0.75rem 1.5rem;display:flex;align-items:center;gap:0.5rem;font-size:0.78rem;color:#555}
     footer a{color:#555;text-decoration:none}
