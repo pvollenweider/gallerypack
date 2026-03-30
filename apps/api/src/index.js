@@ -253,7 +253,7 @@ app.get(/^\/([^/]+)\/?$/, async (req, res, next) => {
     }
   }
 
-  const galleries = await Promise.all(galRows.map(async g => {
+  const galleries = (await Promise.all(galRows.map(async g => {
     const distSlug = `${projectSlug}/${g.slug}`;
     const [coverName, photoCount, dateRange] = await Promise.all([
       getCoverName(g, distSlug),
@@ -266,7 +266,11 @@ app.get(/^\/([^/]+)\/?$/, async (req, res, next) => {
       photographers: pgMap[g.id] || [],
       coverName, photoCount, dateRange,
     };
-  }));
+  }))).sort((a, b) => {
+    const da = a.dateRange?.to || a.dateRange?.from || a.date || '';
+    const db = b.dateRange?.to || b.dateRange?.from || b.date || '';
+    return da > db ? -1 : da < db ? 1 : 0;
+  });
 
   const [studioRows] = await query('SELECT id FROM studios LIMIT 1');
   const settings = studioRows[0] ? await getSettings(studioRows[0].id) : null;
