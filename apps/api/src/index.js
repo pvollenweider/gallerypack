@@ -50,6 +50,7 @@ import galleryMaintenanceRoutes from './routes/galleryMaintenance.js';
 import personalTokensRoutes   from './routes/personalTokens.js';
 import personalUploadRoutes   from './routes/personalUpload.js';
 import tusRoutes               from './routes/tus.js';
+import { initQueues, closeQueues } from './services/queues.js';
 
 const __DIR        = path.dirname(fileURLToPath(import.meta.url));
 const PORT         = process.env.PORT || 4000;
@@ -306,12 +307,20 @@ process.on('unhandledRejection', (reason) => {
   logger.error({ err: reason }, 'unhandledRejection');
 });
 
+// ── Graceful shutdown ─────────────────────────────────────────────────────────
+process.on('SIGTERM', async () => {
+  logger.info('SIGTERM — shutting down');
+  await closeQueues();
+  process.exit(0);
+});
+
 // ── Bootstrap then start ──────────────────────────────────────────────────────
 (async () => {
   try {
     loadLicense();
     await runMigrations();
     await bootstrap();
+    await initQueues();   // BullMQ — graceful no-op if Redis unavailable
     app.listen(PORT, () => {
       logger.info({ port: PORT }, 'GalleryPack API listening');
     });

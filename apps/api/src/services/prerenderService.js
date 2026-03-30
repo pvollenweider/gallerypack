@@ -120,61 +120,72 @@ export function uploadFinished() {
  * @param {string} srcPath     - Absolute path to the source file on disk.
  * @param {string} filename    - Original filename (used in hash computation).
  */
-export function enqueuePrerender(srcPath, filename) {
-  queue.push(async () => {
-    const hash = computePhotoHash(srcPath, filename);
-    const dir  = prerenderCacheDir(hash);
+// ── Core prerender work — also exported for BullMQ worker use ─────────────────
 
-    // Skip if all 5 variants are already present.
-    const variants = ['full.webp', 'grid-small.webp', 'grid-big.webp', 'grid-sm-small.webp', 'grid-sm-big.webp'];
-    if (variants.every(v => existsSync(path.join(dir, v)))) {
-      log.debug({ hash }, 'already complete, skip');
-      return;
-    }
+export async function runPrerender(srcPath, filename) {
+  const hash = computePhotoHash(srcPath, filename);
+  const dir  = prerenderCacheDir(hash);
 
-    log.info({ filename, hash }, 'start prerender');
-    await fs.mkdir(dir, { recursive: true });
+  const variants = ['full.webp', 'grid-small.webp', 'grid-big.webp', 'grid-sm-small.webp', 'grid-sm-big.webp'];
+  if (variants.every(v => existsSync(path.join(dir, v)))) {
+    log.debug({ hash }, 'already complete, skip');
+    return;
+  }
 
-    const cfg = getBuildCfg();
+  log.info({ filename, hash }, 'start prerender');
+  await fs.mkdir(dir, { recursive: true });
 
-    // Pre-validate in an isolated child process — if the file causes a SIGBUS
-    // in libvips, only the child dies; the API is unaffected.
+  const cfg = getBuildCfg();
+
+  try {
+    await runSharp({ op: 'metadata', srcPath });
+  } catch (err) {
+    log.warn({ filename, hash, err }, 'skipped — undecodable');
+    return;
+  }
+
+  const jobs = [
+    { out: path.join(dir, 'full.webp'),          label: `full ≤${cfg.fullSize}px`,
+      msg: { op: 'resize-webp', srcPath, destPath: path.join(dir, 'full.webp'),
+             width: cfg.fullSize, height: cfg.fullSize, fit: 'inside', quality: cfg.quality.full } },
+    { out: path.join(dir, 'grid-small.webp'),    label: `grid-small ${cfg.gridSizeSmall}×${cfg.gridSizeSmall}`,
+      msg: { op: 'resize-webp', srcPath, destPath: path.join(dir, 'grid-small.webp'),
+             width: cfg.gridSizeSmall, height: cfg.gridSizeSmall, fit: 'cover', quality: cfg.quality.grid } },
+    { out: path.join(dir, 'grid-big.webp'),      label: `grid-big ${cfg.gridSizeBig}×${cfg.gridSizeBig}`,
+      msg: { op: 'resize-webp', srcPath, destPath: path.join(dir, 'grid-big.webp'),
+             width: cfg.gridSizeBig, height: cfg.gridSizeBig, fit: 'cover', quality: cfg.quality.grid } },
+    { out: path.join(dir, 'grid-sm-small.webp'), label: `grid-sm-small ${cfg.gridSizeMobileSmall}×${cfg.gridSizeMobileSmall}`,
+      msg: { op: 'resize-webp', srcPath, destPath: path.join(dir, 'grid-sm-small.webp'),
+             width: cfg.gridSizeMobileSmall, height: cfg.gridSizeMobileSmall, fit: 'cover', quality: cfg.quality.grid } },
+    { out: path.join(dir, 'grid-sm-big.webp'),   label: `grid-sm-big ${cfg.gridSizeMobileBig}×${cfg.gridSizeMobileBig}`,
+      msg: { op: 'resize-webp', srcPath, destPath: path.join(dir, 'grid-sm-big.webp'),
+             width: cfg.gridSizeMobileBig, height: cfg.gridSizeMobileBig, fit: 'cover', quality: cfg.quality.grid } },
+  ];
+
+  for (const { out, msg, label } of jobs) {
+    if (existsSync(out)) continue;
     try {
-      await runSharp({ op: 'metadata', srcPath });
+      await runSharp(msg);
+      log.debug({ hash, label }, 'variant done');
     } catch (err) {
-      log.warn({ filename, hash, err }, 'skipped — undecodable');
-      return;
+      log.warn({ hash, label, err }, 'variant failed');
     }
+  }
 
-    const jobs = [
-      { out: path.join(dir, 'full.webp'),         label: `full ≤${cfg.fullSize}px`,
-        msg: { op: 'resize-webp', srcPath, destPath: path.join(dir, 'full.webp'),
-               width: cfg.fullSize, height: cfg.fullSize, fit: 'inside', quality: cfg.quality.full } },
-      { out: path.join(dir, 'grid-small.webp'),   label: `grid-small ${cfg.gridSizeSmall}×${cfg.gridSizeSmall}`,
-        msg: { op: 'resize-webp', srcPath, destPath: path.join(dir, 'grid-small.webp'),
-               width: cfg.gridSizeSmall, height: cfg.gridSizeSmall, fit: 'cover', quality: cfg.quality.grid } },
-      { out: path.join(dir, 'grid-big.webp'),     label: `grid-big ${cfg.gridSizeBig}×${cfg.gridSizeBig}`,
-        msg: { op: 'resize-webp', srcPath, destPath: path.join(dir, 'grid-big.webp'),
-               width: cfg.gridSizeBig, height: cfg.gridSizeBig, fit: 'cover', quality: cfg.quality.grid } },
-      { out: path.join(dir, 'grid-sm-small.webp'),label: `grid-sm-small ${cfg.gridSizeMobileSmall}×${cfg.gridSizeMobileSmall}`,
-        msg: { op: 'resize-webp', srcPath, destPath: path.join(dir, 'grid-sm-small.webp'),
-               width: cfg.gridSizeMobileSmall, height: cfg.gridSizeMobileSmall, fit: 'cover', quality: cfg.quality.grid } },
-      { out: path.join(dir, 'grid-sm-big.webp'),  label: `grid-sm-big ${cfg.gridSizeMobileBig}×${cfg.gridSizeMobileBig}`,
-        msg: { op: 'resize-webp', srcPath, destPath: path.join(dir, 'grid-sm-big.webp'),
-               width: cfg.gridSizeMobileBig, height: cfg.gridSizeMobileBig, fit: 'cover', quality: cfg.quality.grid } },
-    ];
+  log.info({ hash }, 'prerender complete');
+}
 
-    for (const { out, msg, label } of jobs) {
-      if (existsSync(out)) continue;
-      try {
-        await runSharp(msg);
-        log.debug({ hash, label }, 'variant done');
-      } catch (err) {
-        log.warn({ hash, label, err }, 'variant failed');
-      }
+// ── Queue dispatch — uses BullMQ if available, falls back to in-memory ─────────
+
+export function enqueuePrerender(srcPath, filename) {
+  // Try BullMQ first (imported lazily to avoid circular deps at module init)
+  import('./queues.js').then(({ dispatchPrerender }) => {
+    if (!dispatchPrerender(srcPath, filename)) {
+      // BullMQ not ready — use in-memory fallback
+      queue.push(() => runPrerender(srcPath, filename).catch(() => {}));
     }
-
-    log.info({ hash }, 'prerender complete');
+  }).catch(() => {
+    queue.push(() => runPrerender(srcPath, filename).catch(() => {}));
   });
 }
 

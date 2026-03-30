@@ -127,12 +127,19 @@ export async function generateSingleThumbnail(srcPath, photoId, size) {
  * Logs errors; never throws.
  */
 export function enqueueSm(srcPath, photoId) {
-  thumbQueue.pushSm(async () => {
-    try {
-      await generateSingleThumbnail(srcPath, photoId, 'sm');
-    } catch (err) {
-      log.error({ photoId, err }, 'sm thumbnail failed');
+  // Try BullMQ first; fallback to in-memory
+  import('./queues.js').then(({ dispatchSm }) => {
+    if (!dispatchSm(srcPath, photoId)) {
+      thumbQueue.pushSm(async () => {
+        try { await generateSingleThumbnail(srcPath, photoId, 'sm'); }
+        catch (err) { log.error({ photoId, err }, 'sm thumbnail failed'); }
+      });
     }
+  }).catch(() => {
+    thumbQueue.pushSm(async () => {
+      try { await generateSingleThumbnail(srcPath, photoId, 'sm'); }
+      catch (err) { log.error({ photoId, err }, 'sm thumbnail failed'); }
+    });
   });
 }
 
@@ -141,12 +148,18 @@ export function enqueueSm(srcPath, photoId) {
  * Logs errors; never throws.
  */
 export function enqueueMd(srcPath, photoId) {
-  thumbQueue.pushMd(async () => {
-    try {
-      await generateSingleThumbnail(srcPath, photoId, 'md');
-    } catch (err) {
-      log.error({ photoId, err }, 'md thumbnail failed');
+  import('./queues.js').then(({ dispatchMd }) => {
+    if (!dispatchMd(srcPath, photoId)) {
+      thumbQueue.pushMd(async () => {
+        try { await generateSingleThumbnail(srcPath, photoId, 'md'); }
+        catch (err) { log.error({ photoId, err }, 'md thumbnail failed'); }
+      });
     }
+  }).catch(() => {
+    thumbQueue.pushMd(async () => {
+      try { await generateSingleThumbnail(srcPath, photoId, 'md'); }
+      catch (err) { log.error({ photoId, err }, 'md thumbnail failed'); }
+    });
   });
 }
 

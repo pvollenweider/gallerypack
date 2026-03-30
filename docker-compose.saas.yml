@@ -18,6 +18,18 @@ services:
       retries: 5
       start_period: 30s
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
   api:
     build:
       context: .
@@ -27,6 +39,8 @@ services:
       - "127.0.0.1:4000:4000"
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     volumes:
       - ./data/private:/srv/gallerypack/private   # original uploads (engine reads/writes)
@@ -55,6 +69,12 @@ services:
       SMTP_USER:           "${SMTP_USER:-}"
       SMTP_PASS:           "${SMTP_PASS:-}"
       SMTP_FROM:           "${SMTP_FROM:-}"
+      REDIS_URL:           "redis://redis:6379"
+      LOG_LEVEL:           "${LOG_LEVEL:-info}"
+      UPLOAD_MAX_SIZE_MB:  "${UPLOAD_MAX_SIZE_MB:-100}"
+      GALLERY_MAX_PHOTOS:  "${GALLERY_MAX_PHOTOS:-500}"
+      THUMB_CONCURRENCY:   "${THUMB_CONCURRENCY:-4}"
+      PRERENDER_CONCURRENCY: "${PRERENDER_CONCURRENCY:-2}"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:4000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
@@ -107,5 +127,6 @@ services:
 
 volumes:
   db_data:
+  redis_data:
   caddy_data:
   caddy_config:
