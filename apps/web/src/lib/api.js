@@ -141,7 +141,8 @@ export const api = {
   inspectorAnomalies:       (params = {})          => req('GET',    `/inspector/anomalies?${new URLSearchParams(params)}`),
 
   // Photographers (issue #133)
-  listPhotographers:    (galleryId)               => req('GET',    `/galleries/${galleryId}/photographers`),
+  listPhotographers:        (galleryId)               => req('GET',    `/galleries/${galleryId}/photographers`),
+  listActivePhotographers:  (galleryId)               => req('GET',    `/galleries/${galleryId}/photographers/active`),
   createPhotographer:   (galleryId, data)          => req('POST',   `/galleries/${galleryId}/photographers`, data),
   updatePhotographer:   (galleryId, pgId, data)    => req('PATCH',  `/galleries/${galleryId}/photographers/${pgId}`, data),
   deletePhotographer:   (galleryId, pgId)          => req('DELETE', `/galleries/${galleryId}/photographers/${pgId}`),

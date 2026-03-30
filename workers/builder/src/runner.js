@@ -9,6 +9,7 @@
 // Calls the engine's buildGallery() directly (no subprocess) and writes
 // progress events to the build_events table for SSE streaming.
 import path from 'path';
+import { marked }                                              from 'marked';
 import { query }                                                from '../../../apps/api/src/db/database.js';
 import { getJob, updateJobStatus, appendEvent, getSettings }   from '../../../apps/api/src/db/helpers.js';
 import { sendGalleryReadyEmail }                               from '../../../apps/api/src/services/email.js';
@@ -46,6 +47,7 @@ function galleryToProjectConfig(g) {
   if (g.locale)             proj.locale             = g.locale;
   if (g.access)             proj.access             = g.access;
   if (g.description)        proj.description        = g.description;
+  if (g.description_md)     proj.descriptionHtml    = marked.parse(g.description_md);
   if (g.cover_photo)        proj.coverPhoto         = g.cover_photo;
   if (g.slideshow_interval) proj.autoplay           = { slideshowInterval: g.slideshow_interval };
   proj.private              = g.access !== 'public';

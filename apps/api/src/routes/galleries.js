@@ -9,6 +9,7 @@
 import { Router } from 'express';
 import fs   from 'fs';
 import path from 'path';
+import { marked } from 'marked';
 import { query }  from '../db/database.js';
 import { genId, hashPassword, getSettings, getProject,
   listGalleryRoleAssignments, upsertGalleryRoleAssignment, removeGalleryRoleAssignment, GALLERY_ROLE_HIERARCHY_V2,
@@ -116,6 +117,9 @@ function rowToGallery(row, { dateRange = null } = {}) {
     createdAt:            row.created_at,
     updatedAt:            row.updated_at,
     description:          row.description,
+    descriptionMd:        row.description_md ?? null,
+    descriptionHtml:      row.description_md ? marked.parse(row.description_md) : null,
+    primaryPhotographerId: row.primary_photographer_id ?? null,
     firstPhoto:           row.cover_photo || getFirstPhoto(row.slug),
     dateRange,
     needsRebuild:         row.needs_rebuild === 1 || getNeedsRebuild(row),
@@ -275,11 +279,11 @@ router.patch('/:id', async (req, res) => {
   }
 
   const allowed = [
-    'title','description','subtitle','author','author_email','date','location',
+    'title','description','description_md','subtitle','author','author_email','date','location',
     'locale','access','password','standalone',
     'download_mode','apache_protection',
     'allow_download_image','allow_download_gallery','allow_download_original','cover_photo',
-    'slideshow_interval','copyright',
+    'slideshow_interval','copyright','primary_photographer_id',
   ];
 
   const camelToSnake = {
@@ -287,6 +291,7 @@ router.patch('/:id', async (req, res) => {
     allowDownloadGallery: 'allow_download_gallery', allowDownloadOriginal: 'allow_download_original', coverPhoto: 'cover_photo',
     slideshowInterval: 'slideshow_interval',
     downloadMode: 'download_mode', apacheProtection: 'apache_protection',
+    descriptionMd: 'description_md', primaryPhotographerId: 'primary_photographer_id',
   };
 
   const boolCols = new Set(['standalone','allow_download_image','allow_download_gallery','allow_download_original','apache_protection']);

@@ -5,8 +5,10 @@
 // Use, reproduction, or distribution requires a valid commercial license.
 // Unauthorized use is strictly prohibited.
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import SimpleMDE from 'react-simplemde-editor';
+import 'easymde/dist/easymde.min.css';
 import { api } from '../../../lib/api.js';
 import { useT } from '../../../lib/I18nContext.jsx';
 import { slugify } from '../../../lib/i18n.js';
@@ -18,11 +20,15 @@ export default function GalleryGeneralPage() {
   const { orgId, projectId, galleryId } = useParams();
   const navigate = useNavigate();
 
+  // Photographers list (for primary photographer selector)
+  const [photographers, setPhotographers] = useState([]);
+
   // Main form — identity + access + downloads + build (all → api.updateGallery)
   const [form, setForm] = useState({
-    title: '', slug: '', description: '', locale: 'en', standalone: false,
+    title: '', slug: '', description: '', descriptionMd: '', locale: 'en', standalone: false,
     access: 'public', password: '',
     downloadMode: 'display', allowDownloadGallery: false, apacheProtection: false,
+    primaryPhotographerId: '',
   });
   const [slugEdited, setSlugEdited] = useState(false);
   const [error,      setError]      = useState('');
@@ -55,15 +61,18 @@ export default function GalleryGeneralPage() {
   const [copied,      setCopied]      = useState('');
 
   useEffect(() => {
-    Promise.all([api.getGallery(galleryId), api.getSettings()]).then(([g, s]) => {
+    Promise.all([api.getGallery(galleryId), api.getSettings(), api.listPhotographers(galleryId)]).then(([g, s, pgs]) => {
       setForm({
         title: g.title || '', slug: g.slug || '', description: g.description || '',
+        descriptionMd: g.descriptionMd || '',
         locale: g.locale || 'en', standalone: !!g.standalone,
         access: g.access || 'public', password: '',
         downloadMode: g.downloadMode || 'display', allowDownloadGallery: !!g.allowDownloadGallery, apacheProtection: !!g.apacheProtection,
+        primaryPhotographerId: g.primaryPhotographerId || '',
       });
       setSlugEdited(true);
       setOrgDefault(s?.defaultAccess ?? null);
+      setPhotographers(pgs);
     }).catch(() => {});
     api.listPhotos(galleryId).then(photos => setPhotoCount(photos.length)).catch(() => {});
     loadLinks();
@@ -91,8 +100,12 @@ export default function GalleryGeneralPage() {
   async function saveGallery(patch) {
     setError('');
     const payload = {
-      title: patch.title, slug: patch.slug, description: patch.description, locale: patch.locale, standalone: patch.standalone,
-      access: patch.access, downloadMode: patch.downloadMode, allowDownloadGallery: patch.allowDownloadGallery, apacheProtection: patch.apacheProtection,
+      title: patch.title, slug: patch.slug, description: patch.description,
+      descriptionMd: patch.descriptionMd ?? null,
+      locale: patch.locale, standalone: patch.standalone,
+      access: patch.access, downloadMode: patch.downloadMode,
+      allowDownloadGallery: patch.allowDownloadGallery, apacheProtection: patch.apacheProtection,
+      primaryPhotographerId: patch.primaryPhotographerId || null,
     };
     if (patch.access === 'password' && patch.password?.trim()) payload.password = patch.password.trim();
     try {
@@ -103,6 +116,13 @@ export default function GalleryGeneralPage() {
       setError(err.message);
     }
   }
+
+  const mdeOptions = useMemo(() => ({
+    spellChecker: false,
+    status: false,
+    toolbar: ['heading-2', 'heading-3', '|', 'bold', 'italic', '|', 'unordered-list', 'link', '|', 'preview'],
+    minHeight: '180px',
+  }), []);
 
   const stripOriginals = useCallback(async () => {
     setStripping(true); setStripError(''); setStripResult(null);
@@ -198,10 +218,36 @@ export default function GalleryGeneralPage() {
                   onChange={set('description')} onBlur={() => saveGallery(form)}
                   placeholder={t('gal_description_placeholder')} />
               </div>
+              <div className="mb-3">
+                <label className="form-label">{t('gal_primary_photographer')}</label>
+                <select className="form-select" value={form.primaryPhotographerId}
+                  onChange={e => { const next = { ...form, primaryPhotographerId: e.target.value }; setForm(next); saveGallery(next); }}>
+                  <option value="">{t('gal_no_primary_photographer')}</option>
+                  {photographers.map(pg => (
+                    <option key={pg.id} value={pg.id}>{pg.name}</option>
+                  ))}
+                </select>
+                <div className="form-text">{t('gal_primary_photographer_hint')}</div>
+              </div>
               <div className="mb-0">
                 <label className="form-label">{t('field_locale')}</label>
                 <input className="form-control" value={form.locale} onChange={set('locale')}
                   onBlur={() => saveGallery(form)} placeholder="en" />
+              </div>
+            </AdminCard>
+
+            {/* Long description (Markdown) */}
+            <AdminCard title={t('gal_description_md_title')}>
+              <p className="text-muted mb-3" style={{ fontSize: '0.82rem' }}>{t('gal_description_md_hint')}</p>
+              <SimpleMDE
+                value={form.descriptionMd}
+                onChange={val => setForm(f => ({ ...f, descriptionMd: val }))}
+                options={mdeOptions}
+              />
+              <div className="d-flex justify-content-end mt-2">
+                <AdminButton size="sm" onClick={() => saveGallery(form)}>
+                  {t('save')}
+                </AdminButton>
               </div>
             </AdminCard>
 

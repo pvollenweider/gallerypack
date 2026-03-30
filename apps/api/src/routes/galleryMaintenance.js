@@ -40,6 +40,14 @@ async function loadGallery(id, studioId) {
   return rows[0] ?? null;
 }
 
+async function getGalleryPrimaryPhotographer(galleryId) {
+  const [rows] = await query(
+    'SELECT primary_photographer_id FROM galleries WHERE id = ?',
+    [galleryId]
+  );
+  return rows[0]?.primary_photographer_id ?? null;
+}
+
 function distSlug(gallery) {
   return gallery.proj_slug
     ? `${gallery.proj_slug}/${gallery.slug}`
@@ -137,6 +145,7 @@ router.post('/:id/photos/reconcile', async (req, res, next) => {
     }
 
     const { default: sharp } = await import('sharp');
+    const primaryPhotographerId = await getGalleryPrimaryPhotographer(gallery.id);
 
     // List files in DB
     const [dbRows] = await query('SELECT id, filename FROM photos WHERE gallery_id = ?', [gallery.id]);
@@ -192,9 +201,9 @@ router.post('/:id/photos/reconcile', async (req, res, next) => {
       try { const stat = await fs.stat(fullPath); sizeBytes = stat.size; } catch {}
       const id = genId();
       await query(
-        `INSERT IGNORE INTO photos (id, gallery_id, filename, size_bytes, sort_order, status, created_at)
-         VALUES (?, ?, ?, ?, 0, 'validated', ?)`,
-        [id, gallery.id, filename, sizeBytes, nowStr]
+        `INSERT IGNORE INTO photos (id, gallery_id, filename, size_bytes, sort_order, status, photographer_id, created_at)
+         VALUES (?, ?, ?, ?, 0, 'validated', ?, ?)`,
+        [id, gallery.id, filename, sizeBytes, primaryPhotographerId ?? null, nowStr]
       );
       added++;
     }

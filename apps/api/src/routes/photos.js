@@ -570,6 +570,21 @@ router.get('/:id/photographers', async (req, res) => {
   res.json(await listPhotographers(gallery.id));
 });
 
+// GET /api/galleries/:id/photographers/active — photographers with at least one photo in this gallery
+router.get('/:id/photographers/active', async (req, res) => {
+  const gallery = await ensureGalleryBelongsToStudio(req, res);
+  if (!gallery) return;
+  const [rows] = await query(
+    `SELECT DISTINCT pg.*
+     FROM photographers pg
+     INNER JOIN photos ph ON ph.photographer_id = pg.id
+     WHERE ph.gallery_id = ? AND ph.status != 'rejected'
+     ORDER BY pg.name ASC`,
+    [gallery.id]
+  );
+  res.json(rows);
+});
+
 // POST /api/galleries/:id/photographers
 router.post('/:id/photographers', async (req, res) => {
   const gallery = await ensureGalleryBelongsToStudio(req, res);

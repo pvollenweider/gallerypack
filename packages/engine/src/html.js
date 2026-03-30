@@ -530,7 +530,7 @@ html,body{height:100%;background:var(--bg);color:var(--ink);overscroll-behavior:
 .grid{
   display:grid;
   grid-template-columns:repeat(3,1fr);
-  grid-auto-rows:calc((100vw - 2 * var(--gap)) / 3);
+  grid-auto-rows:calc((min(100vw, 1320px) - 2 * var(--gap)) / 3);
   gap:var(--gap)
 }
 
@@ -917,6 +917,53 @@ body.sw-idle.glightbox-open{cursor:none}
 }
 .footer-credit:hover{color:rgba(255,255,255,.45)}
 
+/* ── Max-width container ─────────────────────────── */
+.wrap-inner{max-width:1320px;margin:0 auto}
+
+/* ── Hero section ────────────────────────────────── */
+.gallery-hero{
+  max-width:1320px;margin:0 auto;
+  padding:52px 32px 40px;
+  text-align:center;
+}
+.hero-title{
+  font-family:'Poppins',sans-serif;
+  font-size:clamp(26px,4.5vw,52px);font-weight:600;
+  color:var(--ink);margin:0 0 14px;
+  letter-spacing:-.02em;line-height:1.15;
+}
+.hero-authors{
+  font-family:'Poppins',sans-serif;
+  font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted);margin:0 0 24px;
+}
+.hero-sep{margin:0 8px;opacity:.4}
+.hero-desc{
+  font-family:'Poppins',sans-serif;
+  max-width:700px;margin:0 auto;
+  font-size:14px;font-weight:300;
+  color:rgba(232,228,221,.65);line-height:1.85;
+  text-align:left;
+}
+.hero-desc p{margin:0 0 14px}
+.hero-desc p:last-child{margin-bottom:0}
+.hero-desc h1,.hero-desc h2,.hero-desc h3{
+  font-family:'Poppins',sans-serif;font-weight:600;
+  color:rgba(232,228,221,.9);margin:20px 0 8px;letter-spacing:-.01em;
+}
+.hero-desc h2{font-size:15px}
+.hero-desc h3{font-size:13px}
+.hero-desc ul,.hero-desc ol{padding-left:20px;margin:0 0 14px}
+.hero-desc li{margin-bottom:4px}
+.hero-desc a{color:var(--accent);text-decoration:none}
+.hero-desc a:hover{text-decoration:underline}
+.hero-desc strong{color:rgba(232,228,221,.85);font-weight:500}
+.hero-desc em{font-style:italic}
+.hero-divider{
+  width:40px;height:1px;background:rgba(255,255,255,.1);
+  margin:0 auto 40px;
+}
+
 /* ── Photo credits section (issue #133) ─────────── */
 #photo-credits{
   text-align:center;padding:32px 24px 0;max-width:640px;margin:0 auto;
@@ -1019,7 +1066,16 @@ ${[2,3,5,8,10].map(s => {
 
 
 <main class="wrap">
-  <div class="grid" id="grid"></div>
+  ${(project.descriptionHtml || photographers.length > 0) ? `
+  <header class="gallery-hero">
+    <h1 class="hero-title">${escHtml(project.title || '')}</h1>
+    ${photographers.length > 0 ? `<p class="hero-authors">${photographers.map((n, i) => `${i > 0 ? '<span class="hero-sep">·</span>' : ''}${escHtml(n)}`).join('')}</p>` : ''}
+    ${project.descriptionHtml ? `<div class="hero-desc">${project.descriptionHtml}</div>` : ''}
+  </header>
+  <div class="hero-divider"></div>` : ''}
+  <div class="wrap-inner">
+    <div class="grid" id="grid"></div>
+  </div>
   ${photographers.length > 0 ? `
   <section id="photo-credits" aria-label="Photo credits">
     <h2 class="credits-title">Photo credits</h2>
