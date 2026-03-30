@@ -11,7 +11,7 @@ import { api } from '../../../lib/api.js';
 import { useAuth } from '../../../lib/auth.jsx';
 import { useT } from '../../../lib/I18nContext.jsx';
 import { slugify } from '../../../lib/i18n.js';
-import { AdminPage, AdminCard, AdminInput, AdminBadge, AdminAlert, AdminButton, AdminLoader, AdminEmptyState } from '../../../components/ui/index.js';
+import { AdminPage, AdminCard, AdminInput, AdminBadge, AdminAlert, AdminButton, AdminLoader, AdminEmptyState, AdminToast } from '../../../components/ui/index.js';
 
 export default function OrganizationsListPage() {
   const t = useT();
@@ -22,6 +22,21 @@ export default function OrganizationsListPage() {
   const [orgs,    setOrgs]    = useState([]);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState('');
+
+  const [prerendering, setPrerendering] = useState(false);
+  const [prerenderToast, setPrerenderToast] = useState('');
+
+  async function prerender() {
+    setPrerendering(true);
+    try {
+      await api.prerenderAll();
+      setPrerenderToast(t('prerender_pages_ok'));
+    } catch (err) {
+      setPrerenderToast(t('prerender_pages_err', { message: err.message }));
+    } finally {
+      setPrerendering(false);
+    }
+  }
 
   // Create form
   const [showCreate, setShowCreate] = useState(false);
@@ -84,12 +99,24 @@ export default function OrganizationsListPage() {
     <AdminPage
       title={t('orgs_page_title')}
       maxWidth="100%"
-      actions={isSuperadmin && (
-        <AdminButton size="sm" icon="fas fa-plus" onClick={openCreate}>
-          {t('orgs_new_btn')}
-        </AdminButton>
-      )}
+      actions={
+        <div className="d-flex gap-2">
+          <AdminButton
+            variant="outline-secondary" size="sm"
+            loading={prerendering} loadingLabel={t('prerenderring')}
+            onClick={prerender} icon="fas fa-file-code"
+          >
+            {t('prerender_pages')}
+          </AdminButton>
+          {isSuperadmin && (
+            <AdminButton size="sm" icon="fas fa-plus" onClick={openCreate}>
+              {t('orgs_new_btn')}
+            </AdminButton>
+          )}
+        </div>
+      }
     >
+      <AdminToast message={prerenderToast} onDone={() => setPrerenderToast('')} />
       {showCreate && (
         <AdminCard title={t('orgs_new_btn')} className="mb-3">
           <form onSubmit={create}>

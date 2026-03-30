@@ -23,6 +23,19 @@ export default function OrganizationOverviewPage() {
   const [error,        setError]        = useState('');
   const [buildingAll,  setBuildingAll]  = useState(false);
   const [buildToast,   setBuildToast]   = useState('');
+  const [prerendering, setPrerendering] = useState(false);
+
+  async function prerender() {
+    setPrerendering(true);
+    try {
+      await api.prerenderOrg(orgId);
+      setBuildToast(t('prerender_pages_ok'));
+    } catch (err) {
+      setBuildToast(t('prerender_pages_err', { message: err.message }));
+    } finally {
+      setPrerendering(false);
+    }
+  }
 
   async function buildAll() {
     setBuildingAll(true);
@@ -54,13 +67,22 @@ export default function OrganizationOverviewPage() {
       title={org?.name ?? 'Organization'}
       maxWidth="100%"
       actions={
-        <AdminButton
-          variant="outline-secondary" size="sm"
-          loading={buildingAll} loadingLabel={t('republishing')}
-          onClick={buildAll} icon="fas fa-sync-alt"
-        >
-          {t('republish_all')}
-        </AdminButton>
+        <div className="d-flex gap-2">
+          <AdminButton
+            variant="outline-secondary" size="sm"
+            loading={prerendering} loadingLabel={t('prerenderring')}
+            onClick={prerender} icon="fas fa-file-code"
+          >
+            {t('prerender_pages')}
+          </AdminButton>
+          <AdminButton
+            variant="outline-secondary" size="sm"
+            loading={buildingAll} loadingLabel={t('republishing')}
+            onClick={buildAll} icon="fas fa-sync-alt"
+          >
+            {t('republish_all')}
+          </AdminButton>
+        </div>
       }
     >
       <AdminToast message={buildToast} onDone={() => setBuildToast('')} />

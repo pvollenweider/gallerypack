@@ -956,5 +956,9 @@
   "build_all_queued": "{queued} galerie(s) en file de rendu",
   "build_all_queued_of": "{queued} galerie(s) sur {total} en file de rendu",
   "build_all_error": "Erreur : {message}",
-  "th_photographers": "Photographes"
+  "th_photographers": "Photographes",
+  "prerender_pages": "Regénérer les pages statiques",
+  "prerender_pages_ok": "Pages statiques regénérées",
+  "prerender_pages_err": "Erreur : {message}",
+  "prerenderring": "Génération…"
 }

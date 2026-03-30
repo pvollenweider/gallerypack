@@ -10,6 +10,7 @@
 import { Router } from 'express';
 import { requireAuth, requireStudioRole } from '../middleware/auth.js';
 import { query } from '../db/database.js';
+import { prerenderAll } from '../services/prerender.js';
 import {
   listStudioMembers,
   upsertStudioMembership,
@@ -113,6 +114,12 @@ router.get('/audit', requireStudioRole('admin'), async (req, res) => {
     [req.studioId]
   );
   res.json(entries);
+});
+
+// POST /api/studios/prerender — re-generate all static index.html pages
+router.post('/prerender', requireStudioRole('admin'), async (req, res) => {
+  await prerenderAll();
+  res.json({ ok: true });
 });
 
 export default router;

@@ -121,6 +121,8 @@ export const api = {
   createProjectGallery:   (projectId, data) => req('POST', `/projects/${projectId}/galleries`, data),
   buildAllProjectGalleries:(projectId)      => req('POST', `/projects/${projectId}/galleries/build-all`),
   buildAllStudioGalleries: ()               => req('POST', `/studios/build-all`),
+  prerenderAll:            ()               => req('POST', `/studios/prerender`),
+  prerenderOrg:            (orgId)          => req('POST', `/organizations/${orgId}/prerender`),
 
   // Dashboard
   getDashboard: () => req('GET', '/dashboard'),

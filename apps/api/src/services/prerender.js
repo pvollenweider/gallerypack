@@ -141,6 +141,24 @@ export async function prerenderProject(projectSlug) {
   logger.info({ dest }, 'prerender: wrote project index.html');
 }
 
+/** Pre-render all projects of a given org + root */
+export async function prerenderOrg(orgId) {
+  try {
+    const [projRows] = await query(
+      'SELECT slug FROM projects WHERE organization_id = ?',
+      [orgId]
+    );
+    await Promise.all([
+      prerenderRoot(),
+      ...projRows.map(p => prerenderProject(p.slug)),
+    ]);
+    logger.info({ orgId, count: projRows.length + 1 }, 'prerender: org pages written');
+  } catch (err) {
+    logger.warn({ err }, 'prerender: org prerender failed');
+    throw err;
+  }
+}
+
 /** Pre-render all projects + root at startup */
 export async function prerenderAll() {
   try {
