@@ -945,7 +945,8 @@ body.sw-idle.glightbox-open{cursor:none}
 .hero-authors{
   font-family:'Poppins',sans-serif;
   font-size:11px;letter-spacing:.1em;text-transform:uppercase;
-  color:var(--muted);margin:0 0 24px;
+  color:var(--muted);margin:0 auto 32px;
+  text-align:center;max-width:1320px;padding:0 32px;display:block;
 }
 .hero-sep{margin:0 8px;opacity:.4}
 .hero-desc{
@@ -1079,10 +1080,10 @@ ${[2,3,5,8,10].map(s => {
   ${(project.descriptionHtml || photographers.length > 0) ? `
   <header class="gallery-hero">
     <h1 class="hero-title">${escHtml(project.title || '')}</h1>
-    ${photographers.length > 0 ? `<p class="hero-authors">${photographers.map((n, i) => `${i > 0 ? '<span class="hero-sep">·</span>' : ''}${escHtml(n)}`).join('')}</p>` : ''}
     ${project.descriptionHtml ? `<div class="hero-desc">${project.descriptionHtml}</div>` : ''}
   </header>
   <div class="hero-divider"></div>` : ''}
+  ${photographers.length > 0 ? `<p class="hero-authors">Photos de ${photographers.map((n, i) => `${i > 0 ? '<span class="hero-sep">·</span>' : ''}${escHtml(n)}`).join('')}</p>` : ''}
   <div class="wrap-inner">
     <div class="grid" id="grid"></div>
   </div>
