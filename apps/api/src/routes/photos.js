@@ -325,12 +325,20 @@ router.post('/:id/photos', (req, res, next) => {
   const uploaded = [];
   for (const f of validFiles) {
     const photoId = f._photoId;
-    await query(
+    const [result] = await query(
       `INSERT INTO photos (id, gallery_id, filename, original_name, size_bytes, status, uploaded_by_user_id)
        VALUES (?, ?, ?, ?, ?, 'validated', ?)
        ON DUPLICATE KEY UPDATE size_bytes = VALUES(size_bytes), original_name = VALUES(original_name)`,
       [photoId, gallery.id, f.filename, f.originalname, f.size, req.userId]
     );
+    // affectedRows === 2 means ON DUPLICATE KEY fired — another concurrent upload already inserted
+    // this filename. Clean up the orphan UUID file multer wrote to disk and skip.
+    if (result.affectedRows === 2) {
+      try { fs.unlinkSync(f.path); } catch {}
+      try { fs.unlinkSync(thumbPath(photoId, 'sm')); } catch {}
+      try { fs.unlinkSync(thumbPath(photoId, 'md')); } catch {}
+      continue;
+    }
     // sm thumbnail already generated above — enqueueSm will skip if file exists
     // md thumbnail — low priority queue
     // Phase 4: prerender — very low priority, generates full build variants in background
