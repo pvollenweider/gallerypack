@@ -12,5 +12,10 @@
     "dev:worker": "node workers/builder/src/index.js",
     "test":       "node --test apps/api/test/"
   },
-  "type": "module"
+  "license": "SEE LICENSE IN LICENSE",
+  "type": "module",
+  "overrides": {
+    "srvx": ">=0.11.13",
+    "esbuild": ">=0.25.0"
+  }
 }
