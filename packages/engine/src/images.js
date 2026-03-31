@@ -27,6 +27,7 @@ import crypto from 'crypto';
 import { extractExif } from './exif.js';
 import { buildName, MANIFEST_SCHEMA_VERSION } from './utils.js';
 import { INTERNAL_ROOT } from './fs.js';
+import { ensureWatermarkFont, buildWatermarkSvg } from './watermark.js';
 
 /**
  * Compute a stable 16-char hex ID for a photo based on filename + size + mtime.
@@ -217,11 +218,13 @@ export async function convertOne(photo, cfg, idx, cachedIsDark = null, paths, ca
   }
 
   // ── full ──────────────────────────────────────────────────────────────────
-  if (!FORCE && fs.existsSync(fullOut)) {
+  const wmEnabled = !!(cfg.project?.watermark?.enabled && cfg.project?.watermark?.text);
+  // When watermark is on, always regenerate the full so the mark is applied fresh.
+  if (!FORCE && !wmEnabled && fs.existsSync(fullOut)) {
     ok(`full  (cached)`);
   } else {
     const preFull = path.join(prerenderBase, 'full.webp');
-    if (!FORCE && fs.existsSync(preFull)) {
+    if (!FORCE && !wmEnabled && fs.existsSync(preFull)) {
       fs.mkdirSync(path.dirname(fullOut), { recursive: true });
       fs.copyFileSync(preFull, fullOut);
       ok(`full  (prerendered)`);
@@ -232,6 +235,18 @@ export async function convertOne(photo, cfg, idx, cachedIsDark = null, paths, ca
         .webp({ quality: quality.full })
         .toFile(fullOut);
       ok(`full  ≤${fullSize}px`);
+    }
+    if (wmEnabled) {
+      const fontPath = await ensureWatermarkFont();
+      const meta     = await sharp(fullOut).metadata();
+      const wmBuf    = buildWatermarkSvg(meta.width, meta.height, cfg.project.watermark.text, fontPath);
+      const tmp      = fullOut + '.wm.tmp';
+      await sharp(fullOut)
+        .composite([{ input: wmBuf, blend: 'over' }])
+        .webp({ quality: quality.full })
+        .toFile(tmp);
+      fs.renameSync(tmp, fullOut);
+      ok(`full  watermark applied`);
     }
   }
 

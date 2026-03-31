@@ -960,5 +960,9 @@
   "prerender_pages": "Regenerate static pages",
   "prerender_pages_ok": "Static pages regenerated",
   "prerender_pages_err": "Error: {message}",
-  "prerenderring": "Generating…"
+  "prerenderring": "Generating…",
+  "gal_watermark_section": "Watermark",
+  "gal_watermark_enable_label": "Add watermark on full-size images",
+  "gal_watermark_enable_hint": "Applied at build time. Rebuild the gallery to update.",
+  "gal_watermark_text_label": "Watermark text"
 }

@@ -125,6 +125,7 @@ function rowToGallery(row, { dateRange = null } = {}) {
     needsRebuild:         row.needs_rebuild === 1 || getNeedsRebuild(row),
     photoCount:           getPhotoCount(row.slug),
     diskSize:             getDiskSize(row.slug),
+    watermark:            (() => { try { return JSON.parse(row.config_json || '{}').watermark ?? null; } catch { return null; } })(),
   };
 }
 
@@ -283,7 +284,7 @@ router.patch('/:id', async (req, res) => {
     'locale','access','password','standalone',
     'download_mode','apache_protection',
     'allow_download_image','allow_download_gallery','allow_download_original','cover_photo',
-    'slideshow_interval','copyright','primary_photographer_id',
+    'slideshow_interval','copyright','primary_photographer_id','config_json',
   ];
 
   const camelToSnake = {
@@ -292,6 +293,7 @@ router.patch('/:id', async (req, res) => {
     slideshowInterval: 'slideshow_interval',
     downloadMode: 'download_mode', apacheProtection: 'apache_protection',
     descriptionMd: 'description_md', primaryPhotographerId: 'primary_photographer_id',
+    configJson: 'config_json',
   };
 
   const boolCols = new Set(['standalone','allow_download_image','allow_download_gallery','allow_download_original','apache_protection']);

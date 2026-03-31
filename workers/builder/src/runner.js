@@ -58,6 +58,10 @@ function galleryToProjectConfig(g) {
   // Legacy fields kept for backward compat with CLI builds
   if (g.allow_download_image   !== null) proj.allowDownloadImage   = g.allow_download_image   !== 0;
   if (g.allow_download_gallery !== null) proj.allowDownloadGallery = g.allow_download_gallery !== 0;
+  try {
+    const cfg = JSON.parse(g.config_json || '{}');
+    if (cfg.watermark) proj.watermark = cfg.watermark;
+  } catch {}
   return proj;
 }
 

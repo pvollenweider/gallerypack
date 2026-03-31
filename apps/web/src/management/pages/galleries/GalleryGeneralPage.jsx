@@ -30,6 +30,10 @@ export default function GalleryGeneralPage() {
     downloadMode: 'display', allowDownloadGallery: false, apacheProtection: false,
     primaryPhotographerId: '',
   });
+
+  // Watermark (saved separately via configJson)
+  const [watermarkEnabled, setWatermarkEnabled] = useState(false);
+  const [watermarkText,    setWatermarkText]    = useState('');
   const [slugEdited, setSlugEdited] = useState(false);
   const [error,      setError]      = useState('');
   const [toast,      setToast]      = useState('');
@@ -70,6 +74,8 @@ export default function GalleryGeneralPage() {
         downloadMode: g.downloadMode || 'display', allowDownloadGallery: !!g.allowDownloadGallery, apacheProtection: !!g.apacheProtection,
         primaryPhotographerId: g.primaryPhotographerId || '',
       });
+      setWatermarkEnabled(g.watermark?.enabled ?? false);
+      setWatermarkText(g.watermark?.text ?? '');
       setSlugEdited(true);
       setOrgDefault(s?.defaultAccess ?? null);
       setPhotographers(pgs);
@@ -112,6 +118,16 @@ export default function GalleryGeneralPage() {
       await api.updateGallery(galleryId, payload);
       setToast(t('changes_saved'));
       if (patch.password) setForm(f => ({ ...f, password: '' }));
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function saveWatermark(enabled, text) {
+    setError('');
+    try {
+      await api.updateGallery(galleryId, { configJson: JSON.stringify({ watermark: { enabled, text } }) });
+      setToast(t('changes_saved'));
     } catch (err) {
       setError(err.message);
     }
@@ -343,6 +359,32 @@ export default function GalleryGeneralPage() {
                 </label>
                 <div className="text-muted mt-1" style={{ fontSize: '0.8rem' }}>{t('gal_general_standalone_hint')}</div>
               </div>
+            </AdminCard>
+
+            {/* Watermark */}
+            <AdminCard title={t('gal_watermark_section')}>
+              <div className="form-check form-switch mb-3">
+                <input className="form-check-input" type="checkbox" id="watermark-toggle"
+                  checked={watermarkEnabled}
+                  onChange={e => { setWatermarkEnabled(e.target.checked); saveWatermark(e.target.checked, watermarkText); }} />
+                <label className="form-check-label" htmlFor="watermark-toggle">
+                  {t('gal_watermark_enable_label')}
+                </label>
+                <div className="text-muted mt-1" style={{ fontSize: '0.8rem' }}>{t('gal_watermark_enable_hint')}</div>
+              </div>
+              {watermarkEnabled && (
+                <div>
+                  <label className="form-label">{t('gal_watermark_text_label')}</label>
+                  <input
+                    className="form-control"
+                    value={watermarkText}
+                    onChange={e => setWatermarkText(e.target.value)}
+                    onBlur={() => saveWatermark(watermarkEnabled, watermarkText)}
+                    placeholder="© Studio Name"
+                    style={{ maxWidth: 360 }}
+                  />
+                </div>
+              )}
             </AdminCard>
 
             <AdminAlert message={error} />

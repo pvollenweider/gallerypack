@@ -960,5 +960,9 @@
   "prerender_pages": "Regénérer les pages statiques",
   "prerender_pages_ok": "Pages statiques regénérées",
   "prerender_pages_err": "Erreur : {message}",
-  "prerenderring": "Génération…"
+  "prerenderring": "Génération…",
+  "gal_watermark_section": "Filigrane",
+  "gal_watermark_enable_label": "Ajouter un filigrane sur les images plein écran",
+  "gal_watermark_enable_hint": "Appliqué à la compilation. Reconstruisez la galerie pour le mettre à jour.",
+  "gal_watermark_text_label": "Texte du filigrane"
 }
