@@ -5,12 +5,17 @@
 // Use, reproduction, or distribution requires a valid commercial license.
 // Unauthorized use is strictly prohibited.
 
+import { useT } from '../lib/I18nContext.jsx';
+
+const APP_VERSION = __APP_VERSION__ ?? 'dev';
+
 export function Footer() {
+  const t = useT();
   return (
     <footer style={s.footer}>
-      <span style={s.brand}>GalleryPack</span>
+      <span style={s.brand}>{t('app_brand')}</span>
       <span style={s.sep}>·</span>
-      <span style={s.version}>v1.3.0</span>
+      <span style={s.version}>{APP_VERSION}</span>
       <span style={s.sep}>·</span>
       <a href="https://github.com/pvollenweider/gallerypack" target="_blank" rel="noreferrer" style={s.link}>
         GitHub

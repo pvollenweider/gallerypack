@@ -52,7 +52,7 @@ export default function BuildStatus() {
         <div className="container-fluid">
           <div className="row mb-2 align-items-center">
             <div className="col-sm-6">
-              <h1 className="m-0">Build {jobId.slice(-8)}</h1>
+              <h1 className="m-0">{t('build_title', { id: jobId.slice(-8) })}</h1>
             </div>
           </div>
         </div>
@@ -68,9 +68,9 @@ export default function BuildStatus() {
                 <div className="card">
                   <div className="card-body py-2 d-flex align-items-center justify-content-between flex-wrap gap-2">
                     <div className="d-flex flex-wrap" style={{ gap: '1.5rem', fontSize: '0.85rem', color: '#666' }}>
-                      <span><strong>Gallery:</strong> {gallery ? (gallery.title || gallery.slug) : job.galleryId}</span>
-                      <span><strong>Triggered:</strong> {new Date(job.createdAt).toLocaleString()}</span>
-                      {job.durationMs && <span><strong>Duration:</strong> {(job.durationMs / 1000).toFixed(1)}s</span>}
+                      <span><strong>{t('build_gallery')}:</strong> {gallery ? (gallery.title || gallery.slug) : job.galleryId}</span>
+                      <span><strong>{t('build_triggered')}:</strong> {new Date(job.createdAt).toLocaleString()}</span>
+                      {job.durationMs && <span><strong>{t('build_duration')}:</strong> {(job.durationMs / 1000).toFixed(1)}s</span>}
                     </div>
                     {['queued', 'running'].includes(job.status) && !done && (
                       <button
@@ -91,7 +91,7 @@ export default function BuildStatus() {
               {/* Build log */}
               <div className="card">
                 <div className="card-header">
-                  <h3 className="card-title"><i className="fas fa-terminal me-2" />Build Log</h3>
+                  <h3 className="card-title"><i className="fas fa-terminal me-2" />{t('build_log')}</h3>
                 </div>
                 <div className="card-body p-0">
                   <BuildLog jobId={jobId} onDone={handleDone} />
@@ -102,7 +102,7 @@ export default function BuildStatus() {
               {done && job && (
                 <div className="d-flex" style={{ gap: '0.75rem' }}>
                   <Link to={`/galleries/${job.galleryId}`} className="btn btn-dark">
-                    <i className="fas fa-arrow-left me-1" />Back to gallery
+                    <i className="fas fa-arrow-left me-1" />{t('build_back_to_gallery')}
                   </Link>
                   {gallery && (() => {
                     const publicPath = (gallery.breadcrumb?.project?.slug && gallery.access !== 'password' && gallery.access !== 'private')
@@ -110,7 +110,7 @@ export default function BuildStatus() {
                       : `/${gallery.slug}`;
                     return (
                       <a href={`${publicPath}/`} target="_blank" rel="noreferrer" className="btn btn-success">
-                        View gallery <i className="fas fa-external-link-alt ms-1" />
+                        {t('build_view_gallery')} <i className="fas fa-external-link-alt ms-1" />
                       </a>
                     );
                   })()}

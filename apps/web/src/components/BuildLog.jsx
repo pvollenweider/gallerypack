@@ -6,6 +6,7 @@
 // Unauthorized use is strictly prohibited.
 
 import { useEffect, useRef, useState } from 'react';
+import { useT } from '../lib/I18nContext.jsx';
 
 // Phase thresholds: log line patterns → minimum progress %
 const PHASES = [
@@ -21,6 +22,7 @@ const PHASES = [
 
 // Connects to GET /api/jobs/:jobId/stream (SSE) and renders the live log.
 export function BuildLog({ jobId, onDone }) {
+  const t = useT();
   const [lines,    setLines]    = useState([]);
   const [status,   setStatus]   = useState('running');
   const [progress, setProgress] = useState(0);
@@ -58,7 +60,7 @@ export function BuildLog({ jobId, onDone }) {
     });
     es.addEventListener('done', e => {
       const payload = JSON.parse(e.data);
-      setLines(prev => [...prev, { type: 'done', text: `✓ Build complete — ${payload.data}` }]);
+      setLines(prev => [...prev, { type: 'done', text: `✓ ${t('build_complete')} — ${payload.data}` }]);
       clearInterval(timer);
       progressRef.current = 100;
       setProgress(100);
@@ -91,7 +93,7 @@ export function BuildLog({ jobId, onDone }) {
   return (
     <div style={s.root}>
       <div style={s.header}>
-        <span style={s.label}>Build log</span>
+        <span style={s.label}>{t('build_log')}</span>
         <span style={{ ...s.dot, background: isRunning ? '#ca8a04' : status === 'done' ? '#16a34a' : '#dc2626' }} />
         <span style={s.statusText}>{status}</span>
       </div>

@@ -11,6 +11,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../lib/api.js';
+import { useT } from '../lib/I18nContext.jsx';
 
 const IMG_EXTS = new Set(['jpg','jpeg','png','tiff','tif','heic','heif','avif']);
 const MAX_CONCURRENT = 3;
@@ -40,14 +41,15 @@ function collectEntry(entry) {
   });
 }
 
-const BADGE = {
-  queued:    { bg: '#1c1c1c', color: '#888',    label: 'Queued'      },
-  uploading: { bg: '#1e3a5f', color: '#60a5fa', label: 'Uploading…'  },
-  done:      { bg: '#14532d', color: '#4ade80', label: '✓ Done'      },
-  error:     { bg: '#450a0a', color: '#f87171', label: '✕ Failed'    },
+const BADGE_KEYS = {
+  queued:    { bg: '#1c1c1c', color: '#888',    key: 'upload_status_queued'    },
+  uploading: { bg: '#1e3a5f', color: '#60a5fa', key: 'upload_status_uploading' },
+  done:      { bg: '#14532d', color: '#4ade80', key: 'upload_status_done'      },
+  error:     { bg: '#450a0a', color: '#f87171', key: 'upload_status_failed'    },
 };
 
 export default function UploadPage() {
+  const t = useT();
   const { token } = useParams();
   const [info,    setInfo]    = useState(null);
   const [loadErr, setLoadErr] = useState('');
@@ -147,13 +149,13 @@ export default function UploadPage() {
       <div style={s.card}>
         <p style={s.errorText}>{loadErr}</p>
         <p style={{ color: '#666', fontSize: '0.82rem', marginTop: '0.5rem' }}>
-          This upload link may have expired or been revoked.
+          {t('upload_link_expired')}
         </p>
       </div>
     </div>
   );
 
-  if (!info) return <div style={s.center}><p style={{ color: '#aaa' }}>Loading…</p></div>;
+  if (!info) return <div style={s.center}><p style={{ color: '#aaa' }}>{t('loading')}</p></div>;
 
   const queued    = items.filter(x => x.status === 'queued').length;
   const uploading = items.filter(x => x.status === 'uploading').length;
@@ -166,11 +168,11 @@ export default function UploadPage() {
       <div style={s.card}>
         <h2 style={s.title}>{info.galleryTitle}</h2>
         {info.photographerName && (
-          <p style={s.photographer}>Uploading as <strong>{info.photographerName}</strong></p>
+          <p style={s.photographer}>{t('upload_uploading_as')} <strong>{info.photographerName}</strong></p>
         )}
         {info.label && <p style={s.label}>{info.label}</p>}
         {info.expiresAt && (
-          <p style={s.hint}>Link expires {new Date(info.expiresAt).toLocaleDateString()}</p>
+          <p style={s.hint}>{t('upload_link_expires')} {new Date(info.expiresAt).toLocaleDateString()}</p>
         )}
 
         {/* Drop zone */}
@@ -186,15 +188,15 @@ export default function UploadPage() {
             webkitdirectory="true" mozdirectory="true"
             onChange={e => addFiles(e.target.files)} />
           {dragging ? (
-            <span style={s.dropText}>Drop here</span>
+            <span style={s.dropText}>{t('upload_drop_here')}</span>
           ) : (
             <div>
-              <p style={s.dropText}>Drag photos or folders here</p>
+              <p style={s.dropText}>{t('upload_drag_hint')}</p>
               <div style={s.dropBtns}>
-                <button type="button" style={s.dropBtn} onClick={() => fileRef.current?.click()}>+ Photos</button>
-                <button type="button" style={s.dropBtn} onClick={() => folderRef.current?.click()}>+ Folder</button>
+                <button type="button" style={s.dropBtn} onClick={() => fileRef.current?.click()}>{t('upload_add_photos')}</button>
+                <button type="button" style={s.dropBtn} onClick={() => folderRef.current?.click()}>{t('upload_add_folder')}</button>
               </div>
-              <p style={s.dropHint}>JPG · PNG · TIFF · HEIC · AVIF · max 200 MB</p>
+              <p style={s.dropHint}>{t('upload_formats_hint')}</p>
             </div>
           )}
         </div>
@@ -202,16 +204,16 @@ export default function UploadPage() {
         {/* Status summary */}
         {items.length > 0 && (
           <div style={s.summary}>
-            {hasActive && <span style={s.summaryChip}>{queued + uploading} remaining</span>}
-            {done  > 0  && <span style={{ ...s.summaryChip, color: '#4ade80' }}>{done} done</span>}
+            {hasActive && <span style={s.summaryChip}>{queued + uploading} {t('upload_remaining')}</span>}
+            {done  > 0  && <span style={{ ...s.summaryChip, color: '#4ade80' }}>{done} {t('upload_status_done_label')}</span>}
             {errors > 0 && (
               <>
-                <span style={{ ...s.summaryChip, color: '#f87171' }}>{errors} failed</span>
-                <button style={s.retryBtn} onClick={retryFailed}>Retry</button>
+                <span style={{ ...s.summaryChip, color: '#f87171' }}>{errors} {t('upload_status_failed_label')}</span>
+                <button style={s.retryBtn} onClick={retryFailed}>{t('upload_retry')}</button>
               </>
             )}
             {!hasActive && done > 0 && (
-              <button style={s.clearBtn} onClick={clearDone}>Clear done</button>
+              <button style={s.clearBtn} onClick={clearDone}>{t('upload_clear_done')}</button>
             )}
           </div>
         )}
@@ -227,10 +229,10 @@ export default function UploadPage() {
                     <div style={{ ...s.progressBar, width: `${Math.round(item.progress * 100)}%` }} />
                   </div>
                 )}
-                <div style={{ ...s.badge, background: BADGE[item.status].bg, color: BADGE[item.status].color }}>
+                <div style={{ ...s.badge, background: BADGE_KEYS[item.status].bg, color: BADGE_KEYS[item.status].color }}>
                   {item.status === 'uploading'
                     ? `${Math.round(item.progress * 100)}%`
-                    : BADGE[item.status].label}
+                    : t(BADGE_KEYS[item.status].key)}
                 </div>
                 <div style={s.cellName}>{item.file.name}</div>
               </div>
@@ -242,7 +244,9 @@ export default function UploadPage() {
           <div style={s.successBox}>
             <div style={s.checkmark}>✓</div>
             <p style={s.successText}>
-              {done} photo{done > 1 ? 's' : ''} uploaded — pending review.
+              {done > 1
+                ? t('upload_success_plural', { n: done })
+                : t('upload_success_one')}
             </p>
           </div>
         )}

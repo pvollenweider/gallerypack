@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useT } from '../lib/I18nContext.jsx';
+import { useT, useLocale } from '../lib/I18nContext.jsx';
 import { formatSize } from '../lib/i18n.js';
 
 const STATUS_COLOR = {
@@ -35,7 +35,7 @@ const KeyIcon = () => (
 );
 
 // Format a date range (from/to as YYYY-MM-DD) into a compact human label
-function formatDateRange(dateRange, fallback) {
+function formatDateRange(dateRange, fallback, locale = 'en') {
   const src = dateRange || (fallback ? { from: fallback, to: fallback } : null);
   if (!src) return null;
   const parse = s => {
@@ -50,25 +50,26 @@ function formatDateRange(dateRange, fallback) {
   const sameDay   = from.toISOString().slice(0, 10) === (to || from).toISOString().slice(0, 10);
   const sameMonth = from.getFullYear() === (to || from).getFullYear() && from.getMonth() === (to || from).getMonth();
   const sameYear  = from.getFullYear() === (to || from).getFullYear();
-  const monthYear  = d => d.toLocaleDateString('fr-CH', { month: 'long', year: 'numeric' });
-  const dayMonth   = d => d.toLocaleDateString('fr-CH', { day: 'numeric', month: 'long', year: 'numeric' });
-  const shortMonth = d => d.toLocaleDateString('fr-CH', { month: 'short', year: 'numeric' });
+  const monthYear  = d => d.toLocaleDateString(locale, { month: 'long', year: 'numeric' });
+  const dayMonth   = d => d.toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' });
+  const shortMonth = d => d.toLocaleDateString(locale, { month: 'short', year: 'numeric' });
   if (sameDay)   return dayMonth(from);
   if (sameMonth) return monthYear(from);
-  if (sameYear)  return `${from.toLocaleDateString('fr-CH', { month: 'long' })} – ${monthYear(to)}`;
+  if (sameYear)  return `${from.toLocaleDateString(locale, { month: 'long' })} – ${monthYear(to)}`;
   return `${shortMonth(from)} – ${shortMonth(to)}`;
 }
 
 export function GalleryCard({ gallery, onBuild, onDelete, canBuild = true }) {
   const navigate    = useNavigate();
   const t           = useT();
+  const { locale }  = useLocale();
   const badgeStatus = gallery.needsRebuild && gallery.buildStatus === 'done'
     ? 'updated'
     : gallery.buildStatus === 'pending'
     ? 'draft'
     : gallery.buildStatus;
   const color     = STATUS_COLOR[badgeStatus] || '#6b7280';
-  const dateLabel = formatDateRange(gallery.dateRange, gallery.date);
+  const dateLabel = formatDateRange(gallery.dateRange, gallery.date, locale);
   const [hovered, setHovered] = useState(false);
 
   const photoLabel = gallery.photoCount === 1

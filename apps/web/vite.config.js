@@ -8,8 +8,14 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { sentryVitePlugin } from '@sentry/vite-plugin';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const pkg = require('./package.json');
 
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify('v' + pkg.version),
+  },
   plugins: [
     react(),
     // Upload source maps to Sentry at build time only if auth token is provided

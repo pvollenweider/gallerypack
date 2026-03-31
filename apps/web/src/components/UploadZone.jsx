@@ -12,6 +12,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { api } from '../lib/api.js';
 import { useUpload } from '../management/context/UploadContext.jsx';
+import { useT } from '../lib/I18nContext.jsx';
 
 const IMG_EXTS = new Set(['jpg','jpeg','png','tiff','tif','heic','heif','avif','webp']);
 
@@ -42,11 +43,11 @@ function collectEntry(entry) {
   });
 }
 
-const STATUS_BADGE = {
-  queued:    { bg: '#f3f4f6', color: '#888',    label: 'Queued' },
-  uploading: { bg: '#dbeafe', color: '#2563eb', label: 'Uploading…' },
-  done:      { bg: '#dcfce7', color: '#16a34a', label: '✓ Done' },
-  error:     { bg: '#fee2e2', color: '#dc2626', label: '✕ Failed' },
+const STATUS_BADGE_KEYS = {
+  queued:    { bg: '#f3f4f6', color: '#888',    key: 'upload_status_queued' },
+  uploading: { bg: '#dbeafe', color: '#2563eb', key: 'upload_status_uploading' },
+  done:      { bg: '#dcfce7', color: '#16a34a', key: 'upload_status_done' },
+  error:     { bg: '#fee2e2', color: '#dc2626', key: 'upload_status_failed' },
 };
 
 // Auto-append " (1)", " (2)"… until the name is not in the taken set.
@@ -61,6 +62,7 @@ function autoRename(filename, taken) {
 }
 
 export function UploadZone({ galleryId, onDone, existingPhotos = [] }) {
+  const t = useT();
   const { enqueue, registerOnDone, unregisterOnDone, retryItem, retryFailed, clearDone, items, globalStats } = useUpload();
   const [dragging,  setDragging]  = useState(false);
   const [notified,  setNotified]  = useState(false);
@@ -173,7 +175,7 @@ export function UploadZone({ galleryId, onDone, existingPhotos = [] }) {
       {/* Offline banner */}
       {globalStats.offline && (
         <div style={{ background: '#fef3c7', border: '1px solid #fbbf24', borderRadius: 6, padding: '0.5rem 0.75rem', fontSize: '0.82rem', color: '#92400e' }}>
-          Waiting for network… uploads will resume automatically when you reconnect.
+          {t('upload_offline')}
         </div>
       )}
 
@@ -183,45 +185,45 @@ export function UploadZone({ galleryId, onDone, existingPhotos = [] }) {
           <div style={s.conflictTitle}>
             <i className="fas fa-copy me-2" style={{ color: '#b45309' }} />
             {conflict.dupes.length === 1
-              ? `1 fichier existe déjà dans cette galerie`
-              : `${conflict.dupes.length} fichiers existent déjà dans cette galerie`}
+              ? t('upload_conflict_one')
+              : t('upload_conflict_many', { n: conflict.dupes.length })}
             {conflict.fresh.length > 0 && (
               <span style={{ fontWeight: 400, color: '#78350f', marginLeft: '0.4em' }}>
-                · {conflict.fresh.length} nouveau{conflict.fresh.length > 1 ? 'x' : ''}
+                · {t('upload_conflict_new', { n: conflict.fresh.length })}
               </span>
             )}
           </div>
           <div style={s.conflictNames}>
             {conflict.dupes.slice(0, 6).map(f => f.name).join(' · ')}
-            {conflict.dupes.length > 6 && ` · +${conflict.dupes.length - 6} autres`}
+            {conflict.dupes.length > 6 && ` · +${conflict.dupes.length - 6} ${t('upload_conflict_others')}`}
           </div>
           <div style={s.conflictActions}>
             {conflict.fresh.length > 0 && (
-              <button style={s.conflictBtn} onClick={resolveSkip} title="N'uploader que les nouvelles photos">
+              <button style={s.conflictBtn} onClick={resolveSkip} title={t('upload_skip_dupes_title')}>
                 <i className="fas fa-forward me-1" />
-                Passer les doublons
+                {t('upload_skip_dupes')}
                 <span style={s.conflictCount}>{conflict.dupes.length}</span>
               </button>
             )}
-            <button style={s.conflictBtn} onClick={resolveRename} title="Uploader avec un nouveau nom : photo (1).jpg">
+            <button style={s.conflictBtn} onClick={resolveRename} title={t('upload_rename_title')}>
               <i className="fas fa-tag me-1" />
-              Renommer
+              {t('upload_rename')}
               <span style={s.conflictCount}>{conflict.dupes.length}</span>
             </button>
             <button
               style={{ ...s.conflictBtn, borderColor: '#dc2626', color: '#dc2626' }}
               onClick={resolveOverwrite}
               disabled={resolving}
-              title="Supprimer les originaux et uploader les nouveaux fichiers"
+              title={t('upload_overwrite_title')}
             >
               {resolving
                 ? <i className="fas fa-spinner fa-spin me-1" />
                 : <i className="fas fa-redo me-1" />}
-              Écraser
+              {t('upload_overwrite')}
               <span style={s.conflictCount}>{conflict.dupes.length}</span>
             </button>
             <button style={{ ...s.conflictBtn, marginLeft: 'auto' }} onClick={() => setConflict(null)}>
-              Annuler
+              {t('cancel')}
             </button>
           </div>
         </div>
@@ -236,13 +238,13 @@ export function UploadZone({ galleryId, onDone, existingPhotos = [] }) {
         onDrop={onDrop}
       >
         {dragging ? (
-          <span style={s.zoneText}>Drop here</span>
+          <span style={s.zoneText}>{t('upload_drop_here')}</span>
         ) : (
           <div style={s.zoneActions}>
-            <span style={s.zoneText}>Drag photos or folders here</span>
+            <span style={s.zoneText}>{t('upload_drag_hint')}</span>
             <div style={s.zoneBtns}>
-              <button type="button" style={s.zoneBtn} onClick={() => fileRef.current?.click()}>+ Photos</button>
-              <button type="button" style={s.zoneBtn} onClick={() => folderRef.current?.click()}>+ Folder</button>
+              <button type="button" style={s.zoneBtn} onClick={() => fileRef.current?.click()}>{t('upload_add_photos')}</button>
+              <button type="button" style={s.zoneBtn} onClick={() => folderRef.current?.click()}>{t('upload_add_folder')}</button>
             </div>
           </div>
         )}
@@ -261,7 +263,7 @@ export function UploadZone({ galleryId, onDone, existingPhotos = [] }) {
           }}
         >
           <i className="fas fa-images" aria-hidden="true" />
-          Add photos
+          {t('upload_add_photos_mobile')}
         </button>
       </div>
 
@@ -277,17 +279,17 @@ export function UploadZone({ galleryId, onDone, existingPhotos = [] }) {
       {/* Stats bar */}
       {galleryItems.length > 0 && (
         <div style={s.statsBar}>
-          {uploading > 0 && <span style={{ color: '#60a5fa' }}>{uploading} uploading</span>}
-          {queued    > 0 && <span style={{ color: '#888' }}>{queued} queued</span>}
-          {done      > 0 && <span style={{ color: '#4ade80' }}>{done} done</span>}
-          {errors    > 0 && <span style={{ color: '#f87171' }}>{errors} failed</span>}
+          {uploading > 0 && <span style={{ color: '#60a5fa' }}>{uploading} {t('upload_status_uploading')}</span>}
+          {queued    > 0 && <span style={{ color: '#888' }}>{queued} {t('upload_status_queued')}</span>}
+          {done      > 0 && <span style={{ color: '#4ade80' }}>{done} {t('upload_status_done_label')}</span>}
+          {errors    > 0 && <span style={{ color: '#f87171' }}>{errors} {t('upload_status_failed_label')}</span>}
           {hasActive && pct > 0 && <span style={{ color: '#94a3b8', marginLeft: 'auto' }}>{pct}%</span>}
           <div style={{ marginLeft: hasActive && pct > 0 ? 0 : 'auto', display: 'flex', gap: '0.5rem' }}>
             {errors > 0 && (
-              <button style={s.smallBtn} onClick={() => retryFailed(galleryId)}>Retry failed</button>
+              <button style={s.smallBtn} onClick={() => retryFailed(galleryId)}>{t('upload_retry_failed')}</button>
             )}
             {done > 0 && !hasActive && (
-              <button style={s.smallBtn} onClick={() => clearDone(galleryId)}>Clear done</button>
+              <button style={s.smallBtn} onClick={() => clearDone(galleryId)}>{t('upload_clear_done')}</button>
             )}
           </div>
         </div>
@@ -306,8 +308,8 @@ export function UploadZone({ galleryId, onDone, existingPhotos = [] }) {
                 )}
               </div>
               <div style={s.cardMeta}>
-                <span style={{ ...s.badge, background: STATUS_BADGE[item.status]?.bg, color: STATUS_BADGE[item.status]?.color }}>
-                  {item.retryLabel ?? (item.status === 'uploading' ? `${Math.round(item.progress * 100)}%` : STATUS_BADGE[item.status]?.label)}
+                <span style={{ ...s.badge, background: STATUS_BADGE_KEYS[item.status]?.bg, color: STATUS_BADGE_KEYS[item.status]?.color }}>
+                  {item.retryLabel ?? (item.status === 'uploading' ? `${Math.round(item.progress * 100)}%` : t(STATUS_BADGE_KEYS[item.status]?.key))}
                 </span>
                 {item.status === 'error' && !item.noRetry && (
                   <button
@@ -315,7 +317,7 @@ export function UploadZone({ galleryId, onDone, existingPhotos = [] }) {
                     onClick={() => retryItem(item.id)}
                     aria-label={`Retry ${item.file.name}`}
                   >
-                    Retry
+                    {t('upload_retry')}
                   </button>
                 )}
                 {item.errorMsg && (
@@ -334,13 +336,13 @@ export function UploadZone({ galleryId, onDone, existingPhotos = [] }) {
       {done > 0 && !hasActive && !notified && (
         <div>
           <button style={s.doneBtn} onClick={handleDone}>
-            ✓ J'ai terminé — notifier les éditeurs
+            {t('upload_notify_editors')}
           </button>
         </div>
       )}
       {notified && (
         <p style={{ fontSize: '0.82rem', color: '#059669', fontWeight: 500, margin: 0 }}>
-          ✓ Éditeurs notifiés
+          {t('upload_editors_notified')}
         </p>
       )}
     </div>
