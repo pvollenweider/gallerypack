@@ -75,7 +75,7 @@ export default function GalleryGeneralPage() {
         primaryPhotographerId: g.primaryPhotographerId || '',
       });
       setWatermarkEnabled(g.watermark?.enabled ?? false);
-      setWatermarkText(g.watermark?.text || (g.author ? `© ${g.author}` : ''));
+      setWatermarkText(g.watermark?.text || (g.author ? `© ${g.author}` : g.title ? `© ${g.title}` : ''));
       setSlugEdited(true);
       setOrgDefault(s?.defaultAccess ?? null);
       setPhotographers(pgs);
@@ -366,7 +366,13 @@ export default function GalleryGeneralPage() {
               <div className="form-check form-switch mb-3">
                 <input className="form-check-input" type="checkbox" id="watermark-toggle"
                   checked={watermarkEnabled}
-                  onChange={e => { setWatermarkEnabled(e.target.checked); saveWatermark(e.target.checked, watermarkText); }} />
+                  onChange={e => {
+                    const enabled = e.target.checked;
+                    const text = watermarkText || (enabled ? (form.author ? `© ${form.author}` : form.title || '') : '');
+                    setWatermarkEnabled(enabled);
+                    if (text !== watermarkText) setWatermarkText(text);
+                    saveWatermark(enabled, text);
+                  }} />
                 <label className="form-check-label" htmlFor="watermark-toggle">
                   {t('gal_watermark_enable_label')}
                 </label>

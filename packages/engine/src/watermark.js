@@ -104,7 +104,7 @@ export function buildWatermarkSvg(imgWidth, imgHeight, text, fontPath) {
   </defs>
   <text
     x="${x}" y="${y}"
-    font-family=${fontFamily}
+    font-family="${fontFamily}"
     font-size="${fontSize}"
     fill="white"
     fill-opacity="${opacity}"

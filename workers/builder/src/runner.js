@@ -60,7 +60,12 @@ function galleryToProjectConfig(g) {
   if (g.allow_download_gallery !== null) proj.allowDownloadGallery = g.allow_download_gallery !== 0;
   try {
     const cfg = JSON.parse(g.config_json || '{}');
-    if (cfg.watermark) proj.watermark = cfg.watermark;
+    if (cfg.watermark?.enabled) {
+      proj.watermark = {
+        enabled: true,
+        text: cfg.watermark.text || (g.author ? `© ${g.author}` : null) || g.title || g.slug,
+      };
+    }
   } catch {}
   return proj;
 }
