@@ -60,14 +60,6 @@ UPDATE IGNORE audit_log SET organization_id = studio_id WHERE organization_id IS
 
 CREATE INDEX IF NOT EXISTS idx_audit_log_org ON audit_log(organization_id, created_at);
 
--- ── gallery_invites (legacy photographer upload invites) ─────────────────────
--- This table may or may not exist depending on install history
-ALTER TABLE gallery_invites ADD COLUMN IF NOT EXISTS organization_id VARCHAR(36) NULL DEFAULT NULL AFTER studio_id;
-
-UPDATE IGNORE gallery_invites SET organization_id = studio_id WHERE organization_id IS NULL AND studio_id IS NOT NULL;
-
-CREATE INDEX IF NOT EXISTS idx_gallery_invites_org ON gallery_invites(organization_id);
-
 -- ── invitations ──────────────────────────────────────────────────────────────
 -- already has organization_id in baseline
 ALTER TABLE invitations ADD COLUMN IF NOT EXISTS organization_id VARCHAR(36) NULL DEFAULT NULL AFTER studio_id;
