@@ -19,10 +19,6 @@
 import fs   from 'fs';
 import path from 'path';
 import sharp from 'sharp';
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-const piexif  = require('piexifjs');
-
 import crypto from 'crypto';
 import { extractExif } from './exif.js';
 import { buildName, MANIFEST_SCHEMA_VERSION } from './utils.js';
@@ -260,13 +256,12 @@ export async function convertOne(photo, cfg, idx, cachedIsDark = null, paths, ca
     ok(`orig  → originals/${name}.jpg`);
 
     try {
-      const buf  = fs.readFileSync(origOut);
-      const str  = buf.toString('binary');
-      let   exifData = {};
-      try { exifData = piexif.load(str); } catch (_) {}
-      if (!exifData['0th']) exifData['0th'] = {};
-      exifData['0th'][piexif.ImageIFD.DocumentName] = photo.file;
-      fs.writeFileSync(origOut, Buffer.from(piexif.insert(piexif.dump(exifData), str), 'binary'));
+      const tmp = origOut + '.exif.tmp';
+      await sharp(origOut)
+        .withMetadata()
+        .withExifMerge({ IFD0: { DocumentName: photo.file } })
+        .toFile(tmp);
+      fs.renameSync(tmp, origOut);
     } catch (_) {}
   }
 
