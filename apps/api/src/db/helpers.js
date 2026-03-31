@@ -850,7 +850,7 @@ export async function getProjectBySlug(studioId, slug) {
 
 export async function listProjectsByStudio(studioId) {
   const [rows] = await query(
-    "SELECT * FROM projects WHERE studio_id = ? AND status != 'archived' ORDER BY name ASC",
+    "SELECT * FROM projects WHERE studio_id = ? AND status != 'archived' ORDER BY sort_order ASC, name ASC",
     [studioId]
   );
   return rows;
@@ -867,7 +867,7 @@ export async function createProject(studioId, { slug, name, description = null, 
 }
 
 export async function updateProject(id, fields) {
-  const allowed = ['slug', 'name', 'description', 'visibility', 'starts_at', 'ends_at', 'status'];
+  const allowed = ['slug', 'name', 'description', 'visibility', 'starts_at', 'ends_at', 'status', 'sort_order', 'cover_gallery_id'];
   const cols    = Object.keys(fields).filter(k => allowed.includes(k));
   if (!cols.length) return getProject(id);
   const sets = [...cols.map(c => `${c} = ?`), 'updated_at = ?'].join(', ');

@@ -120,6 +120,7 @@ export const api = {
   getProjectGalleries:    (projectId)       => req('GET',  `/projects/${projectId}/galleries`),
   createProjectGallery:   (projectId, data) => req('POST', `/projects/${projectId}/galleries`, data),
   reorderProjectGalleries: (projectId, order) => req('POST', `/projects/${projectId}/galleries/reorder`, { order }),
+  reorderOrgProjects:      (orgId, order)     => req('POST', `/organizations/${orgId}/projects/reorder`, { order }),
   buildAllProjectGalleries:(projectId)      => req('POST', `/projects/${projectId}/galleries/build-all`),
   buildAllStudioGalleries: ()               => req('POST', `/studios/build-all`),
   prerenderAll:            ()               => req('POST', `/studios/prerender`),

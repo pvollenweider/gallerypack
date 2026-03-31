@@ -97,7 +97,7 @@ router.get('/:id', async (req, res) => {
   const org = await loadOrg(req, res);
   if (!org) return;
   const members = await listOrgMembers(org.id);
-  res.json({ ...org, members });
+  res.json({ ...org, coverProjectId: org.cover_project_id ?? null, members });
 });
 
 // ── Update ────────────────────────────────────────────────────────────────────
@@ -111,11 +111,14 @@ router.patch('/:id', async (req, res) => {
     return res.status(403).json({ error: 'Requires admin role or higher' });
   }
 
-  const { name, description, slug, plan, locale, country } = req.body || {};
+  const { name, description, slug, plan, locale, country, coverProjectId } = req.body || {};
   const updated = await updateOrganization(org.id, { name, description, slug, plan, locale, country });
+  if (coverProjectId !== undefined) {
+    await query('UPDATE organizations SET cover_project_id = ? WHERE id = ?', [coverProjectId || null, org.id]);
+  }
   try { await audit(org.id, req.userId, 'organization.update', 'organization', org.id, { name, slug }); } catch {}
   prerenderRoot().catch(() => {});
-  res.json(updated);
+  res.json({ ...updated, coverProjectId: coverProjectId !== undefined ? (coverProjectId || null) : (org.cover_project_id ?? null) });
 });
 
 // ── Delete (superadmin only) ──────────────────────────────────────────────────
@@ -127,6 +130,25 @@ router.delete('/:id', async (req, res) => {
   if (org.is_default) return res.status(409).json({ error: 'Cannot delete the default organization' });
   await deleteOrganization(org.id);
   try { await audit(org.id, req.userId, 'organization.delete', 'organization', org.id, { slug: org.slug }); } catch {}
+  res.json({ ok: true });
+});
+
+// ── Project reorder + cover project ──────────────────────────────────────────
+
+router.post('/:id/projects/reorder', async (req, res) => {
+  const org = await loadOrg(req, res);
+  if (!org) return;
+  const callerRole = isSuperadmin(req) ? 'owner' : (await getOrgRole(req.userId, org.id));
+  if (!['admin', 'owner'].includes(callerRole)) return res.status(403).json({ error: 'Requires admin role or higher' });
+  const { order } = req.body || {};
+  if (!Array.isArray(order)) return res.status(400).json({ error: 'order must be an array of project IDs' });
+  const [rows] = await query('SELECT id FROM projects WHERE studio_id = ?', [org.id]);
+  const allowed = new Set(rows.map(r => r.id));
+  if (!order.every(id => allowed.has(id))) return res.status(400).json({ error: 'Invalid project IDs' });
+  for (let i = 0; i < order.length; i++) {
+    await query('UPDATE projects SET sort_order = ? WHERE id = ?', [i, order[i]]);
+  }
+  prerenderRoot().catch(() => {});
   res.json({ ok: true });
 });
 

@@ -46,6 +46,8 @@ function projectToJson(p) {
     startsAt:         p.starts_at,
     endsAt:           p.ends_at,
     status:           p.status,
+    sortOrder:        p.sort_order ?? 0,
+    coverGalleryId:   p.cover_gallery_id ?? null,
     createdAt:        p.created_at,
     updatedAt:        p.updated_at,
   };
@@ -108,8 +110,8 @@ router.patch('/:id', async (req, res) => {
     return res.status(403).json({ error: 'Forbidden: requires project manager or studio admin' });
   }
 
-  const camelToSnake = { startsAt: 'starts_at', endsAt: 'ends_at', standaloneDefault: 'standalone_default' };
-  const allowed = ['slug', 'name', 'description', 'visibility', 'starts_at', 'ends_at', 'standalone_default'];
+  const camelToSnake = { startsAt: 'starts_at', endsAt: 'ends_at', standaloneDefault: 'standalone_default', coverGalleryId: 'cover_gallery_id' };
+  const allowed = ['slug', 'name', 'description', 'visibility', 'starts_at', 'ends_at', 'standalone_default', 'cover_gallery_id'];
   const boolCols = new Set(['standalone_default']);
   const updates = {};
   for (const [key, val] of Object.entries(req.body || {})) {

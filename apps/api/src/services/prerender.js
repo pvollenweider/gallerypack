@@ -34,27 +34,46 @@ export async function prerenderRoot() {
   const orgDescHtml = org?.description ? marked.parse(org.description) : '';
 
   const [projRows] = await query(
-    `SELECT p.id, p.slug, p.name, p.description,
+    `SELECT p.id, p.slug, p.name, p.description, p.sort_order, p.cover_gallery_id,
             COUNT(g.id) AS gallery_count,
             MIN(g.date) AS date_from,
             MAX(g.date) AS date_to,
             (SELECT g2.slug FROM galleries g2
              WHERE g2.project_id = p.id AND g2.access = 'public' AND g2.build_status = 'done'
-             ORDER BY g2.date DESC, g2.created_at DESC LIMIT 1) AS cover_gallery_slug,
+             ORDER BY g2.date DESC, g2.created_at DESC LIMIT 1) AS fallback_gallery_slug,
             (SELECT g2.cover_photo FROM galleries g2
              WHERE g2.project_id = p.id AND g2.access = 'public' AND g2.build_status = 'done'
-             ORDER BY g2.date DESC, g2.created_at DESC LIMIT 1) AS cover_photo
+             ORDER BY g2.date DESC, g2.created_at DESC LIMIT 1) AS fallback_cover_photo
      FROM projects p
      JOIN galleries g ON g.project_id = p.id AND g.access = 'public' AND g.build_status = 'done'
      GROUP BY p.id
-     ORDER BY date_to DESC, p.created_at DESC`
+     ORDER BY p.sort_order ASC, date_to DESC, p.created_at DESC`
   );
 
+  // Resolve cover gallery slug: prefer explicitly set cover_gallery_id
+  const coverGalIds = projRows.filter(p => p.cover_gallery_id).map(p => p.cover_gallery_id);
+  let coverGalMap = {};
+  if (coverGalIds.length > 0) {
+    const [cgRows] = await query(
+      `SELECT id, slug, cover_photo FROM galleries WHERE id IN (${coverGalIds.map(() => '?').join(',')})`,
+      coverGalIds
+    );
+    for (const r of cgRows) coverGalMap[r.id] = r;
+  }
+
   const projects = await Promise.all(projRows.map(async p => {
+    let coverGallerySlug, coverPhoto;
+    if (p.cover_gallery_id && coverGalMap[p.cover_gallery_id]) {
+      coverGallerySlug = coverGalMap[p.cover_gallery_id].slug;
+      coverPhoto       = coverGalMap[p.cover_gallery_id].cover_photo;
+    } else {
+      coverGallerySlug = p.fallback_gallery_slug;
+      coverPhoto       = p.fallback_cover_photo;
+    }
     let coverName = null;
-    if (p.cover_gallery_slug) {
-      const distSlug = `${p.slug}/${p.cover_gallery_slug}`;
-      coverName = await getCoverName({ cover_photo: p.cover_photo }, distSlug);
+    if (coverGallerySlug) {
+      const distSlug = `${p.slug}/${coverGallerySlug}`;
+      coverName = await getCoverName({ cover_photo: coverPhoto }, distSlug);
     }
     const dateRange = (p.date_from || p.date_to)
       ? { from: p.date_from || p.date_to, to: p.date_to || p.date_from }
@@ -64,7 +83,7 @@ export async function prerenderRoot() {
       name:         p.name,
       description:  p.description || null,
       galleryCount: Number(p.gallery_count),
-      coverSlug:    p.cover_gallery_slug,
+      coverSlug:    coverGallerySlug,
       coverName,
       dateRange,
     };
@@ -94,7 +113,7 @@ export async function prerenderProject(projectSlug) {
     `SELECT g.id, g.slug, g.title, g.date, g.location, g.description, g.cover_photo
      FROM galleries g
      WHERE g.project_id = ? AND g.access = 'public' AND g.build_status = 'done'
-     ORDER BY g.date DESC, g.created_at DESC`,
+     ORDER BY g.sort_order ASC, g.date DESC, g.created_at DESC`,
     [project.id]
   );
 

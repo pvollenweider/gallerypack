@@ -1,0 +1,15 @@
+{
+  "gridSizeSmall": 800,
+  "gridSizeBig": 1400,
+  "gridSizeMobileSmall": 400,
+  "gridSizeMobileBig": 600,
+  "fullSize": 3840,
+  "quality": {
+    "grid": 78,
+    "full": 90
+  },
+  "autoplay": {
+    "slideEffect": "fade",
+    "slideSpeed": 400
+  }
+}

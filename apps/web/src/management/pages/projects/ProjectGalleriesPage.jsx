@@ -38,10 +38,11 @@ export default function ProjectGalleriesPage() {
   const t = useT();
   const { orgId, projectId } = useParams();
   const navigate = useNavigate();
-  const [project,   setProject]   = useState(null);
-  const [galleries, setGalleries] = useState([]);
-  const [loading,   setLoading]   = useState(true);
-  const [error,     setError]     = useState('');
+  const [project,        setProject]        = useState(null);
+  const [galleries,      setGalleries]      = useState([]);
+  const [loading,        setLoading]        = useState(true);
+  const [error,          setError]          = useState('');
+  const [coverGalleryId, setCoverGalleryId] = useState(null);
 
   // Rebuild all
   const [buildingAll,  setBuildingAll]  = useState(false);
@@ -72,12 +73,19 @@ export default function ProjectGalleriesPage() {
       .then(([p, g]) => {
         setProject(p);
         setGalleries(g);
+        setCoverGalleryId(p.coverGalleryId ?? null);
       })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }
 
   useEffect(load, [projectId]);
+
+  async function setCover(galleryId) {
+    const next = coverGalleryId === galleryId ? null : galleryId;
+    setCoverGalleryId(next);
+    try { await api.updateProject(projectId, { coverGalleryId: next }); } catch {}
+  }
 
   function handleTitleChange(e) {
     const title = e.target.value;
@@ -263,6 +271,7 @@ export default function ProjectGalleriesPage() {
               <thead className="table-light">
                 <tr>
                   <th style={{ width: '32px' }}></th>
+                  <th style={{ width: '32px' }} title={t('proj_cover_gallery_hint')}><i className="fas fa-star" style={{ color: '#ccc', fontSize: '0.8rem' }} /></th>
                   <th>{t('proj_th_title')}</th>
                   <th>{t('proj_th_status')}</th>
                   <th className="d-none d-md-table-cell">Date</th>
@@ -287,6 +296,16 @@ export default function ProjectGalleriesPage() {
                   >
                     <td style={{ color: '#aaa', paddingLeft: '1rem' }}>
                       <i className="fas fa-grip-vertical" style={{ cursor: 'grab' }} />
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <button
+                        className="btn btn-link p-0"
+                        title={t('proj_cover_gallery_hint')}
+                        onClick={() => setCover(g.id)}
+                        style={{ color: coverGalleryId === g.id ? '#f59e0b' : '#d1d5db', fontSize: '0.85rem' }}
+                      >
+                        <i className="fas fa-star" />
+                      </button>
                     </td>
                     <td>
                       <Link to={`/admin/organizations/${orgId}/projects/${projectId}/galleries/${g.id}/photos`} className="fw-semibold text-body">{g.title || g.slug}</Link>
