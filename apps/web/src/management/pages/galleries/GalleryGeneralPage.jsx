@@ -5,9 +5,9 @@
 // Use, reproduction, or distribution requires a valid commercial license.
 // Unauthorized use is strictly prohibited.
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import SimpleMDE from '../../../components/LazySimpleMDE.jsx';
+import MDEditor from '@uiw/react-md-editor';
 import { api } from '../../../lib/api.js';
 import { useT } from '../../../lib/I18nContext.jsx';
 import { slugify } from '../../../lib/i18n.js';
@@ -133,13 +133,6 @@ export default function GalleryGeneralPage() {
     }
   }
 
-  const mdeOptions = useMemo(() => ({
-    spellChecker: false,
-    status: false,
-    toolbar: ['heading-2', 'heading-3', '|', 'bold', 'italic', '|', 'unordered-list', 'link', '|', 'preview'],
-    minHeight: '180px',
-  }), []);
-
   const stripOriginals = useCallback(async () => {
     setStripping(true); setStripError(''); setStripResult(null);
     try {
@@ -262,10 +255,11 @@ export default function GalleryGeneralPage() {
             {/* Long description (Markdown) */}
             <AdminCard title={t('gal_description_md_title')}>
               <p className="text-muted mb-3" style={{ fontSize: '0.82rem' }}>{t('gal_description_md_hint')}</p>
-              <SimpleMDE
+              <MDEditor
                 value={form.descriptionMd}
-                onChange={val => setForm(f => ({ ...f, descriptionMd: val }))}
-                options={mdeOptions}
+                onChange={val => setForm(f => ({ ...f, descriptionMd: val ?? '' }))}
+                preview="edit"
+                height={250}
               />
               <div className="d-flex justify-content-end mt-2">
                 <AdminButton size="sm" onClick={() => saveGallery(form)}>

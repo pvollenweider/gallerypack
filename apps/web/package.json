@@ -14,16 +14,15 @@
     "@gallerypack/shared": "*",
     "@sentry/react": "^10.46.0",
     "@sentry/vite-plugin": "^5.1.1",
+    "@uiw/react-md-editor": "^4.1.0",
     "@uppy/core": "^5.2.0",
     "@uppy/tus": "^5.1.1",
     "admin-lte": "^4.0.0-rc7",
     "chart.js": "^4.5.1",
-    "easymde": "^2.20.0",
     "qrcode": "^1.5.4",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "react-router-dom": "^7.13.2",
-    "react-simplemde-editor": "^5.2.0"
+    "react-router-dom": "^7.13.2"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",

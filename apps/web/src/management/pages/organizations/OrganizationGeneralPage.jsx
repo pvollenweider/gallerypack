@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
-import SimpleMDE from '../../../components/LazySimpleMDE.jsx';
+import MDEditor from '@uiw/react-md-editor';
 import { api } from '../../../lib/api.js';
 import { useT, useLocale } from '../../../lib/I18nContext.jsx';
 import { useAuth } from '../../../lib/auth.jsx';
@@ -32,8 +32,6 @@ export default function OrganizationGeneralPage() {
   const LOCALES = useMemo(() => getLocaleOptions(locale), [locale]);
 
   const canManage = ['admin', 'owner'].includes(user?.organizationRole) || user?.platformRole === 'superadmin';
-
-  const mdeOptions = useMemo(() => ({ minHeight: '120px', maxHeight: '300px', spellChecker: false, status: false, toolbar: ['bold','italic','|','unordered-list','ordered-list','|','link','|','preview'] }), []);
 
   const [identity,    setIdentity]    = useState({ name: '', slug: '', description: '', locale: 'en', country: '' });
   const [identityErr, setIdentityErr] = useState('');
@@ -114,10 +112,11 @@ export default function OrganizationGeneralPage() {
           <AdminAlert message={identityErr} />
 
           <AdminCard title={t('field_description')}>
-            <SimpleMDE
+            <MDEditor
               value={identity.description}
-              onChange={val => setIdentity(f => ({ ...f, description: val }))}
-              options={mdeOptions}
+              onChange={val => setIdentity(f => ({ ...f, description: val ?? '' }))}
+              preview="edit"
+              height={200}
             />
             <div className="d-flex justify-content-end mt-2">
               <AdminButton size="sm" onClick={() => saveIdentity(identityRef.current)}>{t('save')}</AdminButton>

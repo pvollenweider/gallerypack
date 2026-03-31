@@ -26,7 +26,7 @@ import { OrganizationsListPage, OrganizationProjectsPage } from './management/pa
 import { ProjectGalleriesPage } from './management/pages/projects/index.jsx';
 import { GalleryJobsPage, GalleryPhotosPage } from './management/pages/galleries/index.jsx';
 
-// Lazy-loaded heavy pages (chart.js ~200KB, easymde ~300KB)
+// Lazy-loaded heavy pages (chart.js ~200KB, @uiw/react-md-editor ~150KB)
 const GalleryInsightsPage   = lazy(() => import('./management/pages/galleries/GalleryInsightsPage.jsx'));
 const GalleryGeneralPage    = lazy(() => import('./management/pages/galleries/GalleryGeneralPage.jsx'));
 const OrganizationGeneralPage = lazy(() => import('./management/pages/organizations/OrganizationGeneralPage.jsx'));

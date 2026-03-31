@@ -5,9 +5,9 @@
 // Use, reproduction, or distribution requires a valid commercial license.
 // Unauthorized use is strictly prohibited.
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
-import SimpleMDE from '../../../components/LazySimpleMDE.jsx';
+import MDEditor from '@uiw/react-md-editor';
 import { api } from '../../../lib/api.js';
 import { useT } from '../../../lib/I18nContext.jsx';
 import { useAuth } from '../../../lib/auth.jsx';
@@ -15,12 +15,6 @@ import { AdminPage, AdminCard, AdminInput, AdminBadge, AdminAlert, AdminButton, 
 
 const ROLES = ['owner', 'admin', 'collaborator', 'photographer'];
 const ROLE_BADGE = { owner: 'danger', admin: 'primary', collaborator: 'info', photographer: 'secondary' };
-
-const MDE_OPTIONS = {
-  spellChecker: false,
-  status: false,
-  toolbar: ['heading-2', 'heading-3', '|', 'bold', 'italic', '|', 'unordered-list', 'link', '|', 'preview'],
-};
 
 export default function OrganizationTeamPage() {
   const t = useT();
@@ -39,8 +33,6 @@ export default function OrganizationTeamPage() {
   const [editSaving,  setEditSaving]  = useState(false);
   const [editMsg,     setEditMsg]     = useState('');
   const [editErr,     setEditErr]     = useState('');
-
-  const mdeOptions = useMemo(() => MDE_OPTIONS, []);
 
   // ── Add member ────────────────────────────────────────────────────────────
   const [addMode,     setAddMode]     = useState('invite'); // 'invite' | 'create'
@@ -269,10 +261,11 @@ export default function OrganizationTeamPage() {
                   </div>
                   <div className="mb-3">
                     <label className="form-label">{t('team_bio_label')}</label>
-                    <SimpleMDE
+                    <MDEditor
                       value={editForm.bio}
-                      onChange={v => setEditForm(f => ({ ...f, bio: v }))}
-                      options={mdeOptions}
+                      onChange={v => setEditForm(f => ({ ...f, bio: v ?? '' }))}
+                      preview="edit"
+                      height={200}
                     />
                     <div className="form-text">{t('team_bio_hint')}</div>
                   </div>

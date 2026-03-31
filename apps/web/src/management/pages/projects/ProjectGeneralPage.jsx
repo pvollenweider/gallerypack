@@ -5,9 +5,9 @@
 // Use, reproduction, or distribution requires a valid commercial license.
 // Unauthorized use is strictly prohibited.
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import SimpleMDE from '../../../components/LazySimpleMDE.jsx';
+import MDEditor from '@uiw/react-md-editor';
 import { api } from '../../../lib/api.js';
 import { useT } from '../../../lib/I18nContext.jsx';
 import { AdminPage, AdminCard, AdminInput, AdminSelect, AdminAlert, AdminButton, AdminToast } from '../../../components/ui/index.js';
@@ -26,7 +26,6 @@ export default function ProjectGeneralPage() {
   const [galLoading,   setGalLoading]   = useState(true);
 
   // Danger zone state
-  const mdeOptions = useMemo(() => ({ minHeight: '120px', maxHeight: '300px', spellChecker: false, status: false, toolbar: ['bold','italic','|','unordered-list','ordered-list','|','link','|','preview'] }), []);
   const [showDanger,   setShowDanger]   = useState(false);
   const [confirmName,  setConfirmName]  = useState('');
   const [deleting,     setDeleting]     = useState(false);
@@ -110,10 +109,11 @@ export default function ProjectGeneralPage() {
             />
             <div className="mb-3">
               <label className="form-label">{t('field_description')}</label>
-              <SimpleMDE
+              <MDEditor
                 value={form.description || ''}
-                onChange={val => setForm(f => ({ ...f, description: val }))}
-                options={mdeOptions}
+                onChange={val => setForm(f => ({ ...f, description: val ?? '' }))}
+                preview="edit"
+                height={200}
               />
               <div className="d-flex justify-content-end mt-2">
                 <AdminButton size="sm" onClick={() => save({ description: form.description })}>
