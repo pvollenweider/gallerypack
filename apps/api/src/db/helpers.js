@@ -26,95 +26,6 @@ export function genId() {
   return Date.now().toString(36) + randomBytes(6).toString('hex');
 }
 
-// ── Studios ───────────────────────────────────────────────────────────────────
-
-export async function getStudio(id) {
-  const [rows] = await query('SELECT * FROM studios WHERE id = ?', [id]);
-  return rows[0] ?? null;
-}
-
-export async function getStudioBySlug(slug) {
-  const [rows] = await query('SELECT * FROM studios WHERE slug = ?', [slug]);
-  return rows[0] ?? null;
-}
-
-export async function getDefaultStudio() {
-  const [rows] = await query('SELECT * FROM studios WHERE is_default = 1 LIMIT 1');
-  return rows[0] ?? null;
-}
-
-export async function listAllStudios() {
-  const [rows] = await query(`
-    SELECT s.*,
-      (SELECT COUNT(*) FROM studio_memberships sm WHERE sm.studio_id = s.id) AS member_count,
-      (SELECT COUNT(*) FROM galleries g WHERE g.studio_id = s.id) AS gallery_count
-    FROM studios s ORDER BY s.created_at ASC
-  `);
-  return rows;
-}
-
-export async function updateStudio(id, { name, slug, plan, locale, country }) {
-  const sets = [];
-  const vals = [];
-  if (name    !== undefined) { sets.push('name = ?');    vals.push(name); }
-  if (slug    !== undefined) { sets.push('slug = ?');    vals.push(slug); }
-  if (plan    !== undefined) { sets.push('plan = ?');    vals.push(plan); }
-  if (locale  !== undefined) { sets.push('locale = ?');  vals.push(locale); }
-  if (country !== undefined) { sets.push('country = ?'); vals.push(country); }
-  if (!sets.length) return getStudio(id);
-  sets.push('updated_at = ?'); vals.push(Date.now());
-  vals.push(id);
-  await query(`UPDATE studios SET ${sets.join(', ')} WHERE id = ?`, vals);
-  return getStudio(id);
-}
-
-export async function deleteStudio(id) {
-  await query('DELETE FROM studios WHERE id = ?', [id]);
-}
-
-export async function setDefaultStudio(id) {
-  await query('UPDATE studios SET is_default = 0');
-  await query('UPDATE studios SET is_default = 1 WHERE id = ?', [id]);
-  return getStudio(id);
-}
-
-export async function createStudio({ name, slug, plan = 'free', isDefault = false }) {
-  const id  = genId();
-  const now = Date.now();
-  await query(
-    'INSERT INTO studios (id, name, slug, plan, is_default, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    [id, name, slug, plan, isDefault ? 1 : 0, now, now]
-  );
-  // Dual-write to organizations (Sprint 22 — same ID guarantees referential integrity)
-  await query(
-    `INSERT INTO organizations (id, slug, name, is_default, created_at, updated_at)
-     VALUES (?, ?, ?, ?, FROM_UNIXTIME(? / 1000), FROM_UNIXTIME(? / 1000))
-     ON DUPLICATE KEY UPDATE slug = VALUES(slug), name = VALUES(name), is_default = VALUES(is_default)`,
-    [id, slug, name, isDefault ? 1 : 0, now, now]
-  );
-  return getStudio(id);
-}
-
-// ── Studio domains ────────────────────────────────────────────────────────────
-
-export async function getStudioByDomain(domain) {
-  const [rows] = await query(`
-    SELECT s.* FROM studios s
-    JOIN studio_domains sd ON sd.studio_id = s.id
-    WHERE sd.domain = ?
-  `, [domain]);
-  return rows[0] ?? null;
-}
-
-export async function addStudioDomain(studioId, domain, isPrimary = false) {
-  const id  = genId();
-  const now = Date.now();
-  await query(
-    'INSERT INTO studio_domains (id, studio_id, domain, is_primary, created_at) VALUES (?, ?, ?, ?, ?)',
-    [id, studioId, domain, isPrimary ? 1 : 0, now]
-  );
-}
-
 // ── Users ─────────────────────────────────────────────────────────────────────
 
 export async function getUserByEmail(email) {
@@ -127,12 +38,13 @@ export async function getUserById(id) {
   return rows[0] ?? null;
 }
 
-export async function createUser({ studioId, email, passwordHash, role = 'admin', name = '', platformRole = null }) {
+export async function createUser({ studioId, organizationId, email, passwordHash, role = 'admin', name = '', platformRole = null }) {
+  const orgId = organizationId || studioId;
   const id  = genId();
   const now = Date.now();
   await query(
-    'INSERT INTO users (id, studio_id, email, password_hash, role, name, platform_role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [id, studioId, email, passwordHash, role, name, platformRole, now, now]
+    'INSERT INTO users (id, studio_id, organization_id, email, password_hash, role, name, platform_role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [id, orgId, orgId, email, passwordHash, role, name, platformRole, now, now]
   );
   return getUserById(id);
 }
@@ -173,42 +85,43 @@ export async function pruneExpiredSessions() {
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 
-export async function getSettings(studioId) {
-  const [rows] = await query('SELECT * FROM settings WHERE studio_id = ?', [studioId]);
+export async function getSettings(orgId) {
+  const [rows] = await query('SELECT * FROM settings WHERE studio_id = ?', [orgId]);
   return rows[0] ?? null;
 }
 
-export async function upsertSettings(studioId, fields) {
+export async function upsertSettings(orgId, fields) {
   const now     = Date.now();
   const allowed = ['smtp_host','smtp_port','smtp_user','smtp_pass','smtp_from','smtp_secure','base_url','site_title','default_author','default_author_email','default_locale','default_access','default_allow_download_image','default_allow_download_gallery','default_private'];
   const cols    = Object.keys(fields).filter(k => allowed.includes(k));
   if (!cols.length) return;
 
-  const existing = await getSettings(studioId);
+  const existing = await getSettings(orgId);
   if (!existing) {
     const allCols = ['studio_id', ...cols, 'updated_at'];
-    const vals    = [studioId, ...cols.map(c => fields[c]), now];
+    const vals    = [orgId, ...cols.map(c => fields[c]), now];
     await query(
       `INSERT INTO settings (${allCols.join(',')}) VALUES (${allCols.map(() => '?').join(',')})`,
       vals
     );
   } else {
     const sets = [...cols.map(c => `${c} = ?`), 'updated_at = ?'].join(', ');
-    const vals = [...cols.map(c => fields[c]), now, studioId];
+    const vals = [...cols.map(c => fields[c]), now, orgId];
     await query(`UPDATE settings SET ${sets} WHERE studio_id = ?`, vals);
   }
-  return getSettings(studioId);
+  return getSettings(orgId);
 }
 
 // ── Build jobs ────────────────────────────────────────────────────────────────
 
-export async function createJob({ galleryId, studioId, triggeredBy = 'admin', force = false }) {
+export async function createJob({ galleryId, studioId, organizationId, triggeredBy = 'admin', force = false }) {
+  const orgId = organizationId || studioId;
   const id  = genId();
   const now = Date.now();
   await query(`
-    INSERT INTO build_jobs (id, gallery_id, studio_id, status, triggered_by, \`force\`, created_at)
-    VALUES (?, ?, ?, 'queued', ?, ?, ?)
-  `, [id, galleryId, studioId, triggeredBy, force ? 1 : 0, now]);
+    INSERT INTO build_jobs (id, gallery_id, studio_id, organization_id, status, triggered_by, \`force\`, created_at)
+    VALUES (?, ?, ?, ?, 'queued', ?, ?, ?)
+  `, [id, galleryId, orgId, orgId, triggeredBy, force ? 1 : 0, now]);
   const [rows] = await query('SELECT * FROM build_jobs WHERE id = ?', [id]);
   return rows[0] ?? null;
 }
@@ -338,16 +251,17 @@ export function verifyViewerToken(token) {
 
 const INVITE_DEFAULT_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
-export async function createInvite({ studioId, galleryId = null, email = null, label = null, expiresIn = INVITE_DEFAULT_TTL_MS, singleUse = false }) {
+export async function createInvite({ studioId, organizationId, galleryId = null, email = null, label = null, expiresIn = INVITE_DEFAULT_TTL_MS, singleUse = false }) {
+  const orgId     = organizationId || studioId;
   const id        = genId();
   const rawToken  = genToken(32); // 64-char hex — returned to caller, NEVER stored
   const tokenHash = sha256(rawToken);
   const now       = Date.now();
   const expiresAt = expiresIn ? now + expiresIn : null;
   await query(`
-    INSERT INTO gallery_invites (id, studio_id, gallery_id, token, token_hash, email, label, single_use, expires_at, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `, [id, studioId, galleryId, tokenHash, tokenHash, email, label, singleUse ? 1 : 0, expiresAt, now]);
+    INSERT INTO gallery_invites (id, studio_id, organization_id, gallery_id, token, token_hash, email, label, single_use, expires_at, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `, [id, orgId, orgId, galleryId, tokenHash, tokenHash, email, label, singleUse ? 1 : 0, expiresAt, now]);
   return { ...(await getInviteById(id)), token: rawToken };
 }
 
@@ -361,10 +275,10 @@ export async function getInviteByToken(token) {
   return rows[0] ?? null;
 }
 
-export async function listInvites(studioId) {
+export async function listInvites(orgId) {
   const [rows] = await query(
     'SELECT * FROM gallery_invites WHERE studio_id = ? ORDER BY created_at DESC',
-    [studioId]
+    [orgId]
   );
   return rows;
 }
@@ -377,11 +291,11 @@ export async function revokeInvite(id) {
   await query('UPDATE gallery_invites SET revoked_at = ? WHERE id = ?', [Date.now(), id]);
 }
 
-// ── Unified scoped invites (studio | project | gallery) ───────────────────────
+// ── Unified scoped invites (organization | project | gallery) ────────────────
 
 const SCOPED_INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
-export const INVITE_SCOPE_TYPES = ['studio', 'project', 'gallery'];
+export const INVITE_SCOPE_TYPES = ['organization', 'project', 'gallery'];
 
 export async function createScopedInvite(scopeType, scopeId, email, roleToGrant, createdByUserId = null, ttlMs = SCOPED_INVITE_TTL_MS) {
   const id        = randomUUID();
@@ -443,18 +357,18 @@ export async function acceptScopedInvite(rawToken, password = null) {
     if (inv.used_at)    throw Object.assign(new Error('Invite has already been used'), { status: 410 });
     if (inv.expires_at < Date.now()) throw Object.assign(new Error('Invite has expired'), { status: 410 });
 
-    // Resolve studio id from scope
-    let studioId;
-    if (inv.scope_type === 'studio') {
-      studioId = inv.scope_id;
+    // Resolve organization id from scope
+    let orgId;
+    if (inv.scope_type === 'organization') {
+      orgId = inv.scope_id;
     } else if (inv.scope_type === 'project') {
-      const [pRows] = await conn.query('SELECT studio_id FROM projects WHERE id = ?', [inv.scope_id]);
+      const [pRows] = await conn.query('SELECT organization_id, studio_id FROM projects WHERE id = ?', [inv.scope_id]);
       if (!pRows[0]) throw Object.assign(new Error('Project not found'), { status: 404 });
-      studioId = pRows[0].studio_id;
+      orgId = pRows[0].organization_id || pRows[0].studio_id;
     } else if (inv.scope_type === 'gallery') {
-      const [gRows] = await conn.query('SELECT studio_id FROM galleries WHERE id = ?', [inv.scope_id]);
+      const [gRows] = await conn.query('SELECT organization_id, studio_id FROM galleries WHERE id = ?', [inv.scope_id]);
       if (!gRows[0]) throw Object.assign(new Error('Gallery not found'), { status: 404 });
-      studioId = gRows[0].studio_id;
+      orgId = gRows[0].organization_id || gRows[0].studio_id;
     } else {
       throw Object.assign(new Error('Unknown scope type'), { status: 400 });
     }
@@ -468,30 +382,30 @@ export async function acceptScopedInvite(rawToken, password = null) {
       const userId       = genId();
       const passwordHash = password ? hashPassword(password) : null;
       await conn.query(
-        'INSERT INTO users (id, studio_id, email, password_hash, role, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [userId, studioId, inv.email, passwordHash, inv.role_to_grant, '', now, now]
+        'INSERT INTO users (id, studio_id, organization_id, email, password_hash, role, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [userId, orgId, orgId, inv.email, passwordHash, inv.role_to_grant, '', now, now]
       );
       const [newRows] = await conn.query('SELECT * FROM users WHERE id = ?', [userId]);
       user = newRows[0];
     }
 
-    // Ensure user has a studio membership (min: photographer)
+    // Ensure user has an organization membership (min: photographer)
     const [memRows] = await conn.query(
-      'SELECT id FROM studio_memberships WHERE studio_id = ? AND user_id = ?',
-      [studioId, user.id]
+      'SELECT id FROM studio_memberships WHERE (organization_id = ? OR studio_id = ?) AND user_id = ?',
+      [orgId, orgId, user.id]
     );
     if (!memRows[0]) {
-      const minRole = inv.scope_type === 'studio' ? inv.role_to_grant : 'photographer';
+      const minRole = inv.scope_type === 'organization' ? inv.role_to_grant : 'photographer';
       const memId = genId();
       await conn.query(
-        'INSERT INTO studio_memberships (id, studio_id, user_id, role, created_at) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE role = VALUES(role)',
-        [memId, studioId, user.id, minRole, now]
+        'INSERT INTO studio_memberships (id, studio_id, organization_id, user_id, role, created_at) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE role = VALUES(role), organization_id = VALUES(organization_id)',
+        [memId, orgId, orgId, user.id, minRole, now]
       );
-    } else if (inv.scope_type === 'studio') {
-      // Update studio membership role if this is a studio-scoped invite
+    } else if (inv.scope_type === 'organization') {
+      // Update membership role if this is an organization-scoped invite
       await conn.query(
-        'UPDATE studio_memberships SET role = ? WHERE studio_id = ? AND user_id = ?',
-        [inv.role_to_grant, studioId, user.id]
+        'UPDATE studio_memberships SET role = ?, organization_id = ? WHERE (organization_id = ? OR studio_id = ?) AND user_id = ?',
+        [inv.role_to_grant, orgId, orgId, orgId, user.id]
       );
     }
 
@@ -517,74 +431,11 @@ export async function acceptScopedInvite(rawToken, password = null) {
   });
 }
 
-// ── Studio memberships ────────────────────────────────────────────────────────
+// ── Organization memberships ─────────────────────────────────────────────────
 
 export const ROLE_HIERARCHY = ['photographer', 'collaborator', 'admin', 'owner'];
 
-export async function getStudioMembership(userId, studioId) {
-  const [rows] = await query(
-    'SELECT * FROM studio_memberships WHERE user_id = ? AND studio_id = ?',
-    [userId, studioId]
-  );
-  return rows[0] ?? null;
-}
-
-export async function getStudioRole(userId, studioId) {
-  const row = await getStudioMembership(userId, studioId);
-  return row ? row.role : null;
-}
-
-export async function upsertStudioMembership(studioId, userId, role) {
-  const id  = genId();
-  const now = Date.now();
-  await query(`
-    INSERT INTO studio_memberships (id, studio_id, user_id, role, created_at)
-    VALUES (?, ?, ?, ?, ?)
-    ON DUPLICATE KEY UPDATE role = VALUES(role)
-  `, [id, studioId, userId, role, now]);
-  return getStudioMembership(userId, studioId);
-}
-
-export async function removeStudioMembership(studioId, userId) {
-  await query(
-    'DELETE FROM studio_memberships WHERE studio_id = ? AND user_id = ?',
-    [studioId, userId]
-  );
-}
-
-export async function listStudioMembers(studioId) {
-  const [memberRows] = await query(`
-    SELECT sm.role, u.id, u.email, u.name, u.role AS user_role, u.created_at
-    FROM studio_memberships sm
-    JOIN users u ON u.id = sm.user_id
-    WHERE sm.studio_id = ?
-    ORDER BY sm.created_at ASC
-  `, [studioId]);
-
-  const [galleryAccess] = await query(`
-    SELECT gra.user_id, gra.role AS gallery_role, g.id AS gallery_id, g.title AS gallery_title
-    FROM gallery_role_assignments gra
-    JOIN galleries g ON g.id = gra.gallery_id
-    WHERE g.studio_id = ?
-    ORDER BY g.title ASC
-  `, [studioId]);
-
-  const accessByUser = {};
-  for (const a of galleryAccess) {
-    if (!accessByUser[a.user_id]) accessByUser[a.user_id] = [];
-    accessByUser[a.user_id].push({ galleryId: a.gallery_id, galleryTitle: a.gallery_title, role: a.gallery_role });
-  }
-
-  return memberRows.map(r => ({
-    role: r.role,
-    user: { id: r.id, email: r.email, name: r.name, role: r.user_role, createdAt: r.created_at },
-    galleries: accessByUser[r.id] || [],
-  }));
-}
-
 // ── Gallery role (reads from canonical gallery_role_assignments) ───────────────
-
-export const GALLERY_ROLE_HIERARCHY = ['viewer', 'contributor', 'editor'];
 
 /** Canonical gallery role lookup — reads gallery_role_assignments table. */
 export async function getGalleryRole(userId, galleryId) {
@@ -592,15 +443,15 @@ export async function getGalleryRole(userId, galleryId) {
   return row ? row.role : null;
 }
 
-// ── Invitations (studio user invitations) ────────────────────────────────────
+// ── Invitations (organization user invitations) ──────────────────────────────
 
 const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
-export async function createInvitation(studioId, email, role, createdBy, { galleryId = null, galleryRole = null, name = '' } = {}) {
+export async function createInvitation(orgId, email, role, createdBy, { galleryId = null, galleryRole = null, name = '' } = {}) {
   // Replace any existing pending invitation for this email (re-invite / role change).
   const [existing] = await query(
     'SELECT * FROM invitations WHERE studio_id = ? AND email = ?',
-    [studioId, email]
+    [orgId, email]
   );
   if (existing[0]) {
     if (existing[0].accepted_at) throw Object.assign(new Error('This user is already a member'), { status: 409 });
@@ -614,9 +465,9 @@ export async function createInvitation(studioId, email, role, createdBy, { galle
   const expiresAt = now + INVITATION_TTL_MS;
 
   await query(`
-    INSERT INTO invitations (id, studio_id, email, name, role, token, token_hash, created_by, created_at, expires_at, gallery_id, gallery_role)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `, [id, studioId, email, name || '', role, tokenHash, tokenHash, createdBy, now, expiresAt, galleryId, galleryRole]);
+    INSERT INTO invitations (id, studio_id, organization_id, email, name, role, token, token_hash, created_by, created_at, expires_at, gallery_id, gallery_role)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `, [id, orgId, orgId, email, name || '', role, tokenHash, tokenHash, createdBy, now, expiresAt, galleryId, galleryRole]);
 
   const [rows] = await query('SELECT * FROM invitations WHERE id = ?', [id]);
   return { ...rows[0], token: rawToken };
@@ -644,18 +495,19 @@ export async function acceptInvitation(token, password) {
     const passwordHash = hashPassword(password);
     const userId       = genId();
     const now          = Date.now();
+    const orgId        = inv.organization_id || inv.studio_id;
 
     await conn.query(
-      'INSERT INTO users (id, studio_id, email, password_hash, role, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [userId, inv.studio_id, inv.email, passwordHash, inv.role, inv.name || '', now, now]
+      'INSERT INTO users (id, studio_id, organization_id, email, password_hash, role, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [userId, orgId, orgId, inv.email, passwordHash, inv.role, inv.name || '', now, now]
     );
 
     const membershipId = genId();
     await conn.query(`
-      INSERT INTO studio_memberships (id, studio_id, user_id, role, created_at)
-      VALUES (?, ?, ?, ?, ?)
-      ON DUPLICATE KEY UPDATE role = VALUES(role)
-    `, [membershipId, inv.studio_id, userId, inv.role, now]);
+      INSERT INTO studio_memberships (id, studio_id, organization_id, user_id, role, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE role = VALUES(role), organization_id = VALUES(organization_id)
+    `, [membershipId, orgId, orgId, userId, inv.role, now]);
 
     if (inv.gallery_id && inv.gallery_role) {
       const graId = randomUUID();
@@ -676,10 +528,10 @@ export async function acceptInvitation(token, password) {
   });
 }
 
-export async function listInvitations(studioId) {
+export async function listInvitations(orgId) {
   const [rows] = await query(
     'SELECT * FROM invitations WHERE studio_id = ? ORDER BY created_at DESC',
-    [studioId]
+    [orgId]
   );
   return rows;
 }
@@ -843,26 +695,29 @@ export async function getProject(id) {
   return rows[0] ?? null;
 }
 
-export async function getProjectBySlug(studioId, slug) {
-  const [rows] = await query('SELECT * FROM projects WHERE studio_id = ? AND slug = ?', [studioId, slug]);
+export async function getProjectBySlug(orgId, slug) {
+  const [rows] = await query('SELECT * FROM projects WHERE (organization_id = ? OR studio_id = ?) AND slug = ?', [orgId, orgId, slug]);
   return rows[0] ?? null;
 }
 
-export async function listProjectsByStudio(studioId) {
+export async function listProjectsByOrg(orgId) {
   const [rows] = await query(
-    "SELECT * FROM projects WHERE studio_id = ? AND status != 'archived' ORDER BY sort_order ASC, name ASC",
-    [studioId]
+    "SELECT * FROM projects WHERE (organization_id = ? OR studio_id = ?) AND status != 'archived' ORDER BY sort_order ASC, name ASC",
+    [orgId, orgId]
   );
   return rows;
 }
 
-export async function createProject(studioId, { slug, name, description = null, visibility = 'restricted', startsAt = null, endsAt = null }) {
+/** @deprecated Use listProjectsByOrg */
+export const listProjectsByStudio = listProjectsByOrg;
+
+export async function createProject(orgId, { slug, name, description = null, visibility = 'restricted', startsAt = null, endsAt = null }) {
   const id  = randomUUID();
   const now = Date.now();
   await query(`
-    INSERT INTO projects (id, studio_id, slug, name, description, visibility, starts_at, ends_at, status, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)
-  `, [id, studioId, slug, name, description, visibility, startsAt, endsAt, now, now]);
+    INSERT INTO projects (id, studio_id, organization_id, slug, name, description, visibility, starts_at, ends_at, status, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)
+  `, [id, orgId, orgId, slug, name, description, visibility, startsAt, endsAt, now, now]);
   return getProject(id);
 }
 
@@ -930,7 +785,7 @@ export async function listProjectMembers(projectId) {
 
 // ── Gallery role assignments (canonical, replaces gallery_memberships) ─────────
 
-export const GALLERY_ROLE_HIERARCHY_V2 = ['viewer', 'contributor', 'editor'];
+export const GALLERY_ROLE_HIERARCHY = ['viewer', 'contributor', 'editor'];
 
 export async function getGalleryRoleAssignment(userId, galleryId) {
   const [rows] = await query(
@@ -1141,37 +996,11 @@ export async function bulkSetPhotoPhotographer(photoIds, photographerId) {
   return result.affectedRows;
 }
 
-// ── Organization helpers (Sprint 22) ──────────────────────────────────────────
-// These read from the `organizations` table introduced in migration 013.
-// organizations.id === studios.id, so these are safe to use alongside studio helpers.
-
-export async function getOrganization(id) {
-  const [rows] = await query('SELECT * FROM organizations WHERE id = ?', [id]);
-  return rows[0] ?? null;
-}
-
-export async function getOrganizationBySlug(slug) {
-  const [rows] = await query('SELECT * FROM organizations WHERE slug = ?', [slug]);
-  return rows[0] ?? null;
-}
-
-export async function getDefaultOrganization() {
-  const [rows] = await query('SELECT * FROM organizations WHERE is_default = 1 LIMIT 1');
-  return rows[0] ?? null;
-}
-
-export async function getOrganizationByDomain(domain) {
-  const [rows] = await query(`
-    SELECT o.* FROM organizations o
-    JOIN studio_domains sd ON sd.organization_id = o.id
-    WHERE sd.domain = ?
-  `, [domain]);
-  return rows[0] ?? null;
-}
+// ── Organization role lookup ─────────────────────────────────────────────────
 
 /**
  * Look up a user's role in an organization (via studio_memberships.organization_id).
- * Falls back to studio_id lookup so pre-015 rows without organization_id still resolve.
+ * Falls back to studio_id lookup so pre-migration rows without organization_id still resolve.
  */
 export async function getOrgRole(userId, orgId) {
   const [rows] = await query(
@@ -1185,9 +1014,9 @@ export async function getOrgRole(userId, orgId) {
 
 // ── Audit log ─────────────────────────────────────────────────────────────────
 
-export async function audit(studioId, userId, action, targetType, targetId, meta = {}) {
+export async function audit(orgId, userId, action, targetType, targetId, meta = {}) {
   await query(`
-    INSERT INTO audit_log (id, studio_id, user_id, action, target_type, target_id, meta, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `, [randomUUID(), studioId, userId, action, targetType, targetId, JSON.stringify(meta), Date.now()]);
+    INSERT INTO audit_log (id, studio_id, organization_id, user_id, action, target_type, target_id, meta, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `, [randomUUID(), orgId, orgId, userId, action, targetType, targetId, JSON.stringify(meta), Date.now()]);
 }

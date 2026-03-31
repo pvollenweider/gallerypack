@@ -12,17 +12,18 @@ import fs   from 'fs';
 import path from 'path';
 import { query }  from '../db/database.js';
 import {
-  genId, hashPassword, getProject, getStudio, getSettings,
+  genId, hashPassword, getProject, getSettings,
   getUserById, getGalleryRole,
   createViewerTokenDb, listViewerTokens, deleteViewerToken,
   listGalleryRoleAssignments, upsertGalleryRoleAssignment, removeGalleryRoleAssignment,
-  GALLERY_ROLE_HIERARCHY_V2,
+  GALLERY_ROLE_HIERARCHY,
   createJob,
   audit,
 } from '../db/helpers.js';
 import { requireStudioRole } from '../middleware/auth.js';
 import { sendPhotosReadyEmail } from '../services/email.js';
 import { can } from '../authorization/index.js';
+import { getOrganization } from '../services/organization.js';
 import { SRC_ROOT, DIST_ROOT } from '../../../../packages/engine/src/fs.js';
 import { createStorage } from '../../../../packages/shared/src/storage/index.js';
 
@@ -144,7 +145,7 @@ async function rowToGalleryAsync(row, opts = {}) {
 
 async function resolveProject(req, res, next) {
   const project = await getProject(req.params.projectId);
-  if (!project || project.studio_id !== req.studioId) {
+  if (!project || project.studio_id !== req.organizationId) {
     return res.status(404).json({ error: 'Project not found' });
   }
   req.project = project;
@@ -194,7 +195,7 @@ router.post('/', async (req, res) => {
     return res.status(403).json({ error: 'Forbidden' });
   }
 
-  const st        = (await getSettings(req.studioId)) || {};
+  const st        = (await getSettings(req.organizationId)) || {};
   const defLocale = st.default_locale                || 'fr';
   const defAccess = st.default_access                || 'public';
   const defDlImg  = st.default_allow_download_image  !== 0;
@@ -216,7 +217,7 @@ router.post('/', async (req, res) => {
 
   const [existingRows] = await query(
     'SELECT id FROM galleries WHERE studio_id = ? AND slug = ?',
-    [req.studioId, slug]
+    [req.organizationId, slug]
   );
   if (existingRows[0]) return res.status(409).json({ error: 'A gallery with this slug already exists' });
 
@@ -232,7 +233,7 @@ router.post('/', async (req, res) => {
        slideshow_interval, copyright, build_status, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
   `, [
-    id, req.studioId, req.project.id, slug, title ?? slug, description ?? null, subtitle ?? null,
+    id, req.organizationId, req.project.id, slug, title ?? slug, description ?? null, subtitle ?? null,
     author ?? null, authorEmail ?? null, date ?? null, location ?? null,
     locale, access, passwordHash, standalone ? 1 : 0,
     allowDownloadImage ? 1 : 0, allowDownloadGallery ? 1 : 0,
@@ -241,7 +242,7 @@ router.post('/', async (req, res) => {
   ]);
 
   const [newRows] = await query('SELECT * FROM galleries WHERE id = ?', [id]);
-  try { await audit(req.studioId, req.userId, 'gallery.create', 'gallery', id, { slug, projectId: req.project.id }); } catch {}
+  try { await audit(req.organizationId, req.userId, 'gallery.create', 'gallery', id, { slug, projectId: req.project.id }); } catch {}
   res.status(201).json(await rowToGalleryAsync(newRows[0]));
 });
 
@@ -250,7 +251,7 @@ router.post('/', async (req, res) => {
 async function resolveGallery(req, res, next) {
   const [rows] = await query(
     'SELECT * FROM galleries WHERE id = ? AND project_id = ? AND studio_id = ?',
-    [req.params.id, req.project.id, req.studioId]
+    [req.params.id, req.project.id, req.organizationId]
   );
   if (!rows[0]) return res.status(404).json({ error: 'Gallery not found' });
   req.gallery = rows[0];
@@ -263,8 +264,8 @@ router.get('/:id', resolveGallery, async (req, res) => {
   if (!can(req.user, 'read', 'gallery', { gallery: req.gallery, studioRole: req.studioRole, galleryRole })) {
     return res.status(403).json({ error: 'Forbidden' });
   }
-  const studio = await getStudio(req.studioId);
-  res.json(await rowToGalleryAsync(req.gallery, { studio, project: req.project }));
+  const org = await getOrganization(req.organizationId);
+  res.json(await rowToGalleryAsync(req.gallery, { studio: org, project: req.project }));
 });
 
 // PATCH /api/projects/:projectId/galleries/:id
@@ -309,7 +310,7 @@ router.patch('/:id', resolveGallery, async (req, res) => {
 
   const [updatedRows] = await query('SELECT * FROM galleries WHERE id = ?', [req.gallery.id]);
   if (updates.access !== undefined || updates.password_hash !== undefined) {
-    try { await audit(req.studioId, req.userId, 'gallery.access_changed', 'gallery', req.gallery.id, { access: updates.access ?? req.gallery.access }); } catch {}
+    try { await audit(req.organizationId, req.userId, 'gallery.access_changed', 'gallery', req.gallery.id, { access: updates.access ?? req.gallery.access }); } catch {}
   }
   res.json(await rowToGalleryAsync(updatedRows[0]));
 });
@@ -327,7 +328,7 @@ router.post('/:id/rename', resolveGallery, async (req, res) => {
   }
   const [conflictRows] = await query(
     'SELECT id FROM galleries WHERE studio_id = ? AND slug = ? AND id != ?',
-    [req.studioId, slug, req.gallery.id]
+    [req.organizationId, slug, req.gallery.id]
   );
   if (conflictRows[0]) return res.status(409).json({ error: 'A gallery with this slug already exists' });
 
@@ -345,7 +346,7 @@ router.post('/:id/rename', resolveGallery, async (req, res) => {
     'UPDATE galleries SET slug = ?, needs_rebuild = 1, updated_at = ? WHERE id = ?',
     [slug, Date.now(), req.gallery.id]
   );
-  try { await audit(req.studioId, req.userId, 'gallery.rename', 'gallery', req.gallery.id, { from: req.gallery.slug, to: slug }); } catch {}
+  try { await audit(req.organizationId, req.userId, 'gallery.rename', 'gallery', req.gallery.id, { from: req.gallery.slug, to: slug }); } catch {}
 
   const [updatedRows] = await query('SELECT * FROM galleries WHERE id = ?', [req.gallery.id]);
   res.json(await rowToGalleryAsync(updatedRows[0]));
@@ -367,7 +368,7 @@ router.delete('/:id', resolveGallery, async (req, res) => {
     try { if (fs.existsSync(distDir)) fs.rmSync(distDir, { recursive: true, force: true }); } catch {}
   }
 
-  try { await audit(req.studioId, req.userId, 'gallery.delete', 'gallery', req.gallery.id, { slug: req.gallery.slug, purge: req.query.purge === '1' }); } catch {}
+  try { await audit(req.organizationId, req.userId, 'gallery.delete', 'gallery', req.gallery.id, { slug: req.gallery.slug, purge: req.query.purge === '1' }); } catch {}
   res.json({ ok: true });
 });
 
@@ -379,21 +380,21 @@ router.get('/:id/members', resolveGallery, requireStudioRole('admin'), async (re
 
 router.put('/:id/members/:userId', resolveGallery, requireStudioRole('admin'), async (req, res) => {
   const { role } = req.body || {};
-  if (!role || !GALLERY_ROLE_HIERARCHY_V2.includes(role)) {
-    return res.status(400).json({ error: `role must be one of: ${GALLERY_ROLE_HIERARCHY_V2.join(', ')}` });
+  if (!role || !GALLERY_ROLE_HIERARCHY.includes(role)) {
+    return res.status(400).json({ error: `role must be one of: ${GALLERY_ROLE_HIERARCHY.join(', ')}` });
   }
 
   const targetUser = await getUserById(req.params.userId);
   if (!targetUser) return res.status(404).json({ error: 'User not found' });
 
   const assignment = await upsertGalleryRoleAssignment(req.gallery.id, req.params.userId, role, req.userId);
-  try { await audit(req.studioId, req.userId, 'gallery.member_added', 'gallery', req.gallery.id, { userId: req.params.userId, role }); } catch {}
+  try { await audit(req.organizationId, req.userId, 'gallery.member_added', 'gallery', req.gallery.id, { userId: req.params.userId, role }); } catch {}
   res.json(assignment);
 });
 
 router.delete('/:id/members/:userId', resolveGallery, requireStudioRole('admin'), async (req, res) => {
   await removeGalleryRoleAssignment(req.gallery.id, req.params.userId);
-  try { await audit(req.studioId, req.userId, 'gallery.member_removed', 'gallery', req.gallery.id, { userId: req.params.userId }); } catch {}
+  try { await audit(req.organizationId, req.userId, 'gallery.member_removed', 'gallery', req.gallery.id, { userId: req.params.userId }); } catch {}
   res.json({ ok: true });
 });
 
@@ -406,7 +407,7 @@ router.post('/:id/viewer-tokens', resolveGallery, async (req, res) => {
   }
   const { label = null, expiresAt = null } = req.body || {};
   const token = await createViewerTokenDb('gallery', req.gallery.id, req.userId, { label, expiresAt });
-  try { await audit(req.studioId, req.userId, 'viewer_token.created', 'gallery', req.gallery.id, { label }); } catch {}
+  try { await audit(req.organizationId, req.userId, 'viewer_token.created', 'gallery', req.gallery.id, { label }); } catch {}
   res.status(201).json(token);
 });
 
@@ -424,7 +425,7 @@ router.delete('/:id/viewer-tokens/:tokenId', resolveGallery, async (req, res) =>
     return res.status(403).json({ error: 'Forbidden' });
   }
   await deleteViewerToken(req.params.tokenId);
-  try { await audit(req.studioId, req.userId, 'viewer_token.revoked', 'gallery', req.gallery.id, { tokenId: req.params.tokenId }); } catch {}
+  try { await audit(req.organizationId, req.userId, 'viewer_token.revoked', 'gallery', req.gallery.id, { tokenId: req.params.tokenId }); } catch {}
   res.json({ ok: true });
 });
 
@@ -453,7 +454,7 @@ router.post('/reorder', async (req, res) => {
 router.post('/build-all', requireStudioRole('admin'), async (req, res) => {
   const [rows] = await query(
     "SELECT id FROM galleries WHERE project_id = ? AND studio_id = ? AND build_status != 'archived'",
-    [req.params.projectId, req.studioId]
+    [req.params.projectId, req.organizationId]
   );
   if (!rows.length) return res.json({ queued: 0 });
 
@@ -463,16 +464,16 @@ router.post('/build-all', requireStudioRole('admin'), async (req, res) => {
     // Skip if a build is already queued/running for this gallery
     const [existing] = await query(
       "SELECT COUNT(*) AS n FROM build_jobs WHERE studio_id = ? AND gallery_id = ? AND status IN ('queued','running')",
-      [req.studioId, id]
+      [req.organizationId, id]
     );
     if (existing[0].n > 0) continue;
     try {
-      await createJob({ galleryId: id, studioId: req.studioId, triggeredBy: req.user.id, force: false });
+      await createJob({ galleryId: id, studioId: req.organizationId, triggeredBy: req.user.id, force: false });
       queued++;
     } catch (e) { errors.push(id); }
   }
 
-  try { await audit(req.studioId, req.userId, 'project.build_all', 'project', req.params.projectId, { queued, total: rows.length }); } catch {}
+  try { await audit(req.organizationId, req.userId, 'project.build_all', 'project', req.params.projectId, { queued, total: rows.length }); } catch {}
   res.json({ queued, total: rows.length, errors });
 });
 
@@ -486,7 +487,7 @@ router.post('/:id/notify-ready', resolveGallery, async (req, res) => {
     `SELECT u.email, u.name FROM studio_memberships sm
      JOIN users u ON u.id = sm.user_id
      WHERE sm.studio_id = ? AND sm.role IN ('admin','owner')`,
-    [req.studioId]
+    [req.organizationId]
   );
 
   const sender  = await getUserById(req.userId);
@@ -495,7 +496,7 @@ router.post('/:id/notify-ready', resolveGallery, async (req, res) => {
 
   for (const r of recipients) {
     sendPhotosReadyEmail({
-      studioId:         req.studioId,
+      studioId:         req.organizationId,
       to:               r.email,
       photographerName: sender.name || sender.email,
       galleryTitle:     req.gallery.title || req.gallery.slug,
@@ -503,7 +504,7 @@ router.post('/:id/notify-ready', resolveGallery, async (req, res) => {
     });
   }
 
-  try { await audit(req.studioId, req.userId, 'gallery.notify_ready', 'gallery', req.gallery.id, { notified: recipients.length }); } catch {}
+  try { await audit(req.organizationId, req.userId, 'gallery.notify_ready', 'gallery', req.gallery.id, { notified: recipients.length }); } catch {}
   res.json({ ok: true, notified: recipients.length });
 });
 
