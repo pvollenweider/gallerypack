@@ -44,7 +44,7 @@ function handleTus(req, res) {
     return res.status(405).set('Allow', TUS_METHODS.join(', ')).end();
   }
   req._tusUserId = req.userId;
-  const server = getTusServer(req.studioId);
+  const server = getTusServer(req.organizationId);
 
   // Normalise URL: strip /api/tus prefix so tus-node-server sees / or /:uploadId
   req.url = req.originalUrl.replace(/^\/api\/tus/, '') || '/';

@@ -23,27 +23,23 @@ import {
   getOrganizationByDomain,
   getOrganizationBySlug,
   getDefaultOrganization,
-  getStudioByDomain,
-  getStudioBySlug,
-  getDefaultStudio,
-} from '../db/helpers.js';
+} from './organization.js';
 
 const PLATFORM_MODE = process.env.PLATFORM_MODE || 'single';
 const BASE_DOMAIN   = (process.env.BASE_DOMAIN || 'gallerypack.app').toLowerCase();
 
 /**
  * Resolve an organization from an incoming hostname string.
- * Returns an organization row (or a studio row as fallback) or null.
+ * Returns an organization row or null.
  *
  * @param {string|undefined} rawHostname - e.g. "circus.gallerypack.app" or "circus.gallerypack.app:4000"
  * @returns {Promise<object|null>}
  */
-export async function resolveStudioFromHostname(rawHostname) {
+export async function resolveOrganizationFromHostname(rawHostname) {
   const host = rawHostname?.split(':')[0]?.toLowerCase()?.trim() || '';
 
   if (PLATFORM_MODE === 'single') {
-    // Prefer organizations table; fall back to studios for older installs
-    return (await getDefaultOrganization()) ?? getDefaultStudio();
+    return getDefaultOrganization();
   }
 
   // ── Multi-tenant resolution ─────────────────────────────────────────────────
@@ -53,11 +49,8 @@ export async function resolveStudioFromHostname(rawHostname) {
   // Platform root
   if (host === BASE_DOMAIN || host === `www.${BASE_DOMAIN}`) return null;
 
-  // 1. Exact domain match — try organizations first, fall back to studios
-  const byOrgDomain = await getOrganizationByDomain(host);
-  if (byOrgDomain) return byOrgDomain;
-
-  const byDomain = await getStudioByDomain(host);
+  // 1. Exact domain match
+  const byDomain = await getOrganizationByDomain(host);
   if (byDomain) return byDomain;
 
   // 2. Subdomain of BASE_DOMAIN → slug
@@ -65,9 +58,12 @@ export async function resolveStudioFromHostname(rawHostname) {
   if (host.endsWith(subdomainSuffix)) {
     const slug = host.slice(0, -subdomainSuffix.length);
     if (slug) {
-      return (await getOrganizationBySlug(slug)) ?? getStudioBySlug(slug);
+      return getOrganizationBySlug(slug);
     }
   }
 
   return null; // unknown hostname
 }
+
+// Legacy alias
+export const resolveStudioFromHostname = resolveOrganizationFromHostname;

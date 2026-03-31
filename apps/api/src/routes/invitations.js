@@ -5,17 +5,19 @@
 // Use, reproduction, or distribution requires a valid commercial license.
 // Unauthorized use is strictly prohibited.
 
-// apps/api/src/routes/invitations.js — studio user invitation system
+// apps/api/src/routes/invitations.js — organization user invitation system
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { can } from '../authorization/index.js';
+import {
+  getOrganization,
+} from '../services/organization.js';
 import {
   createInvitation,
   getInvitationByToken,
   acceptInvitation,
   listInvitations,
   deleteInvitation,
-  getStudio,
   getSettings,
   createSession,
   audit,
@@ -50,17 +52,17 @@ router.post('/', requireAuth, async (req, res) => {
   // If the user already exists in this studio, just (re-)assign the gallery role directly
   // instead of sending a new invitation (covers the "revoked then re-added" case).
   const existingUser = await getUserByEmail(email);
-  if (existingUser && existingUser.studio_id === req.studioId) {
+  if (existingUser && existingUser.studio_id === req.organizationId) {
     if (galleryId && galleryRole) {
       await upsertGalleryRoleAssignment(galleryId, existingUser.id, galleryRole, req.userId);
-      try { await audit(req.studioId, req.userId, 'gallery.member_added', 'gallery', galleryId, { userId: existingUser.id, role: galleryRole, via: 'reinvite' }); } catch {}
+      try { await audit(req.organizationId, req.userId, 'gallery.member_added', 'gallery', galleryId, { userId: existingUser.id, role: galleryRole, via: 'reinvite' }); } catch {}
     }
     return res.status(200).json({ ok: true, existing: true, userId: existingUser.id });
   }
 
   let invitation;
   try {
-    invitation = await createInvitation(req.studioId, email, role, req.userId, { galleryId: galleryId || null, galleryRole: galleryRole || null, name: name || '' });
+    invitation = await createInvitation(req.organizationId, email, role, req.userId, { galleryId: galleryId || null, galleryRole: galleryRole || null, name: name || '' });
   } catch (err) {
     if (err.message && (err.message.includes('UNIQUE') || err.message.includes('Duplicate'))) {
       return res.status(409).json({ error: 'An invitation for this email already exists' });
@@ -68,17 +70,17 @@ router.post('/', requireAuth, async (req, res) => {
     throw err;
   }
 
-  try { await audit(req.studioId, req.userId, 'member.invite', 'invitation', invitation.id, { email, role }); } catch {}
+  try { await audit(req.organizationId, req.userId, 'member.invite', 'invitation', invitation.id, { email, role }); } catch {}
 
   // Send invite email (fire-and-forget)
   try {
-    const s = await getSettings(req.studioId);
+    const s = await getSettings(req.organizationId);
     const base = (s?.base_url || process.env.BASE_URL || 'http://localhost:4000').replace(/\/$/, '');
-    const studio = await getStudio(req.studioId);
+    const org = await getOrganization(req.organizationId);
     sendInviteEmail({
-      studioId: req.studioId,
+      studioId: req.organizationId,
       to: email,
-      studioName: studio?.name || 'GalleryPack',
+      studioName: org?.name || 'GalleryPack',
       inviteUrl: `${base}/admin/invite/${invitation.token}`,
     });
   } catch {}
@@ -92,7 +94,7 @@ router.get('/', requireAuth, async (req, res) => {
     return res.status(403).json({ error: 'Forbidden' });
   }
 
-  const invitations = await listInvitations(req.studioId);
+  const invitations = await listInvitations(req.organizationId);
   res.json(invitations);
 });
 
@@ -103,7 +105,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
   }
 
   await deleteInvitation(req.params.id);
-  try { await audit(req.studioId, req.userId, 'member.invite_revoked', 'invitation', req.params.id, {}); } catch {}
+  try { await audit(req.organizationId, req.userId, 'member.invite_revoked', 'invitation', req.params.id, {}); } catch {}
   res.json({ ok: true });
 });
 
@@ -114,7 +116,7 @@ router.get('/accept/:token', async (req, res) => {
   const inv = await getInvitationByToken(req.params.token);
   if (!inv) return res.status(404).json({ error: 'Invitation not found' });
 
-  const studio = await getStudio(inv.studio_id);
+  const org = await getOrganization(inv.studio_id);
 
   let galleryTitle = null;
   if (inv.gallery_id) {
@@ -128,7 +130,7 @@ router.get('/accept/:token', async (req, res) => {
   res.json({
     email:           inv.email,
     role:            inv.role,
-    studioName:      studio ? studio.name : null,
+    studioName:      org ? org.name : null,
     galleryId:       inv.gallery_id  || null,
     galleryTitle,
     expiresAt:       inv.expires_at,

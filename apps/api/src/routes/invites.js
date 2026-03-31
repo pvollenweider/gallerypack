@@ -10,8 +10,8 @@ import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import {
   createInvite, getInviteById, getInviteByToken, listInvites, useInvite, revokeInvite,
-  getStudio,
 } from '../db/helpers.js';
+import { getOrganization } from '../services/organization.js';
 import { query } from '../db/database.js';
 import { sendInviteEmail } from '../services/email.js';
 
@@ -22,7 +22,7 @@ router.post('/', requireAuth, async (req, res) => {
   const { galleryId, email, label, expiresIn, singleUse } = req.body;
 
   const invite = await createInvite({
-    studioId:  req.studioId,
+    studioId:  req.organizationId,
     galleryId: galleryId || null,
     email:     email     || null,
     label:     label     || null,
@@ -32,16 +32,16 @@ router.post('/', requireAuth, async (req, res) => {
 
   // Send invite email if an address was provided
   if (invite.email) {
-    const studio = await getStudio(req.studioId);
+    const org = await getOrganization(req.organizationId);
     const [galleryRows] = invite.gallery_id
       ? await query('SELECT title, slug FROM galleries WHERE id = ?', [invite.gallery_id])
       : [[]];
     const gallery = galleryRows?.[0] || null;
     const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 4000}`;
     sendInviteEmail({
-      studioId:     req.studioId,
+      studioId:     req.organizationId,
       to:           invite.email,
-      studioName:   studio?.name || 'GalleryPack',
+      studioName:   org?.name || 'GalleryPack',
       galleryTitle: gallery?.title || null,
       inviteUrl:    `${baseUrl}/invite/${invite.token}`,
     });
@@ -52,7 +52,7 @@ router.post('/', requireAuth, async (req, res) => {
 
 // ── GET /api/invites — list invites for studio ────────────────────────────────
 router.get('/', requireAuth, async (req, res) => {
-  const invites = await listInvites(req.studioId);
+  const invites = await listInvites(req.organizationId);
   res.json(invites.map(sanitize));
 });
 
@@ -92,7 +92,7 @@ router.post('/:id/revoke', requireAuth, async (req, res) => {
   const invite = await getInviteById(req.params.id);
 
   if (!invite) return res.status(404).json({ error: 'Invite not found' });
-  if (invite.studio_id !== req.studioId) return res.status(403).json({ error: 'Forbidden' });
+  if (invite.studio_id !== req.organizationId) return res.status(403).json({ error: 'Forbidden' });
 
   await revokeInvite(invite.id);
   res.json({ ok: true });

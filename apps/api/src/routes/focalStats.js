@@ -29,7 +29,7 @@ router.get('/:id/focal-stats', async (req, res, next) => {
        FROM galleries g
        LEFT JOIN projects p ON p.id = g.project_id
        WHERE g.id = ? AND g.studio_id = ? LIMIT 1`,
-      [id, req.studioId]
+      [id, req.organizationId]
     );
     const gallery = rows[0];
     if (!gallery) return res.status(404).json({ error: 'Gallery not found' });

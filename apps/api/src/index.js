@@ -22,7 +22,7 @@ import { bootstrap }     from './services/bootstrap.js';
 import { loadLicense }   from './services/license.js';
 import { errorHandler }       from './middleware/error.js';
 import { rateLimit }          from './middleware/rateLimit.js';
-import { resolveStudioContext } from './middleware/studioContext.js';
+import { resolveOrganizationContext } from './middleware/organizationContext.js';
 import { query, getPool } from './db/database.js';
 import { createStorage } from '../../../packages/shared/src/storage/index.js';
 import { DIST_ROOT, INTERNAL_ROOT } from '../../../packages/engine/src/fs.js';
@@ -39,7 +39,7 @@ import scopedInvitesRouter from './routes/scopedInvites.js';
 import publicRoutes, { getPublicGalleries, getCoverName, getPublicPhotoCount, getPublicDateRange } from './routes/public.js';
 import { renderLanding, renderProjectIndex, renderProjectListing } from './views/landing.js';
 import settingsRoutes  from './routes/settings.js';
-import studiosRoutes   from './routes/studios.js';
+import organizationsLegacyRoutes from './routes/organizations-legacy.js';
 import projectsRoutes  from './routes/projects.js';
 import platformRoutes  from './routes/platform.js';
 import uploadRoutes       from './routes/upload.js';
@@ -92,8 +92,8 @@ app.use(pinoHttp({
   },
 }));
 
-// ── Studio context — resolve studio from hostname (before all routes) ─────────
-app.use(resolveStudioContext);
+// ── Organization context — resolve org from hostname (before all routes) ──────
+app.use(resolveOrganizationContext);
 
 // ── Rate limiters ─────────────────────────────────────────────────────────────
 // Public token-based upload routes (unauthenticated) — strict per-IP limit
@@ -181,8 +181,8 @@ app.use('/api/jobs',                jobsRoutes); // for /api/jobs/:jobId and /ap
 app.use('/api/invites',             scopedInvitesRouter); // canonical scoped invites (Sprint 5)
 app.use('/api/invites/v1',          invitesRoutes);       // legacy gallery viewer invite links
 app.use('/api/invitations',         invitationsRouter);   // legacy studio invitations (Sprint 9 cleanup)
-app.use('/api/studios',             studiosRoutes);
 app.use('/api/organizations',       organizationsRoutes); // Sprint 22 — canonical org endpoint
+app.use('/api/studios',             organizationsLegacyRoutes); // backward compat alias
 app.use('/api/projects',            projectsRoutes);
 app.use('/api/platform',            platformRoutes);
 app.use('/upload',                  uploadRateLimit, uploadRoutes);
@@ -269,7 +269,7 @@ app.get(/^\/([^/]+)\/?$/, async (req, res, next) => {
     };
   }));
 
-  const [studioRows] = await query('SELECT id FROM studios LIMIT 1');
+  const [studioRows] = await query('SELECT id FROM organizations LIMIT 1');
   const settings = studioRows[0] ? await getSettings(studioRows[0].id) : null;
   const siteTitle = settings?.site_title || 'GalleryPack';
   const [orgRows2] = await query('SELECT name FROM organizations WHERE is_default = 1 LIMIT 1');
@@ -283,7 +283,7 @@ app.get(/^\/([^/]+)\/?$/, async (req, res, next) => {
 
 // ── Public project index ──────────────────────────────────────────────────────
 app.get('/', async (req, res) => {
-  const [studioRows] = await query('SELECT id FROM studios LIMIT 1');
+  const [studioRows] = await query('SELECT id FROM organizations LIMIT 1');
   const studioRow  = studioRows[0];
   const settings   = studioRow ? await getSettings(studioRow.id) : null;
   const siteTitle  = settings?.site_title || 'GalleryPack';

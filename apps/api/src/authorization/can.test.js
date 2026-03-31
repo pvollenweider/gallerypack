@@ -13,7 +13,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { can } from './index.js';
 
-const user = { id: 'u1', studio_id: 's1', role: 'admin' };
+const user = { id: 'u1', organization_id: 's1', studio_id: 's1', role: 'admin' };
 
 // ── Platform superadmin ───────────────────────────────────────────────────────
 
@@ -26,7 +26,15 @@ describe('platform superadmin bypasses all checks', () => {
   });
 });
 
-// ── Studio-level ──────────────────────────────────────────────────────────────
+// ── Organization/Studio-level ─────────────────────────────────────────────────
+
+describe('organization resource alias', () => {
+  test('organization resource works like studio resource', () => {
+    assert.equal(can(user, 'read', 'organization', { studioRole: 'admin' }), true);
+    assert.equal(can(user, 'manage', 'organization', { studioRole: 'admin' }), true);
+    assert.equal(can(user, 'manage', 'organization', { studioRole: 'collaborator' }), false);
+  });
+});
 
 describe('studio.read', () => {
   test('any studio role can read', () => {

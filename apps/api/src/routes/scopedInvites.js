@@ -6,7 +6,7 @@
 // Unauthorized use is strictly prohibited.
 
 // apps/api/src/routes/scopedInvites.js — unified scoped invite system
-// Scope types: studio | project | gallery
+// Scope types: organization | project | gallery (legacy alias: 'studio')
 // Routes:
 //   POST   /api/invites
 //   GET    /api/invites?scopeType=studio&scopeId=X
@@ -20,11 +20,12 @@ import {
   createScopedInvite, getScopedInviteById, getScopedInviteByToken,
   listScopedInvites, revokeScopedInvite, acceptScopedInvite,
   INVITE_SCOPE_TYPES,
-  getStudio, getProject, getStudioRole, getProjectRole, getGalleryRoleAssignment,
+  getProject, getProjectRole, getGalleryRoleAssignment,
   getSettings, createSession, audit,
 } from '../db/helpers.js';
 import { query } from '../db/database.js';
 import { sendInviteEmail } from '../services/email.js';
+import { getOrganization } from '../services/organization.js';
 
 const STUDIO_ROLES  = ['photographer', 'collaborator', 'admin', 'owner'];
 const PROJECT_ROLES = ['contributor', 'editor', 'manager'];
@@ -34,9 +35,15 @@ const router = Router();
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+/** Normalize legacy scope type 'studio' to 'organization'. */
+function normalizeScopeType(scopeType) {
+  return scopeType === 'studio' ? 'organization' : scopeType;
+}
+
 /** Validate that caller is allowed to manage membership for the given scope. */
 async function canManageScope(req, scopeType, scopeId) {
-  if (scopeType === 'studio') {
+  const normalizedScope = normalizeScopeType(scopeType);
+  if (normalizedScope === 'organization') {
     return can(req.user, 'manageMembers', 'studio', { studioRole: req.studioRole });
   }
   if (scopeType === 'project') {
@@ -53,7 +60,8 @@ async function canManageScope(req, scopeType, scopeId) {
 
 /** Determine valid roles for a scope type. */
 function validRolesForScope(scopeType) {
-  if (scopeType === 'studio')  return STUDIO_ROLES;
+  const normalizedScope = normalizeScopeType(scopeType);
+  if (normalizedScope === 'organization')  return STUDIO_ROLES;
   if (scopeType === 'project') return PROJECT_ROLES;
   if (scopeType === 'gallery') return GALLERY_ROLES;
   return [];
@@ -75,19 +83,20 @@ router.post('/', requireAuth, async (req, res) => {
     return res.status(400).json({ error: `role must be one of: ${validRoles.join(', ')}` });
   }
 
-  // Verify scope exists and belongs to resolved studio
-  if (scopeType === 'studio' && scopeId !== req.studioId) {
-    return res.status(403).json({ error: 'Forbidden: scope belongs to a different studio' });
+  // Verify scope exists and belongs to resolved organization
+  const normalizedScope = normalizeScopeType(scopeType);
+  if (normalizedScope === 'organization' && scopeId !== req.organizationId) {
+    return res.status(403).json({ error: 'Forbidden: scope belongs to a different organization' });
   }
   if (scopeType === 'project') {
     const project = await getProject(scopeId);
-    if (!project || project.studio_id !== req.studioId) {
+    if (!project || project.studio_id !== req.organizationId) {
       return res.status(404).json({ error: 'Project not found' });
     }
   }
   if (scopeType === 'gallery') {
     const [gRows] = await query('SELECT studio_id FROM galleries WHERE id = ?', [scopeId]);
-    if (!gRows[0] || gRows[0].studio_id !== req.studioId) {
+    if (!gRows[0] || gRows[0].studio_id !== req.organizationId) {
       return res.status(404).json({ error: 'Gallery not found' });
     }
   }
@@ -108,18 +117,18 @@ router.post('/', requireAuth, async (req, res) => {
 
   // Send invite email (fire and forget)
   try {
-    const s       = await getSettings(req.studioId);
-    const studio  = await getStudio(req.studioId);
+    const s       = await getSettings(req.organizationId);
+    const org     = await getOrganization(req.organizationId);
     const base    = (s?.base_url || process.env.BASE_URL || 'http://localhost:4000').replace(/\/$/, '');
     sendInviteEmail({
-      studioId:   req.studioId,
+      studioId:   req.organizationId,
       to:         email,
-      studioName: studio?.name || 'GalleryPack',
+      studioName: org?.name || 'GalleryPack',
       inviteUrl:  `${base}/admin/invite/${invite.token}`,
     });
   } catch {}
 
-  try { await audit(req.studioId, req.userId, 'invite.create', 'invite', invite.id, { scopeType, scopeId, email, role }); } catch {}
+  try { await audit(req.organizationId, req.userId, 'invite.create', 'invite', invite.id, { scopeType, scopeId, email, role }); } catch {}
 
   const { token, ...rest } = invite;
   res.status(201).json({ ...rest, token }); // token sent once to caller for sharing
@@ -154,10 +163,10 @@ router.get('/accept/:token', async (req, res) => {
   if (inv.used_at)    return res.status(410).json({ error: 'Invite has already been used' });
   if (inv.expires_at < Date.now()) return res.status(410).json({ error: 'Invite has expired' });
 
-  // Resolve studio name for the accept page
+  // Resolve organization name for the accept page
   let scopeName = null;
-  if (inv.scope_type === 'studio') {
-    const s = await getStudio(inv.scope_id);
+  if (inv.scope_type === 'studio' || inv.scope_type === 'organization') {
+    const s = await getOrganization(inv.scope_id);
     scopeName = s?.name ?? null;
   } else if (inv.scope_type === 'project') {
     const p = await getProject(inv.scope_id);
@@ -216,7 +225,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
   }
 
   await revokeScopedInvite(invite.id);
-  try { await audit(req.studioId, req.userId, 'invite.revoked', 'invite', invite.id, {}); } catch {}
+  try { await audit(req.organizationId, req.userId, 'invite.revoked', 'invite', invite.id, {}); } catch {}
   res.json({ ok: true });
 });
 

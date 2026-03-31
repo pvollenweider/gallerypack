@@ -10,10 +10,11 @@ import { Router } from 'express';
 import { createHash } from 'crypto';
 import {
   getUserByEmail, createSession, deleteSession,
-  getSession, getUserById, hashPassword, verifyPassword, getStudioRole,
+  getSession, getUserById, hashPassword, verifyPassword,
   createPasswordResetToken, getPasswordResetToken, usePasswordResetToken,
   createMagicLink, useMagicLink,
 } from '../db/helpers.js';
+import { getOrgRole } from '../services/organization.js';
 import { query } from '../db/database.js';
 import { requireAuth } from '../middleware/auth.js';
 import { sendEmail, sendMagicLinkEmail } from '../services/email.js';
@@ -56,8 +57,8 @@ router.post('/login', async (req, res) => {
     secure: process.env.NODE_ENV === 'production',
     maxAge: 30 * 24 * 60 * 60 * 1000,
   });
-  const studioRole = user.studio_id ? await getStudioRole(user.id, user.studio_id) : null;
-  res.json({ ok: true, user: { id: user.id, email: user.email, role: user.role, name: user.name, studioId: user.studio_id, studioRole, locale: user.locale || null, platformRole: user.platform_role || null } });
+  const studioRole = user.studio_id ? await getOrgRole(user.id, user.studio_id) : null;
+  res.json({ ok: true, user: { id: user.id, email: user.email, role: user.role, name: user.name, organizationId: user.organization_id || user.studio_id, studioId: user.studio_id, studioRole, locale: user.locale || null, platformRole: user.platform_role || null } });
 });
 
 // POST /api/auth/logout
@@ -76,11 +77,11 @@ router.get('/me', async (req, res) => {
   if (!session) return res.status(401).json({ error: 'Session expired' });
   const user = await getUserById(session.user_id);
   if (!user) return res.status(401).json({ error: 'User not found' });
-  // studioId: use the request-resolved studio (may differ from user.studio_id when override cookie is set)
-  const resolvedStudioId = req.studioId || user.studio_id;
-  const studioRole = resolvedStudioId ? await getStudioRole(user.id, resolvedStudioId) : null;
-  const studioName = req.studio?.name ?? null;
-  res.json({ id: user.id, email: user.email, role: user.role, name: user.name, studioId: resolvedStudioId, studioName, studioRole, locale: user.locale || null, platformRole: user.platform_role || null, notifyOnUpload: user.notify_on_upload !== 0, notifyOnPublish: user.notify_on_publish !== 0 });
+  // organizationId: use the request-resolved org (may differ from user.studio_id when override cookie is set)
+  const resolvedOrgId = req.organizationId || user.organization_id || user.studio_id;
+  const studioRole = resolvedOrgId ? await getOrgRole(user.id, resolvedOrgId) : null;
+  const orgName = req.organization?.name ?? null;
+  res.json({ id: user.id, email: user.email, role: user.role, name: user.name, organizationId: resolvedOrgId, studioId: resolvedOrgId, organizationName: orgName, studioName: orgName, studioRole, locale: user.locale || null, platformRole: user.platform_role || null, notifyOnUpload: user.notify_on_upload !== 0, notifyOnPublish: user.notify_on_publish !== 0 });
 });
 
 // PATCH /api/auth/me — update own profile (name, password, locale, notification prefs)
@@ -117,8 +118,8 @@ router.patch('/me', requireAuth, async (req, res) => {
   }
 
   const updated    = await getUserById(req.userId);
-  const studioRole = updated.studio_id ? await getStudioRole(updated.id, updated.studio_id) : null;
-  res.json({ id: updated.id, email: updated.email, role: updated.role, name: updated.name, studioId: updated.studio_id, studioRole, locale: updated.locale || null, platformRole: updated.platform_role || null, notifyOnUpload: updated.notify_on_upload !== 0, notifyOnPublish: updated.notify_on_publish !== 0 });
+  const studioRole = updated.studio_id ? await getOrgRole(updated.id, updated.studio_id) : null;
+  res.json({ id: updated.id, email: updated.email, role: updated.role, name: updated.name, organizationId: updated.organization_id || updated.studio_id, studioId: updated.studio_id, studioRole, locale: updated.locale || null, platformRole: updated.platform_role || null, notifyOnUpload: updated.notify_on_upload !== 0, notifyOnPublish: updated.notify_on_publish !== 0 });
 });
 
 // GET /api/auth/me/galleries — list galleries the current user has explicit access to
@@ -243,12 +244,12 @@ router.post('/magic/:token', async (req, res) => {
 
 // POST /api/auth/admin/reset-link — admin generates a reset link for any member (admin+)
 router.post('/admin/reset-link', requireAuth, async (req, res) => {
-  if (!['owner', 'admin'].includes(req.studioRole))
+  if (!['owner', 'admin'].includes(req.orgRole || req.studioRole))
     return res.status(403).json({ error: 'Forbidden' });
   const { userId } = req.body || {};
   if (!userId) return res.status(400).json({ error: 'userId is required' });
   const user = await getUserById(userId);
-  if (!user || user.studio_id !== req.studioId)
+  if (!user || (user.studio_id !== req.organizationId && user.organization_id !== req.organizationId))
     return res.status(404).json({ error: 'User not found' });
   const resetRow = await createPasswordResetToken(userId);
   const base     = (process.env.BASE_URL || 'http://localhost:4000').replace(/\/$/, '');

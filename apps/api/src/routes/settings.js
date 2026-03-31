@@ -8,7 +8,12 @@
 // apps/api/src/routes/settings.js — admin global settings
 import { Router } from 'express';
 import { requireAdmin } from '../middleware/auth.js';
-import { getSettings, upsertSettings, getStudio, updateStudio, getStudioBySlug, audit, genId } from '../db/helpers.js';
+import {
+  getOrganization,
+  getOrganizationBySlug,
+  updateOrganization,
+} from '../services/organization.js';
+import { getSettings, upsertSettings, audit, genId } from '../db/helpers.js';
 import { query } from '../db/database.js';
 import { sendEmail } from '../services/email.js';
 
@@ -39,12 +44,12 @@ function rowToSettings(row) {
 
 // GET /api/settings
 router.get('/', async (req, res) => {
-  const row = await getSettings(req.studioId);
+  const row = await getSettings(req.organizationId);
   const result = rowToSettings(row);
   // Attach primary domain (hostname field)
   const [domainRows] = await query(
     'SELECT domain FROM studio_domains WHERE studio_id = ? AND is_primary = 1 LIMIT 1',
-    [req.studioId]
+    [req.organizationId]
   );
   result.hostname = domainRows[0]?.domain ?? null;
   res.json(result);
@@ -81,7 +86,7 @@ router.patch('/', async (req, res) => {
   // Only update password if a new one was explicitly provided
   if (smtpPass && smtpPass.trim()) updates.smtp_pass = smtpPass.trim();
 
-  await upsertSettings(req.studioId, updates);
+  await upsertSettings(req.organizationId, updates);
 
   // Persist primary hostname to studio_domains if provided
   if (hostname !== undefined) {
@@ -89,23 +94,23 @@ router.patch('/', async (req, res) => {
     if (h) {
       // Remove existing primary domain for this studio, then insert new one
 
-      await query('UPDATE studio_domains SET is_primary = 0 WHERE studio_id = ?', [req.studioId]);
+      await query('UPDATE studio_domains SET is_primary = 0 WHERE studio_id = ?', [req.organizationId]);
       await query(
         'INSERT INTO studio_domains (id, studio_id, domain, is_primary, created_at) VALUES (?, ?, ?, 1, ?) ON DUPLICATE KEY UPDATE is_primary = 1',
-        [genId(), req.studioId, h, Date.now()]
+        [genId(), req.organizationId, h, Date.now()]
       );
     } else {
       // Clear primary hostname
-      await query('UPDATE studio_domains SET is_primary = 0 WHERE studio_id = ?', [req.studioId]);
+      await query('UPDATE studio_domains SET is_primary = 0 WHERE studio_id = ?', [req.organizationId]);
     }
   }
 
   // Audit SMTP changes separately (sensitive config — don't log passwords)
   const hasSmtpChange = smtpHost !== undefined || smtpPort !== undefined || smtpUser !== undefined || smtpPass !== undefined || smtpFrom !== undefined;
-  try { await audit(req.studioId, req.userId, 'studio.settings_changed', 'studio', req.studioId, { smtp_changed: hasSmtpChange }); } catch {}
-  const finalRow = await getSettings(req.studioId);
+  try { await audit(req.organizationId, req.userId, 'organization.settings_changed', 'organization', req.organizationId, { smtp_changed: hasSmtpChange }); } catch {}
+  const finalRow = await getSettings(req.organizationId);
   const finalResult = rowToSettings(finalRow);
-  const [finalDomainRows] = await query('SELECT domain FROM studio_domains WHERE studio_id = ? AND is_primary = 1 LIMIT 1', [req.studioId]);
+  const [finalDomainRows] = await query('SELECT domain FROM studio_domains WHERE studio_id = ? AND is_primary = 1 LIMIT 1', [req.organizationId]);
   finalResult.hostname = finalDomainRows[0]?.domain ?? null;
   res.json(finalResult);
 });
@@ -115,7 +120,7 @@ router.post('/smtp-test', async (req, res) => {
   const to = req.user.email;
   if (!to) return res.status(400).json({ error: 'No email address on your account' });
 
-  const s = await getSettings(req.studioId);
+  const s = await getSettings(req.organizationId);
   const hasDbConfig = s?.smtp_host && s?.smtp_user && s?.smtp_pass;
   const hasEnvConfig = process.env.EMAIL_PROVIDER === 'smtp' && process.env.SMTP_HOST;
 
@@ -152,21 +157,21 @@ router.post('/smtp-test', async (req, res) => {
   }
 });
 
-// GET /api/settings/studio — current studio info
+// GET /api/settings/studio — current organization info (legacy alias)
 router.get('/studio', async (req, res) => {
-  const studio = await getStudio(req.studioId);
-  if (!studio) return res.status(404).json({ error: 'Studio not found' });
+  const org = await getOrganization(req.organizationId);
+  if (!org) return res.status(404).json({ error: 'Organization not found' });
   res.json({
-    id:      studio.id,
-    name:    studio.name,
-    slug:    studio.slug,
-    locale:  studio.locale  || null,
-    country: studio.country || null,
-    plan:    studio.plan,
+    id:      org.id,
+    name:    org.name,
+    slug:    org.slug,
+    locale:  org.locale  || null,
+    country: org.country || null,
+    plan:    org.plan,
   });
 });
 
-// PATCH /api/settings/studio — update studio (admin+)
+// PATCH /api/settings/studio — update organization (admin+, legacy alias)
 // name/locale/country: any admin; slug rename: owner or superadmin only
 router.patch('/studio', async (req, res) => {
   const { name, locale, country, slug } = req.body || {};
@@ -181,25 +186,25 @@ router.patch('/studio', async (req, res) => {
     const isOwner      = req.studioRole === 'owner';
     const isSuperadmin = req.platformRole === 'superadmin';
     if (!isOwner && !isSuperadmin) {
-      return res.status(403).json({ error: 'Only owner or superadmin can rename the studio slug' });
+      return res.status(403).json({ error: 'Only owner or superadmin can rename the organization slug' });
     }
     if (!/^[a-z0-9-]+$/.test(slug)) {
       return res.status(400).json({ error: 'Slug must be lowercase letters, numbers and hyphens only' });
     }
-    const conflict = await getStudioBySlug(slug);
-    if (conflict && conflict.id !== req.studioId) {
+    const conflict = await getOrganizationBySlug(slug);
+    if (conflict && conflict.id !== req.organizationId) {
       return res.status(409).json({ error: 'This slug is already taken' });
     }
     updates.slug = slug;
   }
 
   if (!Object.keys(updates).length) {
-    const studio = await getStudio(req.studioId);
-    return res.json({ id: studio.id, name: studio.name, slug: studio.slug, locale: studio.locale || null, country: studio.country || null, plan: studio.plan });
+    const org = await getOrganization(req.organizationId);
+    return res.json({ id: org.id, name: org.name, slug: org.slug, locale: org.locale || null, country: org.country || null, plan: org.plan });
   }
 
-  const updated = await updateStudio(req.studioId, updates);
-  try { await audit(req.studioId, req.userId, 'studio.updated', 'studio', req.studioId, { fields: Object.keys(updates) }); } catch {}
+  const updated = await updateOrganization(req.organizationId, updates);
+  try { await audit(req.organizationId, req.userId, 'organization.updated', 'organization', req.organizationId, { fields: Object.keys(updates) }); } catch {}
   res.json({
     id:      updated.id,
     name:    updated.name,

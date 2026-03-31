@@ -37,7 +37,7 @@ function jobToJson(row) {
 router.post('/:id/build', async (req, res) => {
   const [galleryRows] = await query(
     'SELECT * FROM galleries WHERE id = ? AND studio_id = ?',
-    [req.params.id, req.studioId]
+    [req.params.id, req.organizationId]
   );
   const gallery = galleryRows[0];
   if (!gallery) return res.status(404).json({ error: 'Gallery not found' });
@@ -48,7 +48,7 @@ router.post('/:id/build', async (req, res) => {
   // Prevent duplicate queued builds for the same gallery
   const [runningRows] = await query(
     "SELECT COUNT(*) AS n FROM build_jobs WHERE studio_id = ? AND gallery_id = ? AND status IN ('queued','running')",
-    [req.studioId, gallery.id]
+    [req.organizationId, gallery.id]
   );
   if (runningRows[0].n >= 1) {
     return res.status(429).json({ error: 'A build for this gallery is already queued or running.' });
@@ -57,12 +57,12 @@ router.post('/:id/build', async (req, res) => {
   const { force = false } = req.body || {};
   const job = await createJob({
     galleryId:   gallery.id,
-    studioId:    req.studioId,
+    studioId:    req.organizationId,
     triggeredBy: req.user.id,
     force,
   });
 
-  try { await audit(req.studioId, req.userId, 'gallery.build_triggered', 'gallery', gallery.id, { jobId: job.id, force }); } catch {}
+  try { await audit(req.organizationId, req.userId, 'gallery.build_triggered', 'gallery', gallery.id, { jobId: job.id, force }); } catch {}
   res.status(202).json(jobToJson(job));
 });
 
@@ -70,7 +70,7 @@ router.post('/:id/build', async (req, res) => {
 router.get('/:id/jobs', async (req, res) => {
   const [galleryRows] = await query(
     'SELECT id FROM galleries WHERE id = ? AND studio_id = ?',
-    [req.params.id, req.studioId]
+    [req.params.id, req.organizationId]
   );
   if (!galleryRows[0]) return res.status(404).json({ error: 'Gallery not found' });
 
@@ -85,7 +85,7 @@ router.get('/', async (req, res) => {
      FROM build_jobs
      WHERE studio_id = ? AND status IN ('queued','running')
      ORDER BY created_at ASC`,
-    [req.studioId]
+    [req.organizationId]
   );
   res.json(rows.map(r => ({
     id:        r.id,
@@ -99,14 +99,14 @@ router.get('/', async (req, res) => {
 // ── GET /api/jobs/:jobId — single job ────────────────────────────────────────
 router.get('/:jobId', async (req, res) => {
   const job = await getJob(req.params.jobId);
-  if (!job || job.studio_id !== req.studioId) return res.status(404).json({ error: 'Job not found' });
+  if (!job || job.studio_id !== req.organizationId) return res.status(404).json({ error: 'Job not found' });
   res.json(jobToJson(job));
 });
 
 // ── DELETE /api/jobs/:jobId — cancel a queued or running job ─────────────────
 router.delete('/:jobId', async (req, res) => {
   const job = await getJob(req.params.jobId);
-  if (!job || job.studio_id !== req.studioId) return res.status(404).json({ error: 'Job not found' });
+  if (!job || job.studio_id !== req.organizationId) return res.status(404).json({ error: 'Job not found' });
   if (!['queued', 'running'].includes(job.status)) {
     return res.status(409).json({ error: 'Job cannot be cancelled' });
   }
@@ -122,7 +122,7 @@ router.delete('/:jobId', async (req, res) => {
 // Closes the stream when the job reaches done/error status.
 router.get('/:jobId/stream', async (req, res) => {
   const job = await getJob(req.params.jobId);
-  if (!job || job.studio_id !== req.studioId) return res.status(404).json({ error: 'Job not found' });
+  if (!job || job.studio_id !== req.organizationId) return res.status(404).json({ error: 'Job not found' });
 
   res.setHeader('Content-Type',  'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');

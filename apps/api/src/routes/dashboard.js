@@ -13,9 +13,9 @@ import { requireAuth } from '../middleware/auth.js';
 const router = Router();
 router.use(requireAuth);
 
-// GET /api/dashboard — actionable studio state
+// GET /api/dashboard — actionable organization state
 router.get('/', async (req, res) => {
-  const studioId = req.studioId;
+  const orgId = req.organizationId;
 
   try {
     const [
@@ -33,7 +33,7 @@ router.get('/', async (req, res) => {
           SUM(workflow_status = 'published')                           AS published,
           SUM(needs_rebuild = 1 AND workflow_status = 'published')     AS needs_rebuild
         FROM galleries WHERE studio_id = ?
-      `, [studioId]),
+      `, [orgId]),
 
       // Inbox: unvalidated photos by gallery
       query(`
@@ -45,7 +45,7 @@ router.get('/', async (req, res) => {
         GROUP BY g.id, g.title
         ORDER BY unvalidated_count DESC
         LIMIT 20
-      `, [studioId]),
+      `, [orgId]),
 
       // Recent builds (last 10)
       query(`
@@ -56,7 +56,7 @@ router.get('/', async (req, res) => {
         WHERE bj.studio_id = ?
         ORDER BY bj.created_at DESC
         LIMIT 10
-      `, [studioId]),
+      `, [orgId]),
 
       // Failed build count (last 24h)
       query(`
@@ -106,7 +106,7 @@ router.get('/', async (req, res) => {
           WHERE ul.gallery_id = g.id AND ul.revoked_at IS NULL
         )
       LIMIT 5
-    `, [studioId]);
+    `, [orgId]);
 
     for (const g of noLinkGalleries) {
       actions.push({ type: 'no_upload_link', gallery_id: g.gallery_id, gallery_title: g.gallery_title });

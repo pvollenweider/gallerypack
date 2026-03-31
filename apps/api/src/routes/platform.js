@@ -10,8 +10,16 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import {
-  listAllStudios, getStudio, createStudio, updateStudio, deleteStudio, setDefaultStudio,
-  getStudioBySlug, createInvitation, getSettings,
+  getOrganization,
+  getOrganizationBySlug,
+  listOrganizations,
+  createOrganization,
+  updateOrganization,
+  deleteOrganization,
+  setDefaultOrganization,
+} from '../services/organization.js';
+import {
+  createInvitation, getSettings,
 } from '../db/helpers.js';
 import { sendInviteEmail } from '../services/email.js';
 import { query } from '../db/database.js';
@@ -28,29 +36,43 @@ function requireSuperadmin(req, res, next) {
 }
 router.use(requireSuperadmin);
 
-// POST /api/platform/switch/:studioId — superadmin switches active studio
-router.post('/switch/:studioId', async (req, res) => {
-  const studio = await getStudio(req.params.studioId);
-  if (!studio) return res.status(404).json({ error: 'Studio not found' });
-  res.cookie('studio_override', studio.id, {
+// POST /api/platform/switch/:orgId — superadmin switches active organization
+router.post('/switch/:orgId', async (req, res) => {
+  const org = await getOrganization(req.params.orgId);
+  if (!org) return res.status(404).json({ error: 'Organization not found' });
+  res.cookie('organization_override', org.id, {
     httpOnly: true,
     sameSite: 'strict',
     secure: process.env.NODE_ENV === 'production',
     maxAge: 8 * 60 * 60 * 1000, // 8h
   });
-  res.json({ ok: true, studio: { id: studio.id, name: studio.name, slug: studio.slug } });
+  // Keep legacy cookie for backward compat
+  res.cookie('studio_override', org.id, {
+    httpOnly: true,
+    sameSite: 'strict',
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 8 * 60 * 60 * 1000, // 8h
+  });
+  res.json({ ok: true, organization: { id: org.id, name: org.name, slug: org.slug } });
 });
 
-// DELETE /api/platform/switch — return to default studio
+// DELETE /api/platform/switch — return to default organization
 router.delete('/switch', (req, res) => {
-  res.clearCookie('studio_override');
+  res.clearCookie('organization_override');
+  res.clearCookie('studio_override'); // legacy compat
   res.json({ ok: true });
 });
 
-// GET /api/platform/studios
+// GET /api/platform/organizations
+router.get('/organizations', async (req, res) => {
+  const organizations = await listOrganizations();
+  res.json(organizations);
+});
+
+// GET /api/platform/studios — backward compat alias
 router.get('/studios', async (req, res) => {
-  const studios = await listAllStudios();
-  res.json(studios);
+  const organizations = await listOrganizations();
+  res.json(organizations);
 });
 
 // GET /api/platform/license — current license status (superadmin only)
@@ -62,7 +84,7 @@ router.get('/license', (req, res) => {
 // GET /api/platform/license/usage — current usage vs. quota limits
 router.get('/license/usage', async (req, res, next) => {
   try {
-    const [[{ orgs }]]          = await query('SELECT COUNT(*) AS orgs FROM studios');
+    const [[{ orgs }]]          = await query('SELECT COUNT(*) AS orgs FROM organizations');
     const [[{ galleries }]]     = await query('SELECT COUNT(*) AS galleries FROM galleries');
     const [[{ collaborators }]] = await query("SELECT COUNT(*) AS collaborators FROM studio_memberships WHERE role != 'owner'");
     const [[{ storageBytes }]]  = await query('SELECT COALESCE(SUM(size_bytes),0) AS storageBytes FROM photos');
@@ -87,8 +109,8 @@ router.post('/license', (req, res) => {
   }
 });
 
-// POST /api/platform/studios — create a new studio + optional owner invitation
-router.post('/studios', async (req, res) => {
+// POST /api/platform/organizations — create a new organization + optional owner invitation
+router.post('/organizations', async (req, res) => {
   const { name, slug, plan = 'free', ownerEmail } = req.body || {};
   if (!name) return res.status(400).json({ error: 'name is required' });
   if (!slug)  return res.status(400).json({ error: 'slug is required' });
@@ -98,88 +120,135 @@ router.post('/studios', async (req, res) => {
   // Enforce organization_limit from license
   const limit = effectiveOrgLimit();
   if (limit !== Infinity) {
-    const [[{ n }]] = await query('SELECT COUNT(*) AS n FROM studios');
+    const [[{ n }]] = await query('SELECT COUNT(*) AS n FROM organizations');
     if (Number(n) >= limit) {
       return res.status(403).json({ error: 'organization_limit_reached', limit, source: getLicenseInfo().source });
     }
   }
 
-  const existing = await getStudioBySlug(slug);
-  if (existing) return res.status(409).json({ error: 'A studio with this slug already exists' });
+  const existing = await getOrganizationBySlug(slug);
+  if (existing) return res.status(409).json({ error: 'An organization with this slug already exists' });
 
-  const studio = await createStudio({ name, slug, plan });
+  const org = await createOrganization({ name, slug, plan });
 
   let inviteToken = null;
   if (ownerEmail) {
     // Create an invitation — the owner sets their own password via the invite link
-    const invitation = await createInvitation(studio.id, ownerEmail, 'owner', req.userId);
+    const invitation = await createInvitation(org.id, ownerEmail, 'owner', req.userId);
     inviteToken = invitation.token;
 
     // Send invite email (fire-and-forget)
     try {
-      const s = await getSettings(studio.id);
+      const s = await getSettings(org.id);
       const base = (s?.base_url || process.env.BASE_URL || 'http://localhost:4000').replace(/\/$/, '');
       sendInviteEmail({
-        studioId:   studio.id,
+        studioId:   org.id,
         to:         ownerEmail,
-        studioName: studio.name,
+        studioName: org.name,
         inviteUrl:  `${base}/admin/invite/${inviteToken}`,
       });
     } catch {}
   }
 
-  res.status(201).json({ ...studio, inviteToken, ownerEmail: ownerEmail || null });
+  res.status(201).json({ ...org, inviteToken, ownerEmail: ownerEmail || null });
 });
 
-// PATCH /api/platform/studios/:id
-router.patch('/studios/:id', async (req, res) => {
-  const studio = await getStudio(req.params.id);
-  if (!studio) return res.status(404).json({ error: 'Studio not found' });
+// POST /api/platform/studios — backward compat alias
+router.post('/studios', async (req, res, next) => {
+  // Delegate to the /organizations handler
+  req.url = '/organizations';
+  router.handle(req, res, next);
+});
+
+// PATCH /api/platform/organizations/:id
+router.patch('/organizations/:id', async (req, res) => {
+  const org = await getOrganization(req.params.id);
+  if (!org) return res.status(404).json({ error: 'Organization not found' });
 
   const { name, slug, plan } = req.body || {};
 
-  if (slug && slug !== studio.slug) {
-    const existing = await getStudioBySlug(slug);
+  if (slug && slug !== org.slug) {
+    const existing = await getOrganizationBySlug(slug);
     if (existing) return res.status(409).json({ error: 'Slug already taken' });
   }
 
-  const updated = await updateStudio(req.params.id, { name, slug, plan });
+  const updated = await updateOrganization(req.params.id, { name, slug, plan });
   res.json(updated);
 });
 
-// POST /api/platform/studios/:id/set-default
-router.post('/studios/:id/set-default', async (req, res) => {
-  const studio = await getStudio(req.params.id);
-  if (!studio) return res.status(404).json({ error: 'Studio not found' });
-  const updated = await setDefaultStudio(req.params.id);
-  res.json(updated);
-});
+// PATCH /api/platform/studios/:id — backward compat alias
+router.patch('/studios/:id', async (req, res) => {
+  const org = await getOrganization(req.params.id);
+  if (!org) return res.status(404).json({ error: 'Organization not found' });
 
-// DELETE /api/platform/studios/:id
-router.delete('/studios/:id', async (req, res) => {
-  const studio = await getStudio(req.params.id);
-  if (!studio) return res.status(404).json({ error: 'Studio not found' });
-  if (studio.is_default)
-    return res.status(400).json({ error: 'Cannot delete the default studio' });
+  const { name, slug, plan } = req.body || {};
 
-  // Reassign any users whose studio_id points here to the default studio,
-  // so they survive the deletion (belt-and-suspenders on top of the FK SET NULL).
-  const [[defaultStudio]] = await query('SELECT id FROM studios WHERE is_default = 1 LIMIT 1');
-  if (defaultStudio) {
-    await query('UPDATE users SET studio_id = ? WHERE studio_id = ?', [defaultStudio.id, req.params.id]);
+  if (slug && slug !== org.slug) {
+    const existing = await getOrganizationBySlug(slug);
+    if (existing) return res.status(409).json({ error: 'Slug already taken' });
   }
 
-  await deleteStudio(req.params.id);
+  const updated = await updateOrganization(req.params.id, { name, slug, plan });
+  res.json(updated);
+});
+
+// POST /api/platform/organizations/:id/set-default
+router.post('/organizations/:id/set-default', async (req, res) => {
+  const org = await getOrganization(req.params.id);
+  if (!org) return res.status(404).json({ error: 'Organization not found' });
+  const updated = await setDefaultOrganization(req.params.id);
+  res.json(updated);
+});
+
+// POST /api/platform/studios/:id/set-default — backward compat alias
+router.post('/studios/:id/set-default', async (req, res) => {
+  const org = await getOrganization(req.params.id);
+  if (!org) return res.status(404).json({ error: 'Organization not found' });
+  const updated = await setDefaultOrganization(req.params.id);
+  res.json(updated);
+});
+
+// DELETE /api/platform/organizations/:id
+router.delete('/organizations/:id', async (req, res) => {
+  const org = await getOrganization(req.params.id);
+  if (!org) return res.status(404).json({ error: 'Organization not found' });
+  if (org.is_default)
+    return res.status(400).json({ error: 'Cannot delete the default organization' });
+
+  // Reassign any users whose organization_id points here to the default organization,
+  // so they survive the deletion (belt-and-suspenders on top of the FK SET NULL).
+  const [[defaultOrg]] = await query('SELECT id FROM organizations WHERE is_default = 1 LIMIT 1');
+  if (defaultOrg) {
+    await query('UPDATE users SET studio_id = ?, organization_id = ? WHERE studio_id = ?', [defaultOrg.id, defaultOrg.id, req.params.id]);
+  }
+
+  await deleteOrganization(req.params.id);
+  res.json({ ok: true });
+});
+
+// DELETE /api/platform/studios/:id — backward compat alias
+router.delete('/studios/:id', async (req, res) => {
+  const org = await getOrganization(req.params.id);
+  if (!org) return res.status(404).json({ error: 'Organization not found' });
+  if (org.is_default)
+    return res.status(400).json({ error: 'Cannot delete the default organization' });
+
+  const [[defaultOrg]] = await query('SELECT id FROM organizations WHERE is_default = 1 LIMIT 1');
+  if (defaultOrg) {
+    await query('UPDATE users SET studio_id = ?, organization_id = ? WHERE studio_id = ?', [defaultOrg.id, defaultOrg.id, req.params.id]);
+  }
+
+  await deleteOrganization(req.params.id);
   res.json({ ok: true });
 });
 
 // GET /api/platform/users — list all users (superadmin oversight)
 router.get('/users', async (req, res) => {
   const [rows] = await query(`
-    SELECT u.id, u.email, u.name, u.role, u.platform_role, u.studio_id, u.created_at,
-           s.name AS studio_name, s.slug AS studio_slug
+    SELECT u.id, u.email, u.name, u.role, u.platform_role, u.studio_id AS organization_id, u.studio_id, u.created_at,
+           o.name AS organization_name, o.slug AS organization_slug
     FROM users u
-    LEFT JOIN studios s ON s.id = u.studio_id
+    LEFT JOIN organizations o ON o.id = u.studio_id
     ORDER BY u.created_at DESC
   `);
   res.json(rows);

@@ -13,12 +13,13 @@ import fs           from 'fs';
 import { randomUUID } from 'crypto';
 import { query }    from '../db/database.js';
 import {
-  getGalleryRole, listGalleryRoleAssignments, listStudioMembers, getSettings, audit,
+  getGalleryRole, listGalleryRoleAssignments, getSettings, audit,
   createUploadLink, listUploadLinks, revokeUploadLink,
   listPhotosByStatus, getPhotoStatusCounts, bulkSetPhotoStatus, setGalleryStatus,
   createPhotographer, getPhotographer, listPhotographers, updatePhotographer, deletePhotographer,
   setPhotoPhotographer, bulkSetPhotoPhotographer,
 } from '../db/helpers.js';
+import { listOrgMembers } from '../services/organization.js';
 import { sendEmail } from '../services/email.js';
 import { requireAuth } from '../middleware/auth.js';
 import { can } from '../authorization/index.js';
@@ -44,7 +45,7 @@ function photosDir(slug) {
 async function ensureGalleryBelongsToStudio(req, res) {
   const [rows] = await query(
     'SELECT * FROM galleries WHERE id = ? AND studio_id = ?',
-    [req.params.id, req.studioId]
+    [req.params.id, req.organizationId]
   );
   if (!rows[0]) { res.status(404).json({ error: 'Gallery not found' }); return null; }
   return rows[0];
@@ -56,7 +57,7 @@ const storage = multer.diskStorage({
     try {
       const [rows] = await query(
         'SELECT slug FROM galleries WHERE id = ? AND studio_id = ?',
-        [req.params.id, req.studioId]
+        [req.params.id, req.organizationId]
       );
       if (!rows[0]) return cb(new Error('Gallery not found'));
       const dir = photosDir(rows[0].slug);
@@ -365,7 +366,7 @@ router.post('/:id/photos', (req, res, next) => {
       [Date.now(), req.params.id]
     );
     for (const f of uploaded) {
-      try { await audit(req.studioId, req.userId, 'photo.upload', 'gallery', req.params.id, { filename: f.file }); } catch {}
+      try { await audit(req.organizationId, req.userId, 'photo.upload', 'gallery', req.params.id, { filename: f.file }); } catch {}
     }
   }
   res.status(201).json({ uploaded: uploaded.length, files: uploaded, rejected: rejectedFiles });
@@ -458,12 +459,12 @@ router.delete('/:id/photos/:filename', async (req, res) => {
   const fileSize = fs.statSync(filePath).size;
   fs.unlinkSync(filePath);
   await query('DELETE FROM photos WHERE gallery_id = ? AND filename = ?', [gallery.id, safe]);
-  await decrementStorageUsed(req.studioId, fileSize);
+  await decrementStorageUsed(req.organizationId, fileSize);
   await query(
     'UPDATE galleries SET needs_rebuild = 1, updated_at = ? WHERE id = ?',
     [Date.now(), req.params.id]
   );
-  try { await audit(req.studioId, req.userId, 'photo.delete', 'gallery', req.params.id, { filename: safe }); } catch {}
+  try { await audit(req.organizationId, req.userId, 'photo.delete', 'gallery', req.params.id, { filename: safe }); } catch {}
   res.json({ ok: true });
 });
 
@@ -510,22 +511,22 @@ router.post('/:id/photos/upload-done', async (req, res) => {
 
   // Collect editors/admins to notify
   const galleryEditors = (await listGalleryRoleAssignments(gallery.id)).filter(m => m.role === 'editor');
-  const studioEditors  = (await listStudioMembers(req.studioId))
+  const orgEditors     = (await listOrgMembers(req.organizationId))
     .filter(m => ['collaborator', 'admin', 'owner'].includes(m.role));
 
   const allEmails = [...new Set([
     ...galleryEditors.map(m => m.email),
-    ...studioEditors.map(m => m.user.email),
+    ...orgEditors.map(m => m.email),
   ])].filter(Boolean);
 
-  const s = await getSettings(req.studioId);
+  const s = await getSettings(req.organizationId);
   const base = (s?.base_url || process.env.BASE_URL || 'http://localhost:4000').replace(/\/$/, '');
   const galleryUrl = `${base}/admin/#/galleries/${gallery.id}`;
   const uploaderName = req.user.name || req.user.email;
 
   for (const to of allEmails) {
     sendEmail({
-      studioId: req.studioId,
+      studioId: req.organizationId,
       to,
       subject: `Photos prêtes à publier — ${gallery.title}`,
       text: `${uploaderName} a terminé d'uploader des photos dans la galerie "${gallery.title}".\n\nVous pouvez maintenant les vérifier et publier la galerie :\n${galleryUrl}\n`,
@@ -578,15 +579,15 @@ router.post('/:id/upload-links', async (req, res) => {
       email:         photographerEmail || null,
       bio:           photographerBio   || null,
       uploadLinkId:  link.id,
-      organizationId: req.organizationId || req.studioId,
+      organizationId: req.organizationId || req.organizationId,
     });
   }
 
-  const s = await getSettings(req.studioId);
+  const s = await getSettings(req.organizationId);
   const base = (s?.base_url || process.env.BASE_URL || 'http://localhost:4000').replace(/\/$/, '');
   const uploadUrl = `${base}/upload/${link.token}`;
 
-  try { await audit(req.studioId, req.userId, 'upload_link.create', 'gallery', gallery.id, { label, photographerName }); } catch {}
+  try { await audit(req.organizationId, req.userId, 'upload_link.create', 'gallery', gallery.id, { label, photographerName }); } catch {}
   res.status(201).json({ ...link, uploadUrl, photographer });
 });
 
@@ -607,7 +608,7 @@ router.delete('/:id/upload-links/:linkId', async (req, res) => {
   if (!rows[0]) return res.status(404).json({ error: 'Upload link not found' });
 
   await revokeUploadLink(req.params.linkId);
-  try { await audit(req.studioId, req.userId, 'upload_link.revoke', 'gallery', gallery.id, { linkId: req.params.linkId }); } catch {}
+  try { await audit(req.organizationId, req.userId, 'upload_link.revoke', 'gallery', gallery.id, { linkId: req.params.linkId }); } catch {}
   res.json({ ok: true });
 });
 
@@ -646,7 +647,7 @@ router.post('/:id/photographers', async (req, res) => {
   if (!name) return res.status(400).json({ error: 'name is required' });
   const pg = await createPhotographer(gallery.id, {
     name, email, bio,
-    organizationId: req.organizationId || req.studioId,
+    organizationId: req.organizationId || req.organizationId,
   });
   res.status(201).json(pg);
 });

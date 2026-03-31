@@ -26,15 +26,15 @@ export const EVENTS = {
 
 // ── Notification helpers ───────────────────────────────────────────────────────
 
-async function getStudioEditors(studioId) {
+async function getOrgEditors(orgId) {
   const [rows] = await query(`
     SELECT u.email, u.name, sm.role,
            COALESCE(u.notify_on_upload,  1) AS notify_on_upload,
            COALESCE(u.notify_on_publish, 1) AS notify_on_publish
     FROM studio_memberships sm
     JOIN users u ON u.id = sm.user_id
-    WHERE sm.studio_id = ? AND sm.role IN ('collaborator', 'admin', 'owner')
-  `, [studioId]);
+    WHERE (sm.organization_id = ? OR sm.studio_id = ?) AND sm.role IN ('collaborator', 'admin', 'owner')
+  `, [orgId, orgId]);
   return rows;
 }
 
@@ -47,7 +47,7 @@ async function resolveBaseUrl(studioId) {
 
 async function onPhotoUploaded({ studioId, galleryId, galleryTitle, uploadLinkLabel, photoCount }) {
   // Notify studio editors that new photos need review
-  const editors = await getStudioEditors(studioId);
+  const editors = await getOrgEditors(studioId);
   if (!editors.length) return;
 
   const base = await resolveBaseUrl(studioId);
@@ -71,7 +71,7 @@ async function onGalleryPublished({ studioId, galleryId, galleryTitle, gallerySl
   // Only notify if at least one photo is newly published
   if (!newPhotoCount || newPhotoCount < 1) return;
 
-  const editors = await getStudioEditors(studioId);
+  const editors = await getOrgEditors(studioId);
   const base    = await resolveBaseUrl(studioId);
   const galleryUrl = `${base}/${gallerySlug}/`;
 

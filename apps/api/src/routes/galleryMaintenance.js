@@ -70,7 +70,7 @@ async function requireOwner(req, res, gallery) {
 
 router.delete('/:id/dist', async (req, res, next) => {
   try {
-    const gallery = await loadGallery(req.params.id, req.studioId);
+    const gallery = await loadGallery(req.params.id, req.organizationId);
     if (!gallery) return res.status(404).json({ error: 'Gallery not found' });
     if (!await requireOwner(req, res, gallery)) return;
 
@@ -100,7 +100,7 @@ router.delete('/:id/dist', async (req, res, next) => {
 
 router.delete('/:id/dist/originals', async (req, res, next) => {
   try {
-    const gallery = await loadGallery(req.params.id, req.studioId);
+    const gallery = await loadGallery(req.params.id, req.organizationId);
     if (!gallery) return res.status(404).json({ error: 'Gallery not found' });
     if (!await requireOwner(req, res, gallery)) return;
 
@@ -128,7 +128,7 @@ router.delete('/:id/dist/originals', async (req, res, next) => {
 
 router.post('/:id/photos/reconcile', async (req, res, next) => {
   try {
-    const gallery = await loadGallery(req.params.id, req.studioId);
+    const gallery = await loadGallery(req.params.id, req.organizationId);
     if (!gallery) return res.status(404).json({ error: 'Gallery not found' });
     if (!await requireOwner(req, res, gallery)) return;
 
@@ -246,7 +246,7 @@ router.post('/:id/photos/reconcile', async (req, res, next) => {
 
 router.post('/:id/photos/deduplicate', async (req, res, next) => {
   try {
-    const gallery = await loadGallery(req.params.id, req.studioId);
+    const gallery = await loadGallery(req.params.id, req.organizationId);
     if (!gallery) return res.status(404).json({ error: 'Gallery not found' });
     if (!await requireOwner(req, res, gallery)) return;
 
@@ -337,7 +337,7 @@ function thumbOk(photoId, size) {
 
 router.get('/:id/photos/reanalyze', async (req, res, next) => {
   try {
-    const gallery = await loadGallery(req.params.id, req.studioId);
+    const gallery = await loadGallery(req.params.id, req.organizationId);
     if (!gallery) return res.status(404).json({ error: 'Gallery not found' });
     if (!await requireOwner(req, res, gallery)) return;
 
@@ -371,7 +371,7 @@ router.get('/:id/photos/reanalyze', async (req, res, next) => {
 
 router.post('/:id/photos/reanalyze', async (req, res, next) => {
   try {
-    const gallery = await loadGallery(req.params.id, req.studioId);
+    const gallery = await loadGallery(req.params.id, req.organizationId);
     if (!gallery) return res.status(404).json({ error: 'Gallery not found' });
     if (!await requireOwner(req, res, gallery)) return;
 

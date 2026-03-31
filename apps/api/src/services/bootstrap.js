@@ -13,9 +13,10 @@ import path from 'node:path';
 import { existsSync, statSync } from 'node:fs';
 import { query } from '../db/database.js';
 import {
-  createStudio, createUser, getUserByEmail,
-  hashPassword, upsertStudioMembership,
+  createUser, getUserByEmail,
+  hashPassword,
 } from '../db/helpers.js';
+import { createOrganization, upsertOrgMember } from './organization.js';
 import { enqueueSm, enqueueMd, thumbPath, THUMB_SIZES } from './thumbnailService.js';
 import { SRC_ROOT } from '../../../../packages/engine/src/fs.js';
 import { runSharp } from './sharpProcess.js';
@@ -33,8 +34,8 @@ export async function bootstrap() {
       return;
     }
 
-    // Create default studio (is_default = true for single-tenant fallback routing)
-    const studio = await createStudio({
+    // Create default organization (is_default = true for single-tenant fallback routing)
+    const studio = await createOrganization({
       name:      process.env.STUDIO_NAME || 'Default',
       slug:      'default',
       plan:      'free',
@@ -57,7 +58,7 @@ export async function bootstrap() {
     }
 
     // Insert owner membership for the admin user
-    await upsertStudioMembership(studio.id, user.id, 'owner');
+    await upsertOrgMember(studio.id, user.id, 'owner');
 
     console.log(`  ✓  Bootstrap complete — admin: ${adminEmail}`);
     return;
@@ -74,7 +75,7 @@ export async function bootstrap() {
       [admin.studio_id, admin.id]
     );
     if (!existing[0]) {
-      await upsertStudioMembership(admin.studio_id, admin.id, 'owner');
+      await upsertOrgMember(admin.studio_id, admin.id, 'owner');
       console.log(`  ✓  Backfilled owner membership for user ${admin.id}`);
     }
   }

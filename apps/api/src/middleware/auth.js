@@ -6,7 +6,7 @@
 // Unauthorized use is strictly prohibited.
 
 // apps/api/src/middleware/auth.js — session authentication middleware
-import { getSession, getUserById, getStudioRole, getOrgRole, ROLE_HIERARCHY, getViewerToken, touchViewerToken } from '../db/helpers.js';
+import { getSession, getUserById, getOrgRole, ROLE_HIERARCHY, getViewerToken, touchViewerToken } from '../db/helpers.js';
 
 /**
  * Require a valid session cookie.
@@ -45,7 +45,7 @@ export async function requireAuth(req, res, next) {
     req.studioRole = resolvedRole; // keep legacy alias in sync
 
     // If no role found and org wasn't explicitly chosen, fall back to user's home org.
-    const hasOverride = !!req.cookies?.studio_override;
+    const hasOverride = !!(req.cookies?.organization_override || req.cookies?.studio_override);
     if (!req.orgRole && !hasOverride) {
       const homeOrgId = user.organization_id || user.studio_id;
       if (homeOrgId && homeOrgId !== req.organizationId) {

@@ -7,17 +7,17 @@
 
 // apps/api/src/authorization/index.js — centralized authorization engine
 //
-// Permission model (platform → studio → project → gallery):
+// Permission model (platform → organization → project → gallery):
 //
-// Studio roles (ascending):  photographer < collaborator < admin < owner
+// Organization roles (ascending):  photographer < collaborator < admin < owner
 // Project roles (ascending): contributor  < editor < manager
 // Gallery roles (ascending): viewer < contributor < editor
 //
 // Inheritance:
 //   1. Platform 'superadmin' → all actions everywhere
-//   2. Studio owner/admin   → all actions in their studio
-//   3. Studio collaborator  → gallery.read/edit/upload/build/publish + project.read
-//   4. Studio photographer  → gallery.read only (write requires explicit gallery role)
+//   2. Organization owner/admin   → all actions in their org
+//   3. Organization collaborator  → gallery.read/edit/upload/build/publish + project.read
+//   4. Organization photographer  → gallery.read only (write requires explicit gallery role)
 //   5. Project manager      → all gallery actions within the project
 //   6. Project editor       → gallery.read/edit/upload
 //   7. Project contributor  → gallery.upload
@@ -28,6 +28,7 @@
 //
 // See docs/permissions.md for the full matrix.
 
+// Organization roles (kept as STUDIO_ROLES for backward compat within this module)
 const STUDIO_ROLES  = ['photographer', 'collaborator', 'admin', 'owner'];
 const PROJECT_ROLES = ['contributor', 'editor', 'manager'];
 const GALLERY_ROLES = ['viewer', 'contributor', 'editor'];
@@ -58,9 +59,9 @@ function hasGalleryRole(galleryRole, minRole) {
 /**
  * Centralized authorization check.
  *
- * @param {object} user     - The request user object ({ id, studio_id, role })
+ * @param {object} user     - The request user object ({ id, organization_id, studio_id, role })
  * @param {string} action   - See matrix above
- * @param {string} resource - 'gallery' | 'photo' | 'studio' | 'member' | 'project'
+ * @param {string} resource - 'gallery' | 'photo' | 'studio' | 'organization' | 'member' | 'project'
  * @param {object} context  - { platformRole?, studioRole?, orgRole?, projectRole?, galleryRole?, gallery?, viewerToken? }
  * @returns {boolean}
  */
@@ -75,9 +76,9 @@ export function can(user, action, resource, context = {}) {
   const platformRole = context.platformRole ?? user?.platform_role ?? null;
   if (platformRole === 'superadmin') return true;
 
-  // ── Studio-level actions ──────────────────────────────────────────────────
+  // ── Organization-level actions (resource = 'studio' or 'organization') ───
 
-  if (resource === 'studio') {
+  if (resource === 'studio' || resource === 'organization') {
     if (action === 'read') return isValidStudioRole(studioRole);
 
     // manage / manageSettings / manageProjects / manageMembers → admin+
