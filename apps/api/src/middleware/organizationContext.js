@@ -7,15 +7,14 @@
 
 // apps/api/src/middleware/organizationContext.js — resolve organization from request hostname
 //
-// Must be mounted BEFORE requireAuth so that req.organizationId / req.studioId
-// are set from hostname context, not from the authenticated user's home org.
+// Must be mounted BEFORE requireAuth so that req.organizationId is set from
+// hostname context, not from the authenticated user's home org.
 //
 // In PLATFORM_MODE=single: resolves the default organization for every request.
 // In PLATFORM_MODE=multi:  resolves by hostname; returns 404 for API routes
 //                          that hit an unknown hostname.
 //
-// Sets both req.organizationId and req.studioId (same value — IDs are identical
-// during the Sprint 22 transitional period).
+// Sets req.organizationId (canonical).
 
 import { resolveOrganizationFromHostname } from '../services/contextResolver.js';
 import { getOrganization } from '../services/organization.js';
@@ -33,29 +32,25 @@ function effectiveHostname(req) {
 }
 
 /**
- * Attach org/studio context to req.
- * Sets req.organization, req.organizationId, req.studio, req.studioId.
+ * Attach org context to req.
+ * Sets req.organization, req.organizationId.
  */
 function attachContext(req, entity) {
   req.organization   = entity;
   req.organizationId = entity.id;
-  // Keep legacy aliases in sync
-  req.studio   = entity;
-  req.studioId = entity.id;
 }
 
 /**
- * Resolve organization context and attach req.organization + req.organizationId
- * (and legacy req.studio + req.studioId aliases).
+ * Resolve organization context and attach req.organization + req.organizationId.
  *
  * For API routes in multi-org mode, rejects with 404 if no org is found.
  *
  * A superadmin can override the context with the `organization_override` cookie
- * (set via POST /api/platform/switch/:orgId). Legacy `studio_override` is also accepted.
+ * (set via POST /api/platform/switch/:orgId).
  */
 export async function resolveOrganizationContext(req, res, next) {
   // Superadmin org override — skip hostname resolution
-  const override = req.cookies?.organization_override || req.cookies?.studio_override;
+  const override = req.cookies?.organization_override;
   if (override) {
     const overrideOrg = await getOrganization(override);
     if (overrideOrg) {

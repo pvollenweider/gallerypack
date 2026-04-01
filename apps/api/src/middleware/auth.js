@@ -13,8 +13,7 @@ import { getSession, getUserById, getOrgRole, ROLE_HIERARCHY, getViewerToken, to
  *
  * Attaches on req:
  *   user, userId, platformRole
- *   organizationId, orgRole   — canonical (Sprint 22)
- *   studioId, studioRole      — legacy aliases (same values, kept for compat)
+ *   organizationId, orgRole   — canonical
  *
  * Express 5 supports async middleware natively.
  */
@@ -32,34 +31,28 @@ export async function requireAuth(req, res, next) {
   req.userId       = user.id;
   req.platformRole = user.platform_role || null;
 
-  // organizationId / studioId precedence:
-  //   hostname-resolved context (set by resolveStudioContext) > user's home org
-  if (!req.organizationId) req.organizationId = user.organization_id || user.studio_id;
-  if (!req.studioId)       req.studioId       = req.organizationId;
+  // organizationId precedence:
+  //   hostname-resolved context (set by resolveOrganizationContext) > user's home org
+  if (!req.organizationId) req.organizationId = user.organization_id;
 
   // Resolve membership role for the resolved organization.
-  // getOrgRole falls back to studio_id lookup for pre-015 rows.
   if (req.organizationId) {
     const resolvedRole = (await getOrgRole(user.id, req.organizationId)) || null;
-    req.orgRole   = resolvedRole;
-    req.studioRole = resolvedRole; // keep legacy alias in sync
+    req.orgRole = resolvedRole;
 
     // If no role found and org wasn't explicitly chosen, fall back to user's home org.
-    const hasOverride = !!(req.cookies?.organization_override || req.cookies?.studio_override);
+    const hasOverride = !!(req.cookies?.organization_override);
     if (!req.orgRole && !hasOverride) {
-      const homeOrgId = user.organization_id || user.studio_id;
+      const homeOrgId = user.organization_id;
       if (homeOrgId && homeOrgId !== req.organizationId) {
         req.organizationId = homeOrgId;
-        req.studioId       = homeOrgId;
         req.orgRole        = (await getOrgRole(user.id, homeOrgId)) || null;
-        req.studioRole     = req.orgRole;
       }
     }
 
     // Superadmin always gets owner-level access in any org
     if (!req.orgRole && req.platformRole === 'superadmin') {
-      req.orgRole   = 'owner';
-      req.studioRole = 'owner';
+      req.orgRole = 'owner';
     }
   }
 
@@ -71,11 +64,10 @@ export async function requireAuth(req, res, next) {
  * Role hierarchy (lowest → highest): photographer < collaborator < admin < owner
  *
  * Usage: router.get('/...', requireAuth, requireStudioRole('admin'), handler)
- * (name kept as requireStudioRole for backward compat)
  */
 export function requireStudioRole(minRole) {
   return (req, res, next) => {
-    const role = req.orgRole || req.studioRole;
+    const role = req.orgRole;
     if (!role) return res.status(403).json({ error: 'Forbidden: no organization membership' });
 
     const userLevel = ROLE_HIERARCHY.indexOf(role);
@@ -122,7 +114,7 @@ export async function resolveViewerToken(req, res, next) {
  */
 export async function requireAdmin(req, res, next) {
   await requireAuth(req, res, () => {
-    const role = req.orgRole || req.studioRole;
+    const role = req.orgRole;
     if (role !== 'owner' && role !== 'admin') {
       return res.status(403).json({ error: 'Forbidden' });
     }

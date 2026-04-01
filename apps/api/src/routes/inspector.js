@@ -102,11 +102,11 @@ router.get('/search', async (req, res) => {
       [q, like, like]
     ).then(r => r[0]),
     query(
-      `SELECT id, name, slug, studio_id FROM projects WHERE id = ? OR slug LIKE ? OR name LIKE ? LIMIT 10`,
+      `SELECT id, name, slug, organization_id FROM projects WHERE id = ? OR slug LIKE ? OR name LIKE ? LIMIT 10`,
       [q, like, like]
     ).then(r => r[0]),
     query(
-      `SELECT id, title, slug, workflow_status AS status, studio_id, project_id FROM galleries WHERE id = ? OR slug LIKE ? OR title LIKE ? LIMIT 10`,
+      `SELECT id, title, slug, workflow_status AS status, organization_id, project_id FROM galleries WHERE id = ? OR slug LIKE ? OR title LIKE ? LIMIT 10`,
       [q, like, like]
     ).then(r => r[0]),
     query(
@@ -124,10 +124,10 @@ router.get('/galleries/:id', async (req, res) => {
   const [galleryRows] = await query(`
     SELECT g.*,
            p.id AS proj_id, p.name AS proj_name, p.slug AS proj_slug,
-           s.id AS studio_id_r, s.name AS studio_name, s.slug AS studio_slug
+           s.id AS org_id_r, s.name AS org_name, s.slug AS org_slug
     FROM galleries g
     LEFT JOIN projects p ON p.id = g.project_id
-    LEFT JOIN organizations s  ON s.id = g.studio_id
+    LEFT JOIN organizations s ON s.id = g.organization_id
     WHERE g.id = ?
   `, [req.params.id]);
 
@@ -158,7 +158,7 @@ router.get('/galleries/:id', async (req, res) => {
     created_at:     gallery.created_at,
     updated_at:     gallery.updated_at,
     project:        gallery.proj_id ? { id: gallery.proj_id, name: gallery.proj_name, slug: gallery.proj_slug } : null,
-    studio:         { id: gallery.studio_id_r, name: gallery.studio_name, slug: gallery.studio_slug },
+    organization:   { id: gallery.org_id_r, name: gallery.org_name, slug: gallery.org_slug },
     photos:         { total: Object.values(photoByStatus).reduce((a, b) => a + b, 0), by_status: photoByStatus },
     last_build:     lastBuildRows[0] || null,
     upload_links:   uploadLinks,
@@ -172,7 +172,7 @@ router.get('/galleries/:id', async (req, res) => {
 
 // POST /api/inspector/galleries/:id/rebuild
 router.post('/galleries/:id/rebuild', async (req, res) => {
-  const [rows] = await query('SELECT id, studio_id, title, slug FROM galleries WHERE id = ?', [req.params.id]);
+  const [rows] = await query('SELECT id, organization_id, title, slug FROM galleries WHERE id = ?', [req.params.id]);
   if (!rows[0]) return res.status(404).json({ error: 'Gallery not found' });
   const gallery = rows[0];
 
@@ -185,9 +185,9 @@ router.post('/galleries/:id/rebuild', async (req, res) => {
 
   const jobId = randomUUID();
   await query(
-    `INSERT INTO build_jobs (id, studio_id, gallery_id, status, force, created_at, updated_at)
+    `INSERT INTO build_jobs (id, organization_id, gallery_id, status, force, created_at, updated_at)
      VALUES (?, ?, ?, 'queued', 0, NOW(), NOW())`,
-    [jobId, gallery.studio_id, gallery.id]
+    [jobId, gallery.organization_id, gallery.id]
   );
   await auditLog(req.userId, 'gallery.rebuild', 'gallery', gallery.id, null, { job_id: jobId });
   res.json({ job_id: jobId });
@@ -240,13 +240,13 @@ router.get('/photos/:id', async (req, res) => {
     SELECT p.*,
            g.title AS gallery_title, g.slug AS gallery_slug, g.workflow_status AS gallery_status,
            proj.id AS proj_id, proj.name AS proj_name,
-           s.id AS studio_id_r, s.name AS studio_name,
+           s.id AS org_id_r, s.name AS org_name,
            u.email AS uploader_email, u.name AS uploader_name,
            ul.label AS upload_link_label
     FROM photos p
     JOIN galleries g    ON g.id = p.gallery_id
     LEFT JOIN projects proj ON proj.id = g.project_id
-    LEFT JOIN organizations s     ON s.id = g.studio_id
+    LEFT JOIN organizations s     ON s.id = g.organization_id
     LEFT JOIN users u       ON u.id = p.uploaded_by_user_id
     LEFT JOIN gallery_upload_links ul ON ul.id = p.upload_link_id
     WHERE p.id = ?
@@ -273,7 +273,7 @@ router.get('/photos/:id', async (req, res) => {
     gallery_id:        p.gallery_id,
     gallery:           { id: p.gallery_id, title: p.gallery_title, slug: p.gallery_slug, status: p.gallery_status },
     project:           p.proj_id ? { id: p.proj_id, name: p.proj_name } : null,
-    studio:            { id: p.studio_id_r, name: p.studio_name },
+    organization:      { id: p.org_id_r, name: p.org_name },
     status:            p.status,
     filename:          p.filename,
     original_filename: p.original_name,
@@ -294,8 +294,8 @@ router.get('/organizations', async (req, res) => {
            COUNT(DISTINCT g.id)  AS gallery_count,
            COUNT(DISTINCT sm.user_id) AS member_count
     FROM organizations o
-    LEFT JOIN galleries g ON g.studio_id = o.id
-    LEFT JOIN studio_memberships sm ON sm.studio_id = o.id
+    LEFT JOIN galleries g ON g.organization_id = o.id
+    LEFT JOIN organization_memberships sm ON sm.organization_id = o.id
     GROUP BY o.id ORDER BY o.name ASC
   `);
   res.json(rows);
@@ -308,8 +308,8 @@ router.get('/studios', async (req, res) => {
            COUNT(DISTINCT g.id)  AS gallery_count,
            COUNT(DISTINCT sm.user_id) AS member_count
     FROM organizations o
-    LEFT JOIN galleries g ON g.studio_id = o.id
-    LEFT JOIN studio_memberships sm ON sm.studio_id = o.id
+    LEFT JOIN galleries g ON g.organization_id = o.id
+    LEFT JOIN organization_memberships sm ON sm.organization_id = o.id
     GROUP BY o.id ORDER BY o.name ASC
   `);
   res.json(rows);
@@ -319,16 +319,16 @@ router.get('/organizations/:id', async (req, res) => {
   const [rows] = await query(`
     SELECT o.*, COUNT(DISTINCT g.id) AS gallery_count, COUNT(DISTINCT sm.user_id) AS member_count
     FROM organizations o
-    LEFT JOIN galleries g ON g.studio_id = o.id
-    LEFT JOIN studio_memberships sm ON sm.studio_id = o.id
+    LEFT JOIN galleries g ON g.organization_id = o.id
+    LEFT JOIN organization_memberships sm ON sm.organization_id = o.id
     WHERE o.id = ?
     GROUP BY o.id
   `, [req.params.id]);
   if (!rows[0]) return res.status(404).json({ error: 'Organization not found' });
 
   const [members, projects] = await Promise.all([
-    query(`SELECT sm.role, u.id, u.email, u.name FROM studio_memberships sm JOIN users u ON u.id = sm.user_id WHERE sm.studio_id = ?`, [req.params.id]).then(r => r[0]),
-    query(`SELECT id, name, slug, created_at FROM projects WHERE studio_id = ? ORDER BY created_at DESC LIMIT 20`, [req.params.id]).then(r => r[0]),
+    query(`SELECT sm.role, u.id, u.email, u.name FROM organization_memberships sm JOIN users u ON u.id = sm.user_id WHERE sm.organization_id = ?`, [req.params.id]).then(r => r[0]),
+    query(`SELECT id, name, slug, created_at FROM projects WHERE organization_id = ? ORDER BY created_at DESC LIMIT 20`, [req.params.id]).then(r => r[0]),
   ]);
 
   res.json({ ...rows[0], members, projects });
@@ -339,16 +339,16 @@ router.get('/studios/:id', async (req, res) => {
   const [rows] = await query(`
     SELECT o.*, COUNT(DISTINCT g.id) AS gallery_count, COUNT(DISTINCT sm.user_id) AS member_count
     FROM organizations o
-    LEFT JOIN galleries g ON g.studio_id = o.id
-    LEFT JOIN studio_memberships sm ON sm.studio_id = o.id
+    LEFT JOIN galleries g ON g.organization_id = o.id
+    LEFT JOIN organization_memberships sm ON sm.organization_id = o.id
     WHERE o.id = ?
     GROUP BY o.id
   `, [req.params.id]);
   if (!rows[0]) return res.status(404).json({ error: 'Organization not found' });
 
   const [members, projects] = await Promise.all([
-    query(`SELECT sm.role, u.id, u.email, u.name FROM studio_memberships sm JOIN users u ON u.id = sm.user_id WHERE sm.studio_id = ?`, [req.params.id]).then(r => r[0]),
-    query(`SELECT id, name, slug, created_at FROM projects WHERE studio_id = ? ORDER BY created_at DESC LIMIT 20`, [req.params.id]).then(r => r[0]),
+    query(`SELECT sm.role, u.id, u.email, u.name FROM organization_memberships sm JOIN users u ON u.id = sm.user_id WHERE sm.organization_id = ?`, [req.params.id]).then(r => r[0]),
+    query(`SELECT id, name, slug, created_at FROM projects WHERE organization_id = ? ORDER BY created_at DESC LIMIT 20`, [req.params.id]).then(r => r[0]),
   ]);
 
   res.json({ ...rows[0], members, projects });
@@ -356,9 +356,9 @@ router.get('/studios/:id', async (req, res) => {
 
 router.get('/projects/:id', async (req, res) => {
   const [rows] = await query(`
-    SELECT p.*, s.name AS studio_name, s.slug AS studio_slug
+    SELECT p.*, s.name AS org_name, s.slug AS org_slug
     FROM projects p
-    LEFT JOIN organizations s ON s.id = p.studio_id
+    LEFT JOIN organizations s ON s.id = p.organization_id
     WHERE p.id = ?
   `, [req.params.id]);
   if (!rows[0]) return res.status(404).json({ error: 'Project not found' });
@@ -383,9 +383,9 @@ router.get('/users/:id', async (req, res) => {
   if (!rows[0]) return res.status(404).json({ error: 'User not found' });
 
   const [memberships] = await query(`
-    SELECT sm.role, sm.studio_id AS organization_id, sm.studio_id, o.name AS organization_name
-    FROM studio_memberships sm
-    JOIN organizations o ON o.id = sm.studio_id
+    SELECT sm.role, sm.organization_id, o.name AS organization_name
+    FROM organization_memberships sm
+    JOIN organizations o ON o.id = sm.organization_id
     WHERE sm.user_id = ?
   `, [req.params.id]);
 
@@ -431,10 +431,10 @@ router.get('/dashboard', async (req, res) => {
       SELECT bj.id AS job_id, bj.status, bj.created_at,
              TIMESTAMPDIFF(SECOND, bj.created_at, bj.updated_at) * 1000 AS duration_ms,
              g.id AS gallery_id, g.title AS gallery_title,
-             s.name AS studio
+             s.name AS organization
       FROM build_jobs bj
       JOIN galleries g ON g.id = bj.gallery_id
-      JOIN organizations s ON s.id = bj.studio_id
+      JOIN organizations s ON s.id = bj.organization_id
       ORDER BY bj.created_at DESC LIMIT 10
     `).then(r => r[0]),
 
@@ -446,11 +446,11 @@ router.get('/dashboard', async (req, res) => {
 
     // Recent uploads by gallery
     query(`
-      SELECT p.gallery_id, g.title AS gallery_title, s.name AS studio,
+      SELECT p.gallery_id, g.title AS gallery_title, s.name AS organization,
              COUNT(*) AS count, MAX(p.created_at) AS created_at
       FROM photos p
       JOIN galleries g ON g.id = p.gallery_id
-      JOIN organizations s ON s.id = g.studio_id
+      JOIN organizations s ON s.id = g.organization_id
       WHERE p.created_at > ?
       GROUP BY p.gallery_id, g.title, s.name
       ORDER BY created_at DESC LIMIT 10
@@ -501,10 +501,10 @@ router.get('/dashboard', async (req, res) => {
 // ── Sprint 21: Anomaly list ───────────────────────────────────────────────────
 
 router.get('/anomalies', async (req, res) => {
-  const { type, studio_id, limit = 50 } = req.query;
+  const { type, organization_id, limit = 50 } = req.query;
 
-  const studioFilter = studio_id ? 'AND g.studio_id = ?' : '';
-  const studioParam  = studio_id ? [studio_id] : [];
+  const orgFilter = organization_id ? 'AND g.organization_id = ?' : '';
+  const orgParam  = organization_id ? [organization_id] : [];
 
   const [buildFailed, inboxOld, staleGalleries] = await Promise.all([
     // build_failed
@@ -513,13 +513,13 @@ router.get('/anomalies', async (req, res) => {
              g.id AS target_id, CONCAT(g.title, ' — ', s.name) AS target_label,
              bj.updated_at AS detected_at
       FROM galleries g
-      JOIN studios s ON s.id = g.studio_id
+      JOIN organizations s ON s.id = g.organization_id
       JOIN build_jobs bj ON bj.id = (
         SELECT id FROM build_jobs WHERE gallery_id = g.id ORDER BY created_at DESC LIMIT 1
       )
-      WHERE bj.status = 'error' ${studioFilter}
+      WHERE bj.status = 'error' ${orgFilter}
       LIMIT ?
-    `, [...studioParam, Number(limit)]).then(r => r[0]) : [],
+    `, [...orgParam, Number(limit)]).then(r => r[0]) : [],
 
     // inbox_not_empty (> 24h)
     (!type || type === 'inbox_not_empty') ? query(`
@@ -528,11 +528,11 @@ router.get('/anomalies', async (req, res) => {
              MIN(p.created_at) AS detected_at
       FROM photos p
       JOIN galleries g ON g.id = p.gallery_id
-      JOIN organizations s ON s.id = g.studio_id
-      WHERE p.status = 'uploaded' AND p.created_at < ? ${studioFilter}
+      JOIN organizations s ON s.id = g.organization_id
+      WHERE p.status = 'uploaded' AND p.created_at < ? ${orgFilter}
       GROUP BY g.id, g.title, s.name
       LIMIT ?
-    `, [new Date(Date.now() - 24 * 60 * 60 * 1000), ...studioParam, Number(limit)]).then(r => r[0]) : [],
+    `, [new Date(Date.now() - 24 * 60 * 60 * 1000), ...orgParam, Number(limit)]).then(r => r[0]) : [],
 
     // stale_draft
     (!type || type === 'stale_draft') ? query(`
@@ -540,10 +540,10 @@ router.get('/anomalies', async (req, res) => {
              g.id AS target_id, CONCAT(g.title, ' — ', s.name) AS target_label,
              g.updated_at AS detected_at
       FROM galleries g
-      JOIN studios s ON s.id = g.studio_id
-      WHERE g.workflow_status = 'draft' AND g.updated_at < ? ${studioFilter}
+      JOIN organizations s ON s.id = g.organization_id
+      WHERE g.workflow_status = 'draft' AND g.updated_at < ? ${orgFilter}
       LIMIT ?
-    `, [new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), ...studioParam, Number(limit)]).then(r => r[0]) : [],
+    `, [new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), ...orgParam, Number(limit)]).then(r => r[0]) : [],
   ]);
 
   const items = [...buildFailed, ...inboxOld, ...staleGalleries]

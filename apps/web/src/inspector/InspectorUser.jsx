@@ -120,7 +120,7 @@ export function InspectorUserDetail() {
                           {data.memberships?.map((m, i) => (
                             <tr key={i}>
                               <td style={s.td}>
-                                <Link to={`/inspector/organizations/${m.organization_id || m.studio_id}`} style={s.link}>{m.organization_name || m.studio_name}</Link>
+                                <Link to={`/inspector/organizations/${m.organization_id}`} style={s.link}>{m.organization_name}</Link>
                               </td>
                               <td style={{ ...s.td, textAlign: 'right' }}>
                                 <span className="badge" style={{ background: '#2a2a3e', color: '#aaa', fontSize: '0.68rem' }}>{m.role}</span>

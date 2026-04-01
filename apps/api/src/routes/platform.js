@@ -86,7 +86,7 @@ router.get('/license/usage', async (req, res, next) => {
   try {
     const [[{ orgs }]]          = await query('SELECT COUNT(*) AS orgs FROM organizations');
     const [[{ galleries }]]     = await query('SELECT COUNT(*) AS galleries FROM galleries');
-    const [[{ collaborators }]] = await query("SELECT COUNT(*) AS collaborators FROM studio_memberships WHERE role != 'owner'");
+    const [[{ collaborators }]] = await query("SELECT COUNT(*) AS collaborators FROM organization_memberships WHERE role != 'owner'");
     const [[{ storageBytes }]]  = await query('SELECT COALESCE(SUM(size_bytes),0) AS storageBytes FROM photos');
     const storageGb = Math.round((Number(storageBytes) / (1024 ** 3)) * 100) / 100;
     res.json({ orgs: Number(orgs), galleries: Number(galleries), collaborators: Number(collaborators), storageGb });
@@ -142,7 +142,7 @@ router.post('/organizations', async (req, res) => {
       const s = await getSettings(org.id);
       const base = (s?.base_url || process.env.BASE_URL || 'http://localhost:4000').replace(/\/$/, '');
       sendInviteEmail({
-        studioId:   org.id,
+        organizationId: org.id,
         to:         ownerEmail,
         studioName: org.name,
         inviteUrl:  `${base}/admin/invite/${inviteToken}`,
@@ -219,7 +219,7 @@ router.delete('/organizations/:id', async (req, res) => {
   // so they survive the deletion (belt-and-suspenders on top of the FK SET NULL).
   const [[defaultOrg]] = await query('SELECT id FROM organizations WHERE is_default = 1 LIMIT 1');
   if (defaultOrg) {
-    await query('UPDATE users SET studio_id = ?, organization_id = ? WHERE studio_id = ?', [defaultOrg.id, defaultOrg.id, req.params.id]);
+    await query('UPDATE users SET organization_id = ? WHERE organization_id = ?', [defaultOrg.id, req.params.id]);
   }
 
   await deleteOrganization(req.params.id);
@@ -235,7 +235,7 @@ router.delete('/studios/:id', async (req, res) => {
 
   const [[defaultOrg]] = await query('SELECT id FROM organizations WHERE is_default = 1 LIMIT 1');
   if (defaultOrg) {
-    await query('UPDATE users SET studio_id = ?, organization_id = ? WHERE studio_id = ?', [defaultOrg.id, defaultOrg.id, req.params.id]);
+    await query('UPDATE users SET organization_id = ? WHERE organization_id = ?', [defaultOrg.id, req.params.id]);
   }
 
   await deleteOrganization(req.params.id);
@@ -245,10 +245,10 @@ router.delete('/studios/:id', async (req, res) => {
 // GET /api/platform/users — list all users (superadmin oversight)
 router.get('/users', async (req, res) => {
   const [rows] = await query(`
-    SELECT u.id, u.email, u.name, u.role, u.platform_role, u.studio_id AS organization_id, u.studio_id, u.created_at,
+    SELECT u.id, u.email, u.name, u.role, u.platform_role, u.organization_id, u.created_at,
            o.name AS organization_name, o.slug AS organization_slug
     FROM users u
-    LEFT JOIN organizations o ON o.id = u.studio_id
+    LEFT JOIN organizations o ON o.id = u.organization_id
     ORDER BY u.created_at DESC
   `);
   res.json(rows);

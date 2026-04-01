@@ -90,13 +90,13 @@ router.post('/', requireAuth, async (req, res) => {
   }
   if (scopeType === 'project') {
     const project = await getProject(scopeId);
-    if (!project || project.studio_id !== req.organizationId) {
+    if (!project || project.organization_id !== req.organizationId) {
       return res.status(404).json({ error: 'Project not found' });
     }
   }
   if (scopeType === 'gallery') {
-    const [gRows] = await query('SELECT studio_id FROM galleries WHERE id = ?', [scopeId]);
-    if (!gRows[0] || gRows[0].studio_id !== req.organizationId) {
+    const [gRows] = await query('SELECT organization_id FROM galleries WHERE id = ?', [scopeId]);
+    if (!gRows[0] || gRows[0].organization_id !== req.organizationId) {
       return res.status(404).json({ error: 'Gallery not found' });
     }
   }
@@ -121,7 +121,7 @@ router.post('/', requireAuth, async (req, res) => {
     const org     = await getOrganization(req.organizationId);
     const base    = (s?.base_url || process.env.BASE_URL || 'http://localhost:4000').replace(/\/$/, '');
     sendInviteEmail({
-      studioId:   req.organizationId,
+      organizationId: req.organizationId,
       to:         email,
       studioName: org?.name || 'GalleryPack',
       inviteUrl:  `${base}/admin/invite/${invite.token}`,
@@ -207,7 +207,7 @@ router.post('/accept/:token', async (req, res) => {
     maxAge:   30 * 24 * 60 * 60 * 1000,
   });
 
-  try { await audit(user.studio_id, user.id, 'invite.accepted', 'user', user.id, { email: user.email }); } catch {}
+  try { await audit(user.organization_id, user.id, 'invite.accepted', 'user', user.id, { email: user.email }); } catch {}
   res.status(201).json({
     ok:   true,
     user: { id: user.id, email: user.email, role: user.role, name: user.name },

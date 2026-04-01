@@ -10,7 +10,8 @@ import { Router }     from 'express';
 import multer         from 'multer';
 import path           from 'path';
 import fs             from 'fs';
-import { randomUUID } from 'crypto';
+import { randomUUID, createHash } from 'crypto';
+import { createReadStream }       from 'fs';
 import { query }      from '../db/database.js';
 import { getUploadLinkByToken, getPhotographerByUploadLink } from '../db/helpers.js';
 import { emit, EVENTS } from '../services/events.js';
@@ -24,6 +25,16 @@ const router = Router();
 
 function photosDir(slug) {
   return path.join(SRC_ROOT, slug, 'photos');
+}
+
+function hashFile(filePath) {
+  return new Promise((resolve, reject) => {
+    const hash = createHash('sha256');
+    createReadStream(filePath)
+      .on('data', chunk => hash.update(chunk))
+      .on('end',  ()    => resolve(hash.digest('hex')))
+      .on('error', reject);
+  });
 }
 
 // Multer for token-based uploads — destination resolved after token validation
@@ -93,20 +104,23 @@ router.post('/:token/photos', upload.array('photos', 50), async (req, res) => {
   // Resolve linked photographer for auto-attribution
   const photographer = await getPhotographerByUploadLink(link.id);
 
-  // Deduplicate by original_name
+  // Content-hash dedup: skip files whose content already exists in this gallery
   const incomingFiles = req.files || [];
-  const incomingNames = incomingFiles.map(f => f.originalname);
-  let newFiles = incomingFiles;
-  if (incomingNames.length > 0) {
-    const placeholders = incomingNames.map(() => '?').join(',');
-    const [dupRows] = await query(
-      `SELECT original_name FROM photos WHERE gallery_id = ? AND original_name IN (${placeholders})`,
-      [link.gallery_id, ...incomingNames],
+  const withHashes = await Promise.all(
+    incomingFiles.map(async f => ({ ...f, _contentHash: await hashFile(f.path) }))
+  );
+  let newFiles = withHashes;
+  if (withHashes.length > 0) {
+    const hashes       = withHashes.map(f => f._contentHash);
+    const placeholders = hashes.map(() => '?').join(',');
+    const [dupRows]    = await query(
+      `SELECT content_hash FROM photos WHERE gallery_id = ? AND content_hash IN (${placeholders})`,
+      [link.gallery_id, ...hashes],
     );
-    const dupNames = new Set(dupRows.map(r => r.original_name));
-    if (dupNames.size > 0) {
-      newFiles = incomingFiles.filter(f => !dupNames.has(f.originalname));
-      for (const f of incomingFiles.filter(f => dupNames.has(f.originalname))) {
+    const dupHashes = new Set(dupRows.map(r => r.content_hash));
+    if (dupHashes.size > 0) {
+      newFiles = withHashes.filter(f => !dupHashes.has(f._contentHash));
+      for (const f of withHashes.filter(f => dupHashes.has(f._contentHash))) {
         try { fs.unlinkSync(f.path); } catch {}
       }
     }
@@ -131,7 +145,7 @@ router.post('/:token/photos', upload.array('photos', 50), async (req, res) => {
     const mdDest  = thumbPath(photoId, 'md');
     try {
       await runSharp({ op: 'validate-and-thumbs', srcPath: f.path, smPath: smDest, mdPath: mdDest });
-      validFiles.push({ ...f, _photoId: photoId });
+      validFiles.push({ ...f, _photoId: photoId, _contentHash: f._contentHash });
     } catch {
       rejectedFiles.push(f.originalname || f.filename);
     }
@@ -144,13 +158,13 @@ router.post('/:token/photos', upload.array('photos', 50), async (req, res) => {
   for (const f of validFiles) {
     const photoId = f._photoId;
     await query(
-      `INSERT INTO photos (id, gallery_id, filename, original_name, size_bytes, status, upload_link_id, photographer_id)
-       VALUES (?, ?, ?, ?, ?, 'approved', ?, ?)
+      `INSERT INTO photos (id, gallery_id, filename, original_name, content_hash, size_bytes, status, upload_link_id, photographer_id)
+       VALUES (?, ?, ?, ?, ?, ?, 'approved', ?, ?)
        ON DUPLICATE KEY UPDATE
          size_bytes = VALUES(size_bytes),
          original_name = VALUES(original_name),
          photographer_id = VALUES(photographer_id)`,
-      [photoId, link.gallery_id, f.filename, f.originalname, f.size, link.id, photographer?.id ?? null]
+      [photoId, link.gallery_id, f.filename, f.originalname, f._contentHash, f.size, link.id, photographer?.id ?? null]
     );
     // sm already done above; generate md thumbnail
     try {
@@ -174,7 +188,7 @@ router.post('/:token/photos', upload.array('photos', 50), async (req, res) => {
       [Date.now(), link.gallery_id]
     );
     // Emit business event so editors get notified
-    const orgId = link.organization_id || link.studio_id;
+    const orgId = link.organization_id;
     emit(EVENTS.PHOTO_UPLOADED, {
       studioId:        orgId,
       galleryId:       link.gallery_id,

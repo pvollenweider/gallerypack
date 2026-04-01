@@ -22,7 +22,7 @@ import { SRC_ROOT } from '../../../../packages/engine/src/fs.js';
 import { runSharp } from './sharpProcess.js';
 
 export async function bootstrap() {
-  const [rows] = await query('SELECT COUNT(*) AS n FROM studios');
+  const [rows] = await query('SELECT COUNT(*) AS n FROM organizations');
   const studioCount = rows[0].n;
 
   const adminPassword = process.env.ADMIN_PASSWORD;
@@ -64,18 +64,18 @@ export async function bootstrap() {
     return;
   }
 
-  // Backfill: ensure every admin user has a studio_membership row
+  // Backfill: ensure every admin user has an organization_membership row
   const [admins] = await query(
-    "SELECT u.id, u.studio_id FROM users u WHERE u.role = 'admin' AND u.studio_id IS NOT NULL"
+    "SELECT u.id, u.organization_id FROM users u WHERE u.role = 'admin' AND u.organization_id IS NOT NULL"
   );
 
   for (const admin of admins) {
     const [existing] = await query(
-      'SELECT id FROM studio_memberships WHERE studio_id = ? AND user_id = ?',
-      [admin.studio_id, admin.id]
+      'SELECT id FROM organization_memberships WHERE organization_id = ? AND user_id = ?',
+      [admin.organization_id, admin.id]
     );
     if (!existing[0]) {
-      await upsertOrgMember(admin.studio_id, admin.id, 'owner');
+      await upsertOrgMember(admin.organization_id, admin.id, 'owner');
       console.log(`  ✓  Backfilled owner membership for user ${admin.id}`);
     }
   }

@@ -20,14 +20,13 @@ import { Router }          from 'express';
 import { requireAuth }     from '../middleware/auth.js';
 import { createTusServer } from '../services/tusService.js';
 
-// One tus server per studio context — lazily created and cached.
-// Studio context is resolved from the session on each request (studioId on req).
+// One tus server per organization — lazily created and cached.
 const _tusServers = new Map();
-function getTusServer(studioId) {
-  if (!_tusServers.has(studioId)) {
-    _tusServers.set(studioId, createTusServer(studioId));
+function getTusServer(organizationId) {
+  if (!_tusServers.has(organizationId)) {
+    _tusServers.set(organizationId, createTusServer(organizationId));
   }
-  return _tusServers.get(studioId);
+  return _tusServers.get(organizationId);
 }
 
 const router = Router();

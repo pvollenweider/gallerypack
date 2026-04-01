@@ -48,7 +48,7 @@ router.get('/', async (req, res) => {
   const result = rowToSettings(row);
   // Attach primary domain (hostname field)
   const [domainRows] = await query(
-    'SELECT domain FROM studio_domains WHERE studio_id = ? AND is_primary = 1 LIMIT 1',
+    'SELECT domain FROM organization_domains WHERE organization_id = ? AND is_primary = 1 LIMIT 1',
     [req.organizationId]
   );
   result.hostname = domainRows[0]?.domain ?? null;
@@ -88,20 +88,20 @@ router.patch('/', async (req, res) => {
 
   await upsertSettings(req.organizationId, updates);
 
-  // Persist primary hostname to studio_domains if provided
+  // Persist primary hostname to organization_domains if provided
   if (hostname !== undefined) {
     const h = (hostname || '').trim().toLowerCase();
     if (h) {
       // Remove existing primary domain for this studio, then insert new one
 
-      await query('UPDATE studio_domains SET is_primary = 0 WHERE studio_id = ?', [req.organizationId]);
+      await query('UPDATE organization_domains SET is_primary = 0 WHERE organization_id = ?', [req.organizationId]);
       await query(
-        'INSERT INTO studio_domains (id, studio_id, domain, is_primary, created_at) VALUES (?, ?, ?, 1, ?) ON DUPLICATE KEY UPDATE is_primary = 1',
+        'INSERT INTO organization_domains (id, organization_id, domain, is_primary, created_at) VALUES (?, ?, ?, 1, ?) ON DUPLICATE KEY UPDATE is_primary = 1',
         [genId(), req.organizationId, h, Date.now()]
       );
     } else {
       // Clear primary hostname
-      await query('UPDATE studio_domains SET is_primary = 0 WHERE studio_id = ?', [req.organizationId]);
+      await query('UPDATE organization_domains SET is_primary = 0 WHERE organization_id = ?', [req.organizationId]);
     }
   }
 
@@ -110,7 +110,7 @@ router.patch('/', async (req, res) => {
   try { await audit(req.organizationId, req.userId, 'organization.settings_changed', 'organization', req.organizationId, { smtp_changed: hasSmtpChange }); } catch {}
   const finalRow = await getSettings(req.organizationId);
   const finalResult = rowToSettings(finalRow);
-  const [finalDomainRows] = await query('SELECT domain FROM studio_domains WHERE studio_id = ? AND is_primary = 1 LIMIT 1', [req.organizationId]);
+  const [finalDomainRows] = await query('SELECT domain FROM organization_domains WHERE organization_id = ? AND is_primary = 1 LIMIT 1', [req.organizationId]);
   finalResult.hostname = finalDomainRows[0]?.domain ?? null;
   res.json(finalResult);
 });

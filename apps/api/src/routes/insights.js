@@ -32,7 +32,7 @@ router.get('/:id/insights', async (req, res, next) => {
       `SELECT g.*, p.slug AS proj_slug
        FROM galleries g
        LEFT JOIN projects p ON p.id = g.project_id
-       WHERE g.id = ? AND g.studio_id = ? LIMIT 1`,
+       WHERE g.id = ? AND g.organization_id = ? LIMIT 1`,
       [id, req.organizationId]
     );
     const gallery = rows[0];

@@ -42,9 +42,9 @@ function photosDir(slug) {
   return path.join(SRC_ROOT, slug, 'photos');
 }
 
-async function ensureGalleryBelongsToStudio(req, res) {
+async function ensureGalleryBelongsToOrg(req, res) {
   const [rows] = await query(
-    'SELECT * FROM galleries WHERE id = ? AND studio_id = ?',
+    'SELECT * FROM galleries WHERE id = ? AND organization_id = ?',
     [req.params.id, req.organizationId]
   );
   if (!rows[0]) { res.status(404).json({ error: 'Gallery not found' }); return null; }
@@ -56,7 +56,7 @@ const storage = multer.diskStorage({
   async destination(req, file, cb) {
     try {
       const [rows] = await query(
-        'SELECT slug FROM galleries WHERE id = ? AND studio_id = ?',
+        'SELECT slug FROM galleries WHERE id = ? AND organization_id = ?',
         [req.params.id, req.organizationId]
       );
       if (!rows[0]) return cb(new Error('Gallery not found'));
@@ -90,7 +90,7 @@ const upload = multer({
 
 // GET /api/galleries/:id/photos/:filename/preview — serve original photo resized to 800px
 router.get('/:id/photos/:filename/preview', async (req, res) => {
-  const gallery = await ensureGalleryBelongsToStudio(req, res);
+  const gallery = await ensureGalleryBelongsToOrg(req, res);
   if (!gallery) return;
   const galleryRole = await getGalleryRole(req.userId, gallery.id);
   if (!can(req.user, 'read', 'gallery', { gallery, studioRole: req.studioRole, galleryRole })) {
@@ -119,7 +119,7 @@ router.get('/:id/photos/:filename/preview', async (req, res) => {
 // GET /api/galleries/:id/photos/:photoId/download-original
 // Stream the original source file. Requires allow_download_original on the gallery.
 router.get('/:id/photos/:photoId/download-original', async (req, res) => {
-  const gallery = await ensureGalleryBelongsToStudio(req, res);
+  const gallery = await ensureGalleryBelongsToOrg(req, res);
   if (!gallery) return;
 
   if (!gallery.allow_download_original) {
@@ -141,7 +141,7 @@ router.get('/:id/photos/:photoId/download-original', async (req, res) => {
 
 // GET /api/galleries/:id/photos — list photos (DB-backed, falls back to filesystem for legacy rows)
 router.get('/:id/photos', async (req, res) => {
-  const gallery = await ensureGalleryBelongsToStudio(req, res);
+  const gallery = await ensureGalleryBelongsToOrg(req, res);
   if (!gallery) return;
   const galleryRole = await getGalleryRole(req.userId, gallery.id);
   if (!can(req.user, 'read', 'gallery', { gallery, studioRole: req.studioRole, galleryRole })) {
@@ -232,7 +232,7 @@ router.get('/:id/photos', async (req, res) => {
 
 // GET /api/galleries/:id/photos/inbox — photos awaiting validation (status=uploaded)
 router.get('/:id/photos/inbox', async (req, res) => {
-  const gallery = await ensureGalleryBelongsToStudio(req, res);
+  const gallery = await ensureGalleryBelongsToOrg(req, res);
   if (!gallery) return;
   const galleryRole = await getGalleryRole(req.userId, gallery.id);
   if (!can(req.user, 'read', 'gallery', { gallery, studioRole: req.studioRole, galleryRole })) {
@@ -255,7 +255,7 @@ router.post('/:id/photos', (req, res, next) => {
 }, async (req, res) => {
   uploadStarted();
   try {
-  const gallery = await ensureGalleryBelongsToStudio(req, res);
+  const gallery = await ensureGalleryBelongsToOrg(req, res);
   if (!gallery) return;
   const galleryRole = await getGalleryRole(req.userId, gallery.id);
   if (!can(req.user, 'upload', 'photo', { studioRole: req.studioRole, galleryRole })) {
@@ -377,7 +377,7 @@ router.post('/:id/photos', (req, res, next) => {
 
 // POST /api/galleries/:id/photos/validate — bulk validate (accept) inbox photos
 router.post('/:id/photos/validate', async (req, res) => {
-  const gallery = await ensureGalleryBelongsToStudio(req, res);
+  const gallery = await ensureGalleryBelongsToOrg(req, res);
   if (!gallery) return;
   const galleryRole = await getGalleryRole(req.userId, gallery.id);
   if (!can(req.user, 'upload', 'photo', { studioRole: req.studioRole, galleryRole })) {
@@ -407,7 +407,7 @@ router.post('/:id/photos/validate', async (req, res) => {
 
 // POST /api/galleries/:id/photos/reject — bulk reject (delete) inbox photos
 router.post('/:id/photos/reject', async (req, res) => {
-  const gallery = await ensureGalleryBelongsToStudio(req, res);
+  const gallery = await ensureGalleryBelongsToOrg(req, res);
   if (!gallery) return;
   const galleryRole = await getGalleryRole(req.userId, gallery.id);
   if (!can(req.user, 'upload', 'photo', { studioRole: req.studioRole, galleryRole })) {
@@ -445,7 +445,7 @@ router.post('/:id/photos/reject', async (req, res) => {
 
 // DELETE /api/galleries/:id/photos/:filename
 router.delete('/:id/photos/:filename', async (req, res) => {
-  const gallery = await ensureGalleryBelongsToStudio(req, res);
+  const gallery = await ensureGalleryBelongsToOrg(req, res);
   if (!gallery) return;
   const galleryRole = await getGalleryRole(req.userId, gallery.id);
   if (!can(req.user, 'delete', 'photo', { studioRole: req.studioRole, galleryRole })) {
@@ -470,7 +470,7 @@ router.delete('/:id/photos/:filename', async (req, res) => {
 
 // PUT /api/galleries/:id/photos/order — save explicit photo order
 router.put('/:id/photos/order', async (req, res) => {
-  const gallery = await ensureGalleryBelongsToStudio(req, res);
+  const gallery = await ensureGalleryBelongsToOrg(req, res);
   if (!gallery) return;
   const galleryRole = await getGalleryRole(req.userId, gallery.id);
   if (!can(req.user, 'upload', 'photo', { studioRole: req.studioRole, galleryRole })) {
@@ -501,7 +501,7 @@ router.put('/:id/photos/order', async (req, res) => {
 
 // POST /api/galleries/:id/photos/upload-done — photographer signals they're done uploading
 router.post('/:id/photos/upload-done', async (req, res) => {
-  const gallery = await ensureGalleryBelongsToStudio(req, res);
+  const gallery = await ensureGalleryBelongsToOrg(req, res);
   if (!gallery) return;
 
   const galleryRole = await getGalleryRole(req.userId, gallery.id);
@@ -542,7 +542,7 @@ router.post('/:id/photos/upload-done', async (req, res) => {
 
 // GET /api/galleries/:id/upload-links
 router.get('/:id/upload-links', async (req, res) => {
-  const gallery = await ensureGalleryBelongsToStudio(req, res);
+  const gallery = await ensureGalleryBelongsToOrg(req, res);
   if (!gallery) return;
   const galleryRole = await getGalleryRole(req.userId, gallery.id);
   if (!can(req.user, 'upload', 'photo', { studioRole: req.studioRole, galleryRole })) {
@@ -561,7 +561,7 @@ router.get('/:id/upload-links', async (req, res) => {
 // Body: { label?, expiresAt?, photographerName?, photographerEmail?, photographerBio? }
 // If photographerName is provided, a photographers row is created and linked to the upload link.
 router.post('/:id/upload-links', async (req, res) => {
-  const gallery = await ensureGalleryBelongsToStudio(req, res);
+  const gallery = await ensureGalleryBelongsToOrg(req, res);
   if (!gallery) return;
   const galleryRole = await getGalleryRole(req.userId, gallery.id);
   if (!can(req.user, 'upload', 'photo', { studioRole: req.studioRole, galleryRole })) {
@@ -593,7 +593,7 @@ router.post('/:id/upload-links', async (req, res) => {
 
 // DELETE /api/galleries/:id/upload-links/:linkId — revoke upload link
 router.delete('/:id/upload-links/:linkId', async (req, res) => {
-  const gallery = await ensureGalleryBelongsToStudio(req, res);
+  const gallery = await ensureGalleryBelongsToOrg(req, res);
   if (!gallery) return;
   const galleryRole = await getGalleryRole(req.userId, gallery.id);
   if (!can(req.user, 'upload', 'photo', { studioRole: req.studioRole, galleryRole })) {
@@ -616,14 +616,14 @@ router.delete('/:id/upload-links/:linkId', async (req, res) => {
 
 // GET /api/galleries/:id/photographers
 router.get('/:id/photographers', async (req, res) => {
-  const gallery = await ensureGalleryBelongsToStudio(req, res);
+  const gallery = await ensureGalleryBelongsToOrg(req, res);
   if (!gallery) return;
   res.json(await listPhotographers(gallery.id));
 });
 
 // GET /api/galleries/:id/photographers/active — users with at least one photo attributed in this gallery
 router.get('/:id/photographers/active', async (req, res) => {
-  const gallery = await ensureGalleryBelongsToStudio(req, res);
+  const gallery = await ensureGalleryBelongsToOrg(req, res);
   if (!gallery) return;
   const [rows] = await query(
     `SELECT DISTINCT u.id, u.name, u.email, u.is_photographer
@@ -638,7 +638,7 @@ router.get('/:id/photographers/active', async (req, res) => {
 
 // POST /api/galleries/:id/photographers
 router.post('/:id/photographers', async (req, res) => {
-  const gallery = await ensureGalleryBelongsToStudio(req, res);
+  const gallery = await ensureGalleryBelongsToOrg(req, res);
   if (!gallery) return;
   if (!can(req.user, 'upload', 'photo', { studioRole: req.studioRole })) {
     return res.status(403).json({ error: 'Forbidden' });
@@ -654,7 +654,7 @@ router.post('/:id/photographers', async (req, res) => {
 
 // PATCH /api/galleries/:id/photographers/:pgId
 router.patch('/:id/photographers/:pgId', async (req, res) => {
-  const gallery = await ensureGalleryBelongsToStudio(req, res);
+  const gallery = await ensureGalleryBelongsToOrg(req, res);
   if (!gallery) return;
   if (!can(req.user, 'upload', 'photo', { studioRole: req.studioRole })) {
     return res.status(403).json({ error: 'Forbidden' });
@@ -669,7 +669,7 @@ router.patch('/:id/photographers/:pgId', async (req, res) => {
 
 // DELETE /api/galleries/:id/photographers/:pgId
 router.delete('/:id/photographers/:pgId', async (req, res) => {
-  const gallery = await ensureGalleryBelongsToStudio(req, res);
+  const gallery = await ensureGalleryBelongsToOrg(req, res);
   if (!gallery) return;
   if (!can(req.user, 'write', 'gallery', { studioRole: req.studioRole })) {
     return res.status(403).json({ error: 'Forbidden' });
@@ -686,7 +686,7 @@ router.delete('/:id/photographers/:pgId', async (req, res) => {
 // PATCH /api/galleries/:id/photos/bulk-attribute — bulk set photographer on multiple photos
 // NOTE: must be declared before /:id/photos/:photoId to avoid the wildcard swallowing it
 router.patch('/:id/photos/bulk-attribute', async (req, res) => {
-  const gallery = await ensureGalleryBelongsToStudio(req, res);
+  const gallery = await ensureGalleryBelongsToOrg(req, res);
   if (!gallery) return;
   const galleryRole = await getGalleryRole(req.userId, gallery.id);
   if (!can(req.user, 'upload', 'photo', { studioRole: req.studioRole, galleryRole })) {
@@ -708,7 +708,7 @@ router.patch('/:id/photos/bulk-attribute', async (req, res) => {
 
 // PATCH /api/galleries/:id/photos/:photoId — manually set photographer_id on a single photo
 router.patch('/:id/photos/:photoId', async (req, res) => {
-  const gallery = await ensureGalleryBelongsToStudio(req, res);
+  const gallery = await ensureGalleryBelongsToOrg(req, res);
   if (!gallery) return;
   const galleryRole = await getGalleryRole(req.userId, gallery.id);
   if (!can(req.user, 'upload', 'photo', { studioRole: req.studioRole, galleryRole })) {

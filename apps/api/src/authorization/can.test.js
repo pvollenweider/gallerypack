@@ -13,7 +13,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { can } from './index.js';
 
-const user = { id: 'u1', organization_id: 's1', studio_id: 's1', role: 'admin' };
+const user = { id: 'u1', organization_id: 's1', role: 'admin' };
 
 // ── Platform superadmin ───────────────────────────────────────────────────────
 
@@ -124,10 +124,13 @@ describe('project.delete', () => {
   });
 });
 
-describe('project.manageMembers / manageAccess', () => {
-  for (const action of ['manageMembers', 'manageAccess', 'manage']) {
+describe('project.manageMembers / manage', () => {
+  for (const action of ['manageMembers', 'manage']) {
     test(`admin can ${action} project`, () => {
       assert.equal(can(user, action, 'project', { studioRole: 'admin' }), true);
+    });
+    test(`collaborator cannot ${action} project`, () => {
+      assert.equal(can(user, action, 'project', { studioRole: 'collaborator' }), false);
     });
     test(`project manager can ${action} project`, () => {
       assert.equal(can(user, action, 'project', { projectRole: 'manager' }), true);
@@ -136,6 +139,24 @@ describe('project.manageMembers / manageAccess', () => {
       assert.equal(can(user, action, 'project', { projectRole: 'editor' }), false);
     });
   }
+});
+
+describe('project.manageAccess', () => {
+  test('collaborator can manageAccess project', () => {
+    assert.equal(can(user, 'manageAccess', 'project', { studioRole: 'collaborator' }), true);
+  });
+  test('admin can manageAccess project', () => {
+    assert.equal(can(user, 'manageAccess', 'project', { studioRole: 'admin' }), true);
+  });
+  test('photographer cannot manageAccess project', () => {
+    assert.equal(can(user, 'manageAccess', 'project', { studioRole: 'photographer' }), false);
+  });
+  test('project manager can manageAccess project', () => {
+    assert.equal(can(user, 'manageAccess', 'project', { projectRole: 'manager' }), true);
+  });
+  test('project editor cannot manageAccess project', () => {
+    assert.equal(can(user, 'manageAccess', 'project', { projectRole: 'editor' }), false);
+  });
 });
 
 // ── Gallery-level: read ───────────────────────────────────────────────────────
@@ -272,7 +293,8 @@ describe('can deletePhoto from gallery', () => {
 
 describe('can manageAccess for gallery', () => {
   test('admin can manageAccess', () => assert.equal(can(user, 'manageAccess', 'gallery', { studioRole: 'admin' }), true));
-  test('collaborator cannot manageAccess', () => assert.equal(can(user, 'manageAccess', 'gallery', { studioRole: 'collaborator' }), false));
+  test('collaborator can manageAccess', () => assert.equal(can(user, 'manageAccess', 'gallery', { studioRole: 'collaborator' }), true));
+  test('photographer cannot manageAccess', () => assert.equal(can(user, 'manageAccess', 'gallery', { studioRole: 'photographer' }), false));
   test('project manager can manageAccess', () => assert.equal(can(user, 'manageAccess', 'gallery', { projectRole: 'manager' }), true));
   test('project editor cannot manageAccess', () => assert.equal(can(user, 'manageAccess', 'gallery', { projectRole: 'editor' }), false));
   test('gallery editor can manageAccess', () => assert.equal(can(user, 'manageAccess', 'gallery', { galleryRole: 'editor' }), true));

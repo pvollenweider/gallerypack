@@ -39,7 +39,7 @@ router.post('/', requireAuth, async (req, res) => {
     const gallery = galleryRows?.[0] || null;
     const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 4000}`;
     sendInviteEmail({
-      studioId:     req.organizationId,
+      organizationId: req.organizationId,
       to:           invite.email,
       studioName:   org?.name || 'GalleryPack',
       galleryTitle: gallery?.title || null,
@@ -92,7 +92,7 @@ router.post('/:id/revoke', requireAuth, async (req, res) => {
   const invite = await getInviteById(req.params.id);
 
   if (!invite) return res.status(404).json({ error: 'Invite not found' });
-  if (invite.studio_id !== req.organizationId) return res.status(403).json({ error: 'Forbidden' });
+  if (invite.organization_id !== req.organizationId) return res.status(403).json({ error: 'Forbidden' });
 
   await revokeInvite(invite.id);
   res.json({ ok: true });

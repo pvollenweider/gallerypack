@@ -30,13 +30,13 @@ router.use(requireAuth);
 
 // ── Shared helper: load gallery with project slug ──────────────────────────
 
-async function loadGallery(id, studioId) {
+async function loadGallery(id, organizationId) {
   const [rows] = await query(
     `SELECT g.*, p.slug AS proj_slug
      FROM galleries g
      LEFT JOIN projects p ON p.id = g.project_id
-     WHERE g.id = ? AND g.studio_id = ? LIMIT 1`,
-    [id, studioId]
+     WHERE g.id = ? AND g.organization_id = ? LIMIT 1`,
+    [id, organizationId]
   );
   return rows[0] ?? null;
 }

@@ -52,7 +52,7 @@ router.post('/', requireAuth, async (req, res) => {
   // If the user already exists in this studio, just (re-)assign the gallery role directly
   // instead of sending a new invitation (covers the "revoked then re-added" case).
   const existingUser = await getUserByEmail(email);
-  if (existingUser && existingUser.studio_id === req.organizationId) {
+  if (existingUser && existingUser.organization_id === req.organizationId) {
     if (galleryId && galleryRole) {
       await upsertGalleryRoleAssignment(galleryId, existingUser.id, galleryRole, req.userId);
       try { await audit(req.organizationId, req.userId, 'gallery.member_added', 'gallery', galleryId, { userId: existingUser.id, role: galleryRole, via: 'reinvite' }); } catch {}
@@ -78,7 +78,7 @@ router.post('/', requireAuth, async (req, res) => {
     const base = (s?.base_url || process.env.BASE_URL || 'http://localhost:4000').replace(/\/$/, '');
     const org = await getOrganization(req.organizationId);
     sendInviteEmail({
-      studioId: req.organizationId,
+      organizationId: req.organizationId,
       to: email,
       studioName: org?.name || 'GalleryPack',
       inviteUrl: `${base}/admin/invite/${invitation.token}`,
@@ -116,7 +116,7 @@ router.get('/accept/:token', async (req, res) => {
   const inv = await getInvitationByToken(req.params.token);
   if (!inv) return res.status(404).json({ error: 'Invitation not found' });
 
-  const org = await getOrganization(inv.studio_id);
+  const org = await getOrganization(inv.organization_id);
 
   let galleryTitle = null;
   if (inv.gallery_id) {
@@ -159,7 +159,7 @@ router.post('/accept/:token', async (req, res) => {
     maxAge: 30 * 24 * 60 * 60 * 1000,
   });
 
-  try { await audit(user.studio_id, user.id, 'member.invite_accepted', 'user', user.id, { email: user.email }); } catch {}
+  try { await audit(user.organization_id, user.id, 'member.invite_accepted', 'user', user.id, { email: user.email }); } catch {}
   res.status(201).json({
     ok:   true,
     user: { id: user.id, email: user.email, role: user.role, name: user.name },

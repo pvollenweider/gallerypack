@@ -25,7 +25,8 @@
 
 import path              from 'node:path';
 import fs                from 'node:fs';
-import { randomUUID }    from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
+import { createReadStream }       from 'node:fs';
 import { Server }    from '@tus/server';
 import { FileStore } from '@tus/file-store';
 import { query }         from '../db/database.js';
@@ -38,11 +39,23 @@ import { audit, getUploadLinkByToken, getPhotographerByUploadLink } from '../db/
 import { emit, EVENTS } from './events.js';
 import { uploadLogger as log } from '../lib/logger.js';
 
+// ── Content-hash helper ───────────────────────────────────────────────────────
+
+function hashFile(filePath) {
+  return new Promise((resolve, reject) => {
+    const hash = createHash('sha256');
+    createReadStream(filePath)
+      .on('data', chunk => hash.update(chunk))
+      .on('end',  ()    => resolve(hash.digest('hex')))
+      .on('error', reject);
+  });
+}
+
 // ── Storage quota helpers ─────────────────────────────────────────────────────
 
 async function checkStorageQuota(studioId, additionalBytes) {
   const [rows] = await query(
-    'SELECT storage_quota_bytes, storage_used_bytes FROM studios WHERE id = ?', [studioId]
+    'SELECT storage_quota_bytes, storage_used_bytes FROM organizations WHERE id = ?', [studioId]
   );
   const studio = rows[0];
   if (!studio || studio.storage_quota_bytes === null) return;   // unlimited
@@ -55,14 +68,14 @@ async function checkStorageQuota(studioId, additionalBytes) {
 
 async function incrementStorageUsed(studioId, bytes) {
   await query(
-    'UPDATE studios SET storage_used_bytes = GREATEST(0, storage_used_bytes + ?) WHERE id = ?',
+    'UPDATE organizations SET storage_used_bytes = GREATEST(0, storage_used_bytes + ?) WHERE id = ?',
     [bytes, studioId]
   );
 }
 
 export async function decrementStorageUsed(studioId, bytes) {
   await query(
-    'UPDATE studios SET storage_used_bytes = GREATEST(0, storage_used_bytes - ?) WHERE id = ?',
+    'UPDATE organizations SET storage_used_bytes = GREATEST(0, storage_used_bytes - ?) WHERE id = ?',
     [bytes, studioId]
   );
 }
@@ -131,22 +144,11 @@ async function finaliseUpload({ upload, galleryId, userId, studioId, req }) {
 
   // Resolve gallery slug
   const [gRows] = await query(
-    'SELECT id, slug FROM galleries WHERE id = ? AND studio_id = ?',
+    'SELECT id, slug FROM galleries WHERE id = ? AND organization_id = ?',
     [galleryId, studioId],
   );
   const gallery = gRows[0];
   if (!gallery) return { ok: false, reason: 'Gallery not found' };
-
-  // Dedup check: skip if original_name already exists in this gallery
-  const [dupRows] = await query(
-    'SELECT id FROM photos WHERE gallery_id = ? AND original_name = ? LIMIT 1',
-    [gallery.id, originalName],
-  );
-  if (dupRows[0]) {
-    // Already uploaded — clean up tus data file silently
-    try { fs.unlinkSync(upload.storage?.path); } catch {}
-    return { ok: true, duplicate: true };
-  }
 
   // Gallery quota
   const [countRows] = await query('SELECT COUNT(*) AS n FROM photos WHERE gallery_id = ?', [gallery.id]);
@@ -154,14 +156,26 @@ async function finaliseUpload({ upload, galleryId, userId, studioId, req }) {
     return { ok: false, reason: `Gallery quota exceeded (max ${MAX_PHOTOS_PER_GALLERY} photos)` };
   }
 
-  const destDir  = photosDir(gallery.slug);
-  fs.mkdirSync(destDir, { recursive: true });
-
   // tus stores the completed file at upload.storage.path
   const tusPath  = upload.storage?.path;
   if (!tusPath || !fs.existsSync(tusPath)) {
     return { ok: false, reason: 'Upload data file not found on disk' };
   }
+
+  // Content-hash dedup: skip if identical file already in this gallery
+  const contentHash = await hashFile(tusPath);
+  const [dupRows] = await query(
+    'SELECT id FROM photos WHERE gallery_id = ? AND content_hash = ? LIMIT 1',
+    [gallery.id, contentHash],
+  );
+  if (dupRows[0]) {
+    try { fs.unlinkSync(tusPath); } catch {}
+    try { fs.unlinkSync(`${tusPath}.json`); } catch {}
+    return { ok: true, duplicate: true };
+  }
+
+  const destDir  = photosDir(gallery.slug);
+  fs.mkdirSync(destDir, { recursive: true });
 
   const photoId  = randomUUID();
   const destName = `${photoId}${ext}`;
@@ -186,10 +200,10 @@ async function finaliseUpload({ upload, galleryId, userId, studioId, req }) {
   const sizeByte = fs.statSync(destPath).size;
 
   const [result] = await query(
-    `INSERT INTO photos (id, gallery_id, filename, original_name, size_bytes, status, uploaded_by_user_id)
-     VALUES (?, ?, ?, ?, ?, 'validated', ?)
+    `INSERT INTO photos (id, gallery_id, filename, original_name, content_hash, size_bytes, status, uploaded_by_user_id)
+     VALUES (?, ?, ?, ?, ?, ?, 'validated', ?)
      ON DUPLICATE KEY UPDATE size_bytes = VALUES(size_bytes), original_name = VALUES(original_name)`,
-    [photoId, gallery.id, destName, originalName, sizeByte, userId],
+    [photoId, gallery.id, destName, originalName, contentHash, sizeByte, userId],
   );
 
   if (result.affectedRows === 2) {
@@ -253,7 +267,7 @@ export function createTusServer(studioId) {
       }
 
       const [rows] = await query(
-        'SELECT id FROM galleries WHERE id = ? AND studio_id = ?',
+        'SELECT id FROM galleries WHERE id = ? AND organization_id = ?',
         [galleryId, studioId],
       );
       if (!rows[0]) {
@@ -354,29 +368,31 @@ export function getPublicTusServer() {
             throw { status_code: 422, body: `Unsupported format. Accepted: ${SUPPORTED_FORMATS}` };
           }
 
-          // Dedup check
-          const [dupRows] = await query(
-            'SELECT id FROM photos WHERE gallery_id = ? AND original_name = ? LIMIT 1',
-            [link.gallery_id, originalName],
-          );
-          if (dupRows[0]) {
-            try { fs.unlinkSync(upload.storage?.path); } catch {}
-            return res;
-          }
-
           // Quota
           const [countRows] = await query('SELECT COUNT(*) AS n FROM photos WHERE gallery_id = ?', [link.gallery_id]);
           if (Number(countRows[0].n) >= MAX_PHOTOS_PER_GALLERY) {
             throw { status_code: 422, body: `Gallery quota exceeded (max ${MAX_PHOTOS_PER_GALLERY} photos)` };
           }
 
-          const destDir  = photosDir(link.gallery_slug);
-          fs.mkdirSync(destDir, { recursive: true });
-
           const tusPath = upload.storage?.path;
           if (!tusPath || !fs.existsSync(tusPath)) {
             throw { status_code: 500, body: 'Upload data file not found' };
           }
+
+          // Content-hash dedup
+          const contentHash = await hashFile(tusPath);
+          const [dupRows] = await query(
+            'SELECT id FROM photos WHERE gallery_id = ? AND content_hash = ? LIMIT 1',
+            [link.gallery_id, contentHash],
+          );
+          if (dupRows[0]) {
+            try { fs.unlinkSync(tusPath); } catch {}
+            try { fs.unlinkSync(`${tusPath}.json`); } catch {}
+            return res;
+          }
+
+          const destDir  = photosDir(link.gallery_slug);
+          fs.mkdirSync(destDir, { recursive: true });
 
           const photoId  = randomUUID();
           const destName = `${photoId}${ext}`;
@@ -398,13 +414,13 @@ export function getPublicTusServer() {
           const sizeByte     = fs.statSync(destPath).size;
 
           const [result] = await query(
-            `INSERT INTO photos (id, gallery_id, filename, original_name, size_bytes, status, upload_link_id, photographer_id)
-             VALUES (?, ?, ?, ?, ?, 'approved', ?, ?)
+            `INSERT INTO photos (id, gallery_id, filename, original_name, content_hash, size_bytes, status, upload_link_id, photographer_id)
+             VALUES (?, ?, ?, ?, ?, ?, 'approved', ?, ?)
              ON DUPLICATE KEY UPDATE
                size_bytes = VALUES(size_bytes),
                original_name = VALUES(original_name),
                photographer_id = VALUES(photographer_id)`,
-            [photoId, link.gallery_id, destName, originalName, sizeByte, link.id, photographer?.id ?? null],
+            [photoId, link.gallery_id, destName, originalName, contentHash, sizeByte, link.id, photographer?.id ?? null],
           );
 
           if (result.affectedRows === 2) {
@@ -430,7 +446,7 @@ export function getPublicTusServer() {
           );
 
           // Business event — notifies editors
-          const orgId = link.organization_id || link.studio_id;
+          const orgId = link.organization_id;
           emit(EVENTS.PHOTO_UPLOADED, {
             studioId:         orgId,
             galleryId:        link.gallery_id,

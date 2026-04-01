@@ -20,7 +20,7 @@ import { DIST_ROOT } from '../../../../packages/engine/src/fs.js';
 import { logger }    from '../lib/logger.js';
 
 async function getSiteTitle() {
-  const [rows] = await query('SELECT id FROM studios LIMIT 1');
+  const [rows] = await query('SELECT id FROM organizations WHERE is_default = 1 LIMIT 1');
   const settings = rows[0] ? await getSettings(rows[0].id) : null;
   return settings?.site_title || 'GalleryPack';
 }

@@ -155,7 +155,7 @@ router.post('/:id/projects/reorder', async (req, res) => {
   if (!['admin', 'owner'].includes(callerRole)) return res.status(403).json({ error: 'Requires admin role or higher' });
   const { order } = req.body || {};
   if (!Array.isArray(order)) return res.status(400).json({ error: 'order must be an array of project IDs' });
-  const [rows] = await query('SELECT id FROM projects WHERE studio_id = ?', [org.id]);
+  const [rows] = await query('SELECT id FROM projects WHERE organization_id = ?', [org.id]);
   const allowed = new Set(rows.map(r => r.id));
   if (!order.every(id => allowed.has(id))) return res.status(400).json({ error: 'Invalid project IDs' });
   for (let i = 0; i < order.length; i++) {
@@ -193,9 +193,9 @@ router.post('/:id/members/create', async (req, res) => {
 
   if (existing[0]) {
     userId = existing[0].id;
-    // Check if already a full member (organization_id properly set in studio_memberships)
+    // Check if already a full member
     const [smRows] = await query(
-      'SELECT id FROM studio_memberships WHERE user_id = ? AND organization_id = ?',
+      'SELECT id FROM organization_memberships WHERE user_id = ? AND organization_id = ?',
       [userId, org.id]
     );
     if (smRows[0]) {
@@ -211,9 +211,9 @@ router.post('/:id/members/create', async (req, res) => {
     const id  = genId();
     const now = Date.now();
     await query(
-      `INSERT INTO users (id, studio_id, organization_id, email, password_hash, role, name, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, org.id, org.id, email, hashPassword(password), role, name || '', now, now]
+      `INSERT INTO users (id, organization_id, email, password_hash, role, name, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, org.id, email, hashPassword(password), role, name || '', now, now]
     );
     userId = id;
   }

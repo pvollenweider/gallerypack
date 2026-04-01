@@ -32,7 +32,7 @@ router.get('/', async (req, res) => {
           SUM(workflow_status = 'ready')                               AS ready,
           SUM(workflow_status = 'published')                           AS published,
           SUM(needs_rebuild = 1 AND workflow_status = 'published')     AS needs_rebuild
-        FROM galleries WHERE studio_id = ?
+        FROM galleries WHERE organization_id = ?
       `, [orgId]),
 
       // Inbox: unvalidated photos by gallery
@@ -41,7 +41,7 @@ router.get('/', async (req, res) => {
                COUNT(p.id) AS unvalidated_count
         FROM photos p
         JOIN galleries g ON g.id = p.gallery_id
-        WHERE g.studio_id = ? AND p.status = 'uploaded'
+        WHERE g.organization_id = ? AND p.status = 'uploaded'
         GROUP BY g.id, g.title
         ORDER BY unvalidated_count DESC
         LIMIT 20
@@ -53,7 +53,7 @@ router.get('/', async (req, res) => {
                g.id AS gallery_id, g.title AS gallery_title
         FROM build_jobs bj
         JOIN galleries g ON g.id = bj.gallery_id
-        WHERE bj.studio_id = ?
+        WHERE bj.organization_id = ?
         ORDER BY bj.created_at DESC
         LIMIT 10
       `, [orgId]),
@@ -61,9 +61,9 @@ router.get('/', async (req, res) => {
       // Failed build count (last 24h)
       query(`
         SELECT COUNT(*) AS n FROM build_jobs
-        WHERE studio_id = ? AND status = 'error'
+        WHERE organization_id = ? AND status = 'error'
           AND created_at > ?
-      `, [studioId, Date.now() - 24 * 60 * 60 * 1000]),
+      `, [orgId, Date.now() - 24 * 60 * 60 * 1000]),
     ]);
 
     const stats  = galleryStats[0][0];
@@ -87,10 +87,10 @@ router.get('/', async (req, res) => {
     const [readyGalleries] = await query(`
       SELECT g.id AS gallery_id, g.title AS gallery_title, g.built_at
       FROM galleries g
-      WHERE g.studio_id = ? AND g.workflow_status = 'ready'
+      WHERE g.organization_id = ? AND g.workflow_status = 'ready'
         AND (g.built_at IS NULL OR g.built_at < ?)
       LIMIT 5
-    `, [studioId, Date.now() - 24 * 60 * 60 * 1000]);
+    `, [orgId, Date.now() - 24 * 60 * 60 * 1000]);
 
     for (const g of readyGalleries) {
       actions.push({ type: 'gallery_ready', gallery_id: g.gallery_id, gallery_title: g.gallery_title });
@@ -100,7 +100,7 @@ router.get('/', async (req, res) => {
     const [noLinkGalleries] = await query(`
       SELECT g.id AS gallery_id, g.title AS gallery_title
       FROM galleries g
-      WHERE g.studio_id = ?
+      WHERE g.organization_id = ?
         AND NOT EXISTS (
           SELECT 1 FROM gallery_upload_links ul
           WHERE ul.gallery_id = g.id AND ul.revoked_at IS NULL

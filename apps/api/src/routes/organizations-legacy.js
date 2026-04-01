@@ -5,7 +5,8 @@
 // Use, reproduction, or distribution requires a valid commercial license.
 // Unauthorized use is strictly prohibited.
 
-// apps/api/src/routes/organizations-legacy.js — organization membership management (legacy)
+// apps/api/src/routes/organizations-legacy.js — DEPRECATED: legacy membership routes
+// Mounted at /api/studios for backward compat. Migrate callers to /api/organizations.
 // v1: single-organization only. All routes operate on req.organizationId (the caller's org).
 import { Router } from 'express';
 import { requireAuth, requireStudioRole } from '../middleware/auth.js';
@@ -25,7 +26,7 @@ import {
 
 async function countOwners(orgId) {
   const [rows] = await query(
-    "SELECT COUNT(*) AS n FROM studio_memberships WHERE studio_id = ? AND role = 'owner'",
+    "SELECT COUNT(*) AS n FROM organization_memberships WHERE organization_id = ? AND role = 'owner'",
     [orgId]
   );
   return rows[0].n;
@@ -82,7 +83,7 @@ router.delete('/members/:userId', requireStudioRole('owner'), async (req, res) =
 // POST /api/organizations/build-all — queue builds for every gallery in the organization
 router.post('/build-all', requireStudioRole('admin'), async (req, res) => {
   const [rows] = await query(
-    "SELECT id FROM galleries WHERE studio_id = ?",
+    "SELECT id FROM galleries WHERE organization_id = ?",
     [req.organizationId]
   );
   if (!rows.length) return res.json({ queued: 0, total: 0 });
@@ -90,7 +91,7 @@ router.post('/build-all', requireStudioRole('admin'), async (req, res) => {
   let queued = 0;
   for (const { id } of rows) {
     const [existing] = await query(
-      "SELECT COUNT(*) AS n FROM build_jobs WHERE studio_id = ? AND gallery_id = ? AND status IN ('queued','running')",
+      "SELECT COUNT(*) AS n FROM build_jobs WHERE organization_id = ? AND gallery_id = ? AND status IN ('queued','running')",
       [req.organizationId, id]
     );
     if (existing[0].n > 0) continue;
@@ -110,7 +111,7 @@ router.get('/audit', requireStudioRole('admin'), async (req, res) => {
     `SELECT al.*, u.email AS user_email
      FROM audit_log al
      LEFT JOIN users u ON al.user_id = u.id
-     WHERE al.studio_id = ?
+     WHERE al.organization_id = ?
      ORDER BY al.created_at DESC
      LIMIT 100`,
     [req.organizationId]

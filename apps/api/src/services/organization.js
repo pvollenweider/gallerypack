@@ -7,14 +7,8 @@
 
 // apps/api/src/services/organization.js — canonical organization service (Sprint 22 Phase 2)
 //
-// Organizations are the new canonical model introduced in Sprint 22.
-// studios.id === organizations.id (same IDs, enforced by migration 013).
-//
-// Transitional strategy:
-//   - All writes dual-write to both `organizations` and `studios` so that
-//     older routes still using `studio_id` continue to work unchanged.
-//   - Routes should migrate to use req.organizationId / orgId over time.
-//   - sprint 23 will drop the studio_id columns after migration is complete.
+// Organizations are the canonical model. The `studios` table and `studio_id` columns
+// were removed in migration 003 (Phase 2 rename). All references now use organization_id.
 
 import { query, withTransaction } from '../db/database.js';
 import { genId } from '../db/helpers.js';
@@ -58,7 +52,7 @@ export async function getDefaultOrganization() {
 export async function getOrganizationByDomain(domain) {
   const [rows] = await query(`
     SELECT o.* FROM organizations o
-    JOIN studio_domains sd ON sd.organization_id = o.id
+    JOIN organization_domains sd ON sd.organization_id = o.id
     WHERE sd.domain = ?
   `, [domain]);
   return rows[0] ?? null;
@@ -71,7 +65,7 @@ export async function getOrganizationByDomain(domain) {
 export async function listOrganizations() {
   const [rows] = await query(`
     SELECT o.*,
-      (SELECT COUNT(*) FROM studio_memberships sm WHERE sm.organization_id = o.id) AS member_count,
+      (SELECT COUNT(*) FROM organization_memberships sm WHERE sm.organization_id = o.id) AS member_count,
       (SELECT COUNT(*) FROM galleries g WHERE g.organization_id = o.id)            AS gallery_count
     FROM organizations o
     ORDER BY o.created_at ASC
@@ -81,8 +75,6 @@ export async function listOrganizations() {
 
 /**
  * Create a new organization.
- * Dual-writes to `studios` for backward compatibility.
- *
  * @param {{ name: string, slug: string, plan?: string, locale?: string, country?: string, isDefault?: boolean }} opts
  * @returns {Promise<object>} The created organization row.
  */
@@ -91,25 +83,14 @@ export async function createOrganization({ name, slug, plan = 'free', locale = n
   const now = new Date();
 
   await withTransaction(async (conn) => {
-    // Write canonical organization
     await conn.execute(
       `INSERT INTO organizations (id, slug, name, locale, country, is_default, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [id, slug, name, locale, country, isDefault ? 1 : 0, now, now]
     );
 
-    // Dual-write to studios (same ID, so existing studio_id references stay valid)
-    await conn.execute(
-      `INSERT INTO studios (id, name, slug, plan, is_default, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE name = VALUES(name), slug = VALUES(slug), plan = VALUES(plan), updated_at = VALUES(updated_at)`,
-      [id, name, slug, plan, isDefault ? 1 : 0, Date.now(), Date.now()]
-    );
-
     if (isDefault) {
-      // Clear existing default flags in both tables
       await conn.execute('UPDATE organizations SET is_default = 0 WHERE id != ?', [id]);
-      await conn.execute('UPDATE studios SET is_default = 0 WHERE id != ?', [id]);
     }
   });
 
@@ -118,51 +99,36 @@ export async function createOrganization({ name, slug, plan = 'free', locale = n
 
 /**
  * Update an organization.
- * Dual-writes to `studios`.
- *
  * @param {string} id
  * @param {{ name?: string, slug?: string, plan?: string, locale?: string, country?: string }} patch
  * @returns {Promise<object>} Updated organization row.
  */
 export async function updateOrganization(id, patch) {
-  const orgSets = [];
-  const orgVals = [];
-  const stuSets = [];
-  const stuVals = [];
+  const sets = [];
+  const vals = [];
 
-  if (patch.name        !== undefined) { orgSets.push('name = ?');        orgVals.push(patch.name);        stuSets.push('name = ?');    stuVals.push(patch.name); }
-  if (patch.description !== undefined) { orgSets.push('description = ?'); orgVals.push(patch.description ?? null); }
-  if (patch.slug        !== undefined) { orgSets.push('slug = ?');        orgVals.push(patch.slug);        stuSets.push('slug = ?');    stuVals.push(patch.slug); }
-  if (patch.locale      !== undefined) { orgSets.push('locale = ?');      orgVals.push(patch.locale);      stuSets.push('locale = ?');  stuVals.push(patch.locale); }
-  if (patch.country     !== undefined) { orgSets.push('country = ?');     orgVals.push(patch.country);     stuSets.push('country = ?'); stuVals.push(patch.country); }
-  if (patch.plan        !== undefined) {                                                                     stuSets.push('plan = ?');    stuVals.push(patch.plan); }
+  if (patch.name        !== undefined) { sets.push('name = ?');        vals.push(patch.name); }
+  if (patch.description !== undefined) { sets.push('description = ?'); vals.push(patch.description ?? null); }
+  if (patch.slug        !== undefined) { sets.push('slug = ?');        vals.push(patch.slug); }
+  if (patch.locale      !== undefined) { sets.push('locale = ?');      vals.push(patch.locale); }
+  if (patch.country     !== undefined) { sets.push('country = ?');     vals.push(patch.country); }
 
-  if (!orgSets.length && !stuSets.length) return getOrganization(id);
+  if (!sets.length) return getOrganization(id);
 
-  const now = new Date();
-  if (orgSets.length) {
-    orgSets.push('updated_at = ?');
-    orgVals.push(now);
-    orgVals.push(id);
-    await query(`UPDATE organizations SET ${orgSets.join(', ')} WHERE id = ?`, orgVals);
-  }
-  if (stuSets.length) {
-    stuSets.push('updated_at = ?');
-    stuVals.push(Date.now());
-    stuVals.push(id);
-    await query(`UPDATE studios SET ${stuSets.join(', ')} WHERE id = ?`, stuVals);
-  }
+  sets.push('updated_at = ?');
+  vals.push(new Date());
+  vals.push(id);
+  await query(`UPDATE organizations SET ${sets.join(', ')} WHERE id = ?`, vals);
 
   return getOrganization(id);
 }
 
 /**
- * Delete an organization and its studio mirror.
+ * Delete an organization.
  * @param {string} id
  */
 export async function deleteOrganization(id) {
   await query('DELETE FROM organizations WHERE id = ?', [id]);
-  await query('DELETE FROM studios WHERE id = ?', [id]);
 }
 
 /**
@@ -172,9 +138,7 @@ export async function deleteOrganization(id) {
  */
 export async function setDefaultOrganization(id) {
   await query('UPDATE organizations SET is_default = 0');
-  await query('UPDATE studios SET is_default = 0');
   await query('UPDATE organizations SET is_default = 1 WHERE id = ?', [id]);
-  await query('UPDATE studios SET is_default = 1 WHERE id = ?', [id]);
   return getOrganization(id);
 }
 
@@ -182,18 +146,18 @@ export async function setDefaultOrganization(id) {
 
 /**
  * List all members of an organization with their roles and gallery access.
- * Delegates to the studio_memberships table (organization_id column).
+ * Delegates to the organization_memberships table.
  * @param {string} orgId
  * @returns {Promise<object[]>}
  */
 export async function listOrgMembers(orgId) {
   const [memberRows] = await query(`
     SELECT sm.role, u.id, u.email, u.name, u.bio, u.role AS user_role, u.is_photographer, u.created_at
-    FROM studio_memberships sm
+    FROM organization_memberships sm
     JOIN users u ON u.id = sm.user_id
-    WHERE sm.organization_id = ? OR (sm.organization_id IS NULL AND sm.studio_id = ?)
+    WHERE sm.organization_id = ?
     ORDER BY sm.created_at ASC
-  `, [orgId, orgId]);
+  `, [orgId]);
 
   const [galleryAccess] = await query(`
     SELECT gra.user_id, gra.role AS gallery_role, g.id AS gallery_id, g.title AS gallery_title
@@ -219,20 +183,19 @@ export async function listOrgMembers(orgId) {
  */
 export async function getOrgRole(userId, orgId) {
   // Memberships created via upsertOrgMember set organization_id = orgId.
-  // Memberships created via upsertStudioMembership (invite flow) only set studio_id.
+  // Memberships created via the invite flow use organization_id.
   // Both cases must be recognised so collaborators can access the org.
   const [rows] = await query(
-    `SELECT role FROM studio_memberships
-     WHERE user_id = ? AND (organization_id = ? OR (organization_id IS NULL AND studio_id = ?))
+    `SELECT role FROM organization_memberships
+     WHERE user_id = ? AND organization_id = ?
      LIMIT 1`,
-    [userId, orgId, orgId]
+    [userId, orgId]
   );
   return rows[0]?.role ?? null;
 }
 
 /**
  * Add or update a member's role in an organization.
- * Dual-writes studio_id for backward compat.
  * @param {string} orgId
  * @param {string} userId
  * @param {string} role
@@ -241,10 +204,10 @@ export async function upsertOrgMember(orgId, userId, role) {
   const id  = genId();
   const now = Date.now();
   await query(`
-    INSERT INTO studio_memberships (id, studio_id, organization_id, user_id, role, created_at)
-    VALUES (?, ?, ?, ?, ?, ?)
-    ON DUPLICATE KEY UPDATE role = VALUES(role), organization_id = VALUES(organization_id)
-  `, [id, orgId, orgId, userId, role, now]);
+    INSERT INTO organization_memberships (id, organization_id, user_id, role, created_at)
+    VALUES (?, ?, ?, ?, ?)
+    ON DUPLICATE KEY UPDATE role = VALUES(role)
+  `, [id, orgId, userId, role, now]);
 }
 
 /**
@@ -254,7 +217,7 @@ export async function upsertOrgMember(orgId, userId, role) {
  */
 export async function removeOrgMember(orgId, userId) {
   await query(
-    'DELETE FROM studio_memberships WHERE organization_id = ? AND user_id = ?',
+    'DELETE FROM organization_memberships WHERE organization_id = ? AND user_id = ?',
     [orgId, userId]
   );
 }
@@ -268,7 +231,7 @@ export async function removeOrgMember(orgId, userId) {
  */
 export async function listOrgDomains(orgId) {
   const [rows] = await query(
-    'SELECT * FROM studio_domains WHERE organization_id = ? ORDER BY is_primary DESC, created_at ASC',
+    'SELECT * FROM organization_domains WHERE organization_id = ? ORDER BY is_primary DESC, created_at ASC',
     [orgId]
   );
   return rows;
@@ -284,10 +247,10 @@ export async function addOrgDomain(orgId, domain, isPrimary = false) {
   const id  = genId();
   const now = Date.now();
   await query(
-    `INSERT INTO studio_domains (id, studio_id, organization_id, domain, is_primary, created_at)
-     VALUES (?, ?, ?, ?, ?, ?)
+    `INSERT INTO organization_domains (id, organization_id, domain, is_primary, created_at)
+     VALUES (?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE organization_id = VALUES(organization_id)`,
-    [id, orgId, orgId, domain, isPrimary ? 1 : 0, now]
+    [id, orgId, domain, isPrimary ? 1 : 0, now]
   );
 }
 
@@ -298,7 +261,7 @@ export async function addOrgDomain(orgId, domain, isPrimary = false) {
  */
 export async function removeOrgDomain(orgId, domain) {
   await query(
-    'DELETE FROM studio_domains WHERE organization_id = ? AND domain = ?',
+    'DELETE FROM organization_domains WHERE organization_id = ? AND domain = ?',
     [orgId, domain]
   );
 }
@@ -311,7 +274,7 @@ export async function removeOrgDomain(orgId, domain) {
  * @returns {Promise<object>}
  */
 export async function getOrgSettings(orgId) {
-  const [rows] = await query('SELECT * FROM settings WHERE studio_id = ?', [orgId]);
+  const [rows] = await query('SELECT * FROM settings WHERE organization_id = ?', [orgId]);
   return rows[0] ?? {};
 }
 
@@ -322,7 +285,7 @@ export async function getOrgSettings(orgId) {
  * @returns {Promise<object>}
  */
 export async function updateOrgSettings(orgId, fields) {
-  // Delegate to existing upsertSettings logic (same PK: studio_id = org_id)
+  // Delegate to existing upsertSettings logic
   const { upsertSettings } = await import('../db/helpers.js');
   return upsertSettings(orgId, fields);
 }

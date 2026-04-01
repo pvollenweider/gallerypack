@@ -31,10 +31,10 @@ async function getOrgEditors(orgId) {
     SELECT u.email, u.name, sm.role,
            COALESCE(u.notify_on_upload,  1) AS notify_on_upload,
            COALESCE(u.notify_on_publish, 1) AS notify_on_publish
-    FROM studio_memberships sm
+    FROM organization_memberships sm
     JOIN users u ON u.id = sm.user_id
-    WHERE (sm.organization_id = ? OR sm.studio_id = ?) AND sm.role IN ('collaborator', 'admin', 'owner')
-  `, [orgId, orgId]);
+    WHERE sm.organization_id = ? AND sm.role IN ('collaborator', 'admin', 'owner')
+  `, [orgId]);
   return rows;
 }
 

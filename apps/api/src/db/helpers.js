@@ -43,8 +43,8 @@ export async function createUser({ studioId, organizationId, email, passwordHash
   const id  = genId();
   const now = Date.now();
   await query(
-    'INSERT INTO users (id, studio_id, organization_id, email, password_hash, role, name, platform_role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [id, orgId, orgId, email, passwordHash, role, name, platformRole, now, now]
+    'INSERT INTO users (id, organization_id, email, password_hash, role, name, platform_role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [id, orgId, email, passwordHash, role, name, platformRole, now, now]
   );
   return getUserById(id);
 }
@@ -86,7 +86,7 @@ export async function pruneExpiredSessions() {
 // ── Settings ──────────────────────────────────────────────────────────────────
 
 export async function getSettings(orgId) {
-  const [rows] = await query('SELECT * FROM settings WHERE studio_id = ?', [orgId]);
+  const [rows] = await query('SELECT * FROM settings WHERE organization_id = ?', [orgId]);
   return rows[0] ?? null;
 }
 
@@ -98,7 +98,7 @@ export async function upsertSettings(orgId, fields) {
 
   const existing = await getSettings(orgId);
   if (!existing) {
-    const allCols = ['studio_id', ...cols, 'updated_at'];
+    const allCols = ['organization_id', ...cols, 'updated_at'];
     const vals    = [orgId, ...cols.map(c => fields[c]), now];
     await query(
       `INSERT INTO settings (${allCols.join(',')}) VALUES (${allCols.map(() => '?').join(',')})`,
@@ -107,7 +107,7 @@ export async function upsertSettings(orgId, fields) {
   } else {
     const sets = [...cols.map(c => `${c} = ?`), 'updated_at = ?'].join(', ');
     const vals = [...cols.map(c => fields[c]), now, orgId];
-    await query(`UPDATE settings SET ${sets} WHERE studio_id = ?`, vals);
+    await query(`UPDATE settings SET ${sets} WHERE organization_id = ?`, vals);
   }
   return getSettings(orgId);
 }
@@ -119,9 +119,9 @@ export async function createJob({ galleryId, studioId, organizationId, triggered
   const id  = genId();
   const now = Date.now();
   await query(`
-    INSERT INTO build_jobs (id, gallery_id, studio_id, organization_id, status, triggered_by, \`force\`, created_at)
-    VALUES (?, ?, ?, ?, 'queued', ?, ?, ?)
-  `, [id, galleryId, orgId, orgId, triggeredBy, force ? 1 : 0, now]);
+    INSERT INTO build_jobs (id, gallery_id, organization_id, status, triggered_by, \`force\`, created_at)
+    VALUES (?, ?, ?, 'queued', ?, ?, ?)
+  `, [id, galleryId, orgId, triggeredBy, force ? 1 : 0, now]);
   const [rows] = await query('SELECT * FROM build_jobs WHERE id = ?', [id]);
   return rows[0] ?? null;
 }
@@ -259,9 +259,9 @@ export async function createInvite({ studioId, organizationId, galleryId = null,
   const now       = Date.now();
   const expiresAt = expiresIn ? now + expiresIn : null;
   await query(`
-    INSERT INTO gallery_invites (id, studio_id, organization_id, gallery_id, token, token_hash, email, label, single_use, expires_at, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `, [id, orgId, orgId, galleryId, tokenHash, tokenHash, email, label, singleUse ? 1 : 0, expiresAt, now]);
+    INSERT INTO gallery_invites (id, organization_id, gallery_id, token, token_hash, email, label, single_use, expires_at, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `, [id, orgId, galleryId, tokenHash, tokenHash, email, label, singleUse ? 1 : 0, expiresAt, now]);
   return { ...(await getInviteById(id)), token: rawToken };
 }
 
@@ -277,7 +277,7 @@ export async function getInviteByToken(token) {
 
 export async function listInvites(orgId) {
   const [rows] = await query(
-    'SELECT * FROM gallery_invites WHERE studio_id = ? ORDER BY created_at DESC',
+    'SELECT * FROM gallery_invites WHERE organization_id = ? ORDER BY created_at DESC',
     [orgId]
   );
   return rows;
@@ -362,13 +362,13 @@ export async function acceptScopedInvite(rawToken, password = null) {
     if (inv.scope_type === 'organization') {
       orgId = inv.scope_id;
     } else if (inv.scope_type === 'project') {
-      const [pRows] = await conn.query('SELECT organization_id, studio_id FROM projects WHERE id = ?', [inv.scope_id]);
+      const [pRows] = await conn.query('SELECT organization_id FROM projects WHERE id = ?', [inv.scope_id]);
       if (!pRows[0]) throw Object.assign(new Error('Project not found'), { status: 404 });
-      orgId = pRows[0].organization_id || pRows[0].studio_id;
+      orgId = pRows[0].organization_id;
     } else if (inv.scope_type === 'gallery') {
-      const [gRows] = await conn.query('SELECT organization_id, studio_id FROM galleries WHERE id = ?', [inv.scope_id]);
+      const [gRows] = await conn.query('SELECT organization_id FROM galleries WHERE id = ?', [inv.scope_id]);
       if (!gRows[0]) throw Object.assign(new Error('Gallery not found'), { status: 404 });
-      orgId = gRows[0].organization_id || gRows[0].studio_id;
+      orgId = gRows[0].organization_id;
     } else {
       throw Object.assign(new Error('Unknown scope type'), { status: 400 });
     }
@@ -382,8 +382,8 @@ export async function acceptScopedInvite(rawToken, password = null) {
       const userId       = genId();
       const passwordHash = password ? hashPassword(password) : null;
       await conn.query(
-        'INSERT INTO users (id, studio_id, organization_id, email, password_hash, role, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [userId, orgId, orgId, inv.email, passwordHash, inv.role_to_grant, '', now, now]
+        'INSERT INTO users (id, organization_id, email, password_hash, role, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [userId, orgId, inv.email, passwordHash, inv.role_to_grant, '', now, now]
       );
       const [newRows] = await conn.query('SELECT * FROM users WHERE id = ?', [userId]);
       user = newRows[0];
@@ -391,21 +391,21 @@ export async function acceptScopedInvite(rawToken, password = null) {
 
     // Ensure user has an organization membership (min: photographer)
     const [memRows] = await conn.query(
-      'SELECT id FROM studio_memberships WHERE (organization_id = ? OR studio_id = ?) AND user_id = ?',
-      [orgId, orgId, user.id]
+      'SELECT id FROM organization_memberships WHERE organization_id = ? AND user_id = ?',
+      [orgId, user.id]
     );
     if (!memRows[0]) {
       const minRole = inv.scope_type === 'organization' ? inv.role_to_grant : 'photographer';
       const memId = genId();
       await conn.query(
-        'INSERT INTO studio_memberships (id, studio_id, organization_id, user_id, role, created_at) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE role = VALUES(role), organization_id = VALUES(organization_id)',
-        [memId, orgId, orgId, user.id, minRole, now]
+        'INSERT INTO organization_memberships (id, organization_id, user_id, role, created_at) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE role = VALUES(role)',
+        [memId, orgId, user.id, minRole, now]
       );
     } else if (inv.scope_type === 'organization') {
       // Update membership role if this is an organization-scoped invite
       await conn.query(
-        'UPDATE studio_memberships SET role = ?, organization_id = ? WHERE (organization_id = ? OR studio_id = ?) AND user_id = ?',
-        [inv.role_to_grant, orgId, orgId, orgId, user.id]
+        'UPDATE organization_memberships SET role = ? WHERE organization_id = ? AND user_id = ?',
+        [inv.role_to_grant, orgId, user.id]
       );
     }
 
@@ -450,7 +450,7 @@ const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 export async function createInvitation(orgId, email, role, createdBy, { galleryId = null, galleryRole = null, name = '' } = {}) {
   // Replace any existing pending invitation for this email (re-invite / role change).
   const [existing] = await query(
-    'SELECT * FROM invitations WHERE studio_id = ? AND email = ?',
+    'SELECT * FROM invitations WHERE organization_id = ? AND email = ?',
     [orgId, email]
   );
   if (existing[0]) {
@@ -465,9 +465,9 @@ export async function createInvitation(orgId, email, role, createdBy, { galleryI
   const expiresAt = now + INVITATION_TTL_MS;
 
   await query(`
-    INSERT INTO invitations (id, studio_id, organization_id, email, name, role, token, token_hash, created_by, created_at, expires_at, gallery_id, gallery_role)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `, [id, orgId, orgId, email, name || '', role, tokenHash, tokenHash, createdBy, now, expiresAt, galleryId, galleryRole]);
+    INSERT INTO invitations (id, organization_id, email, name, role, token, token_hash, created_by, created_at, expires_at, gallery_id, gallery_role)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `, [id, orgId, email, name || '', role, tokenHash, tokenHash, createdBy, now, expiresAt, galleryId, galleryRole]);
 
   const [rows] = await query('SELECT * FROM invitations WHERE id = ?', [id]);
   return { ...rows[0], token: rawToken };
@@ -495,19 +495,19 @@ export async function acceptInvitation(token, password) {
     const passwordHash = hashPassword(password);
     const userId       = genId();
     const now          = Date.now();
-    const orgId        = inv.organization_id || inv.studio_id;
+    const orgId        = inv.organization_id;
 
     await conn.query(
-      'INSERT INTO users (id, studio_id, organization_id, email, password_hash, role, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [userId, orgId, orgId, inv.email, passwordHash, inv.role, inv.name || '', now, now]
+      'INSERT INTO users (id, organization_id, email, password_hash, role, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [userId, orgId, inv.email, passwordHash, inv.role, inv.name || '', now, now]
     );
 
     const membershipId = genId();
     await conn.query(`
-      INSERT INTO studio_memberships (id, studio_id, organization_id, user_id, role, created_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-      ON DUPLICATE KEY UPDATE role = VALUES(role), organization_id = VALUES(organization_id)
-    `, [membershipId, orgId, orgId, userId, inv.role, now]);
+      INSERT INTO organization_memberships (id, organization_id, user_id, role, created_at)
+      VALUES (?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE role = VALUES(role)
+    `, [membershipId, orgId, userId, inv.role, now]);
 
     if (inv.gallery_id && inv.gallery_role) {
       const graId = randomUUID();
@@ -530,7 +530,7 @@ export async function acceptInvitation(token, password) {
 
 export async function listInvitations(orgId) {
   const [rows] = await query(
-    'SELECT * FROM invitations WHERE studio_id = ? ORDER BY created_at DESC',
+    'SELECT * FROM invitations WHERE organization_id = ? ORDER BY created_at DESC',
     [orgId]
   );
   return rows;
@@ -696,14 +696,14 @@ export async function getProject(id) {
 }
 
 export async function getProjectBySlug(orgId, slug) {
-  const [rows] = await query('SELECT * FROM projects WHERE (organization_id = ? OR studio_id = ?) AND slug = ?', [orgId, orgId, slug]);
+  const [rows] = await query('SELECT * FROM projects WHERE organization_id = ? AND slug = ?', [orgId, slug]);
   return rows[0] ?? null;
 }
 
 export async function listProjectsByOrg(orgId) {
   const [rows] = await query(
-    "SELECT * FROM projects WHERE (organization_id = ? OR studio_id = ?) AND status != 'archived' ORDER BY sort_order ASC, name ASC",
-    [orgId, orgId]
+    "SELECT * FROM projects WHERE organization_id = ? AND status != 'archived' ORDER BY sort_order ASC, name ASC",
+    [orgId]
   );
   return rows;
 }
@@ -715,9 +715,9 @@ export async function createProject(orgId, { slug, name, description = null, vis
   const id  = randomUUID();
   const now = Date.now();
   await query(`
-    INSERT INTO projects (id, studio_id, organization_id, slug, name, description, visibility, starts_at, ends_at, status, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)
-  `, [id, orgId, orgId, slug, name, description, visibility, startsAt, endsAt, now, now]);
+    INSERT INTO projects (id, organization_id, slug, name, description, visibility, starts_at, ends_at, status, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)
+  `, [id, orgId, slug, name, description, visibility, startsAt, endsAt, now, now]);
   return getProject(id);
 }
 
@@ -853,7 +853,7 @@ export async function createUploadLink(galleryId, createdByUserId, { label = nul
 export async function getUploadLinkByToken(rawToken) {
   const tokenHash = sha256(rawToken);
   const [rows] = await query(
-    `SELECT ul.*, g.studio_id, g.organization_id, g.slug AS gallery_slug, g.title AS gallery_title
+    `SELECT ul.*, g.organization_id, g.slug AS gallery_slug, g.title AS gallery_title
      FROM gallery_upload_links ul
      JOIN galleries g ON g.id = ul.gallery_id
      WHERE ul.token_hash = ?
@@ -999,15 +999,14 @@ export async function bulkSetPhotoPhotographer(photoIds, photographerId) {
 // ── Organization role lookup ─────────────────────────────────────────────────
 
 /**
- * Look up a user's role in an organization (via studio_memberships.organization_id).
- * Falls back to studio_id lookup so pre-migration rows without organization_id still resolve.
+ * Look up a user's role in an organization (via organization_memberships).
  */
 export async function getOrgRole(userId, orgId) {
   const [rows] = await query(
-    `SELECT role FROM studio_memberships
-     WHERE user_id = ? AND (organization_id = ? OR studio_id = ?)
+    `SELECT role FROM organization_memberships
+     WHERE user_id = ? AND organization_id = ?
      LIMIT 1`,
-    [userId, orgId, orgId]
+    [userId, orgId]
   );
   return rows[0]?.role ?? null;
 }
@@ -1016,7 +1015,7 @@ export async function getOrgRole(userId, orgId) {
 
 export async function audit(orgId, userId, action, targetType, targetId, meta = {}) {
   await query(`
-    INSERT INTO audit_log (id, studio_id, organization_id, user_id, action, target_type, target_id, meta, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `, [randomUUID(), orgId, orgId, userId, action, targetType, targetId, JSON.stringify(meta), Date.now()]);
+    INSERT INTO audit_log (id, organization_id, user_id, action, target_type, target_id, meta, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `, [randomUUID(), orgId, userId, action, targetType, targetId, JSON.stringify(meta), Date.now()]);
 }

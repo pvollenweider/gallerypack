@@ -57,8 +57,8 @@ router.post('/login', async (req, res) => {
     secure: process.env.NODE_ENV === 'production',
     maxAge: 30 * 24 * 60 * 60 * 1000,
   });
-  const studioRole = user.studio_id ? await getOrgRole(user.id, user.studio_id) : null;
-  res.json({ ok: true, user: { id: user.id, email: user.email, role: user.role, name: user.name, organizationId: user.organization_id || user.studio_id, studioId: user.studio_id, studioRole, locale: user.locale || null, platformRole: user.platform_role || null } });
+  const orgRole = user.organization_id ? await getOrgRole(user.id, user.organization_id) : null;
+  res.json({ ok: true, user: { id: user.id, email: user.email, role: user.role, name: user.name, organizationId: user.organization_id, orgRole, studioRole: orgRole, locale: user.locale || null, platformRole: user.platform_role || null } });
 });
 
 // POST /api/auth/logout
@@ -77,11 +77,11 @@ router.get('/me', async (req, res) => {
   if (!session) return res.status(401).json({ error: 'Session expired' });
   const user = await getUserById(session.user_id);
   if (!user) return res.status(401).json({ error: 'User not found' });
-  // organizationId: use the request-resolved org (may differ from user.studio_id when override cookie is set)
-  const resolvedOrgId = req.organizationId || user.organization_id || user.studio_id;
-  const studioRole = resolvedOrgId ? await getOrgRole(user.id, resolvedOrgId) : null;
+  // organizationId: use the request-resolved org (may differ when override cookie is set)
+  const resolvedOrgId = req.organizationId || user.organization_id;
+  const orgRole = resolvedOrgId ? await getOrgRole(user.id, resolvedOrgId) : null;
   const orgName = req.organization?.name ?? null;
-  res.json({ id: user.id, email: user.email, role: user.role, name: user.name, organizationId: resolvedOrgId, studioId: resolvedOrgId, organizationName: orgName, studioName: orgName, studioRole, locale: user.locale || null, platformRole: user.platform_role || null, notifyOnUpload: user.notify_on_upload !== 0, notifyOnPublish: user.notify_on_publish !== 0 });
+  res.json({ id: user.id, email: user.email, role: user.role, name: user.name, organizationId: resolvedOrgId, studioId: resolvedOrgId, organizationName: orgName, studioName: orgName, orgRole, studioRole: orgRole, locale: user.locale || null, platformRole: user.platform_role || null, notifyOnUpload: user.notify_on_upload !== 0, notifyOnPublish: user.notify_on_publish !== 0 });
 });
 
 // PATCH /api/auth/me — update own profile (name, password, locale, notification prefs)
@@ -118,8 +118,8 @@ router.patch('/me', requireAuth, async (req, res) => {
   }
 
   const updated    = await getUserById(req.userId);
-  const studioRole = updated.studio_id ? await getOrgRole(updated.id, updated.studio_id) : null;
-  res.json({ id: updated.id, email: updated.email, role: updated.role, name: updated.name, organizationId: updated.organization_id || updated.studio_id, studioId: updated.studio_id, studioRole, locale: updated.locale || null, platformRole: updated.platform_role || null, notifyOnUpload: updated.notify_on_upload !== 0, notifyOnPublish: updated.notify_on_publish !== 0 });
+  const orgRole = updated.organization_id ? await getOrgRole(updated.id, updated.organization_id) : null;
+  res.json({ id: updated.id, email: updated.email, role: updated.role, name: updated.name, organizationId: updated.organization_id, orgRole, studioRole: orgRole, locale: updated.locale || null, platformRole: updated.platform_role || null, notifyOnUpload: updated.notify_on_upload !== 0, notifyOnPublish: updated.notify_on_publish !== 0 });
 });
 
 // GET /api/auth/me/galleries — list galleries the current user has explicit access to
@@ -149,7 +149,7 @@ router.post('/forgot', async (req, res) => {
   let emailSent = false;
   try {
     await sendEmail({
-      studioId: user.studio_id,
+      organizationId: user.organization_id,
       to:      email,
       subject: 'Réinitialisation de votre mot de passe',
       html:    `<p>Bonjour,</p><p>Cliquez sur le lien ci-dessous pour réinitialiser votre mot de passe. Il est valable 2 heures.</p><p><a href="${resetUrl}">${resetUrl}</a></p><p>Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.</p>`,
@@ -203,7 +203,7 @@ router.post('/magic', async (req, res) => {
 
   let emailSent = false;
   try {
-    sendMagicLinkEmail({ studioId: user.studio_id, to: email, magicUrl });
+    sendMagicLinkEmail({ organizationId: user.organization_id, to: email, magicUrl });
     emailSent = true;
   } catch {}
 
@@ -244,12 +244,12 @@ router.post('/magic/:token', async (req, res) => {
 
 // POST /api/auth/admin/reset-link — admin generates a reset link for any member (admin+)
 router.post('/admin/reset-link', requireAuth, async (req, res) => {
-  if (!['owner', 'admin'].includes(req.orgRole || req.studioRole))
+  if (!['owner', 'admin'].includes(req.orgRole))
     return res.status(403).json({ error: 'Forbidden' });
   const { userId } = req.body || {};
   if (!userId) return res.status(400).json({ error: 'userId is required' });
   const user = await getUserById(userId);
-  if (!user || (user.studio_id !== req.organizationId && user.organization_id !== req.organizationId))
+  if (!user || user.organization_id !== req.organizationId)
     return res.status(404).json({ error: 'User not found' });
   const resetRow = await createPasswordResetToken(userId);
   const base     = (process.env.BASE_URL || 'http://localhost:4000').replace(/\/$/, '');

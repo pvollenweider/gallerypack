@@ -28,22 +28,21 @@
 //
 // See docs/permissions.md for the full matrix.
 
-// Organization roles (kept as STUDIO_ROLES for backward compat within this module)
-const STUDIO_ROLES  = ['photographer', 'collaborator', 'admin', 'owner'];
+const ORG_ROLES     = ['photographer', 'collaborator', 'admin', 'owner'];
 const PROJECT_ROLES = ['contributor', 'editor', 'manager'];
 const GALLERY_ROLES = ['viewer', 'contributor', 'editor'];
 
-function isValidStudioRole(role) {
-  return STUDIO_ROLES.includes(role);
+function isValidOrgRole(role) {
+  return ORG_ROLES.includes(role);
 }
 
 function isValidGalleryRole(role) {
   return GALLERY_ROLES.includes(role);
 }
 
-function hasStudioRole(studioRole, minRole) {
-  if (!studioRole) return false;
-  return STUDIO_ROLES.indexOf(studioRole) >= STUDIO_ROLES.indexOf(minRole);
+function hasOrgRole(orgRole, minRole) {
+  if (!orgRole) return false;
+  return ORG_ROLES.indexOf(orgRole) >= ORG_ROLES.indexOf(minRole);
 }
 
 function hasProjectRole(projectRole, minRole) {
@@ -59,7 +58,7 @@ function hasGalleryRole(galleryRole, minRole) {
 /**
  * Centralized authorization check.
  *
- * @param {object} user     - The request user object ({ id, organization_id, studio_id, role })
+ * @param {object} user     - The request user object ({ id, organization_id, role })
  * @param {string} action   - See matrix above
  * @param {string} resource - 'gallery' | 'photo' | 'studio' | 'organization' | 'member' | 'project'
  * @param {object} context  - { platformRole?, studioRole?, orgRole?, projectRole?, galleryRole?, gallery?, viewerToken? }
@@ -79,12 +78,12 @@ export function can(user, action, resource, context = {}) {
   // ── Organization-level actions (resource = 'studio' or 'organization') ───
 
   if (resource === 'studio' || resource === 'organization') {
-    if (action === 'read') return isValidStudioRole(studioRole);
+    if (action === 'read') return isValidOrgRole(studioRole);
 
     // manage / manageSettings / manageProjects / manageMembers → admin+
     if (action === 'manage' || action === 'manageSettings' ||
         action === 'manageProjects' || action === 'manageMembers') {
-      return hasStudioRole(studioRole, 'admin');
+      return hasOrgRole(studioRole, 'admin');
     }
     return false;
   }
@@ -92,7 +91,7 @@ export function can(user, action, resource, context = {}) {
   // ── Member-level actions (compat) ─────────────────────────────────────────
 
   if (resource === 'member') {
-    if (action === 'manage') return hasStudioRole(studioRole, 'admin');
+    if (action === 'manage') return hasOrgRole(studioRole, 'admin');
     return false;
   }
 
@@ -100,19 +99,24 @@ export function can(user, action, resource, context = {}) {
 
   if (resource === 'project') {
     if (action === 'read') {
-      return isValidStudioRole(studioRole) || hasProjectRole(projectRole, 'contributor');
+      return isValidOrgRole(studioRole) || hasProjectRole(projectRole, 'contributor');
     }
 
     // write / edit → admin+ or project manager
     if (action === 'write' || action === 'edit') {
-      return hasStudioRole(studioRole, 'admin') || hasProjectRole(projectRole, 'manager');
+      return hasOrgRole(studioRole, 'admin') || hasProjectRole(projectRole, 'manager');
     }
 
-    if (action === 'delete') return hasStudioRole(studioRole, 'admin');
+    if (action === 'delete') return hasOrgRole(studioRole, 'admin');
 
-    // manage / manageMembers / manageAccess → admin+ or project manager
-    if (action === 'manage' || action === 'manageMembers' || action === 'manageAccess') {
-      return hasStudioRole(studioRole, 'admin') || hasProjectRole(projectRole, 'manager');
+    // manage / manageMembers → admin+
+    if (action === 'manage' || action === 'manageMembers') {
+      return hasOrgRole(studioRole, 'admin') || hasProjectRole(projectRole, 'manager');
+    }
+
+    // manageAccess → collaborator+ or project manager
+    if (action === 'manageAccess') {
+      return hasOrgRole(studioRole, 'collaborator') || hasProjectRole(projectRole, 'manager');
     }
     return false;
   }
@@ -125,7 +129,7 @@ export function can(user, action, resource, context = {}) {
       if (!gallery) return false;
       if (gallery.access === 'public') return true;
       if (viewerToken) return true;
-      if (isValidStudioRole(studioRole)) return true;   // any studio member
+      if (isValidOrgRole(studioRole)) return true;   // any studio member
       if (hasGalleryRole(galleryRole, 'viewer')) return true;
       if (hasProjectRole(projectRole, 'contributor')) return true;
       return false;
@@ -133,17 +137,17 @@ export function can(user, action, resource, context = {}) {
 
     // write / edit → collaborator+ | project editor+ | gallery editor
     if (action === 'write' || action === 'edit') {
-      if (hasStudioRole(studioRole, 'collaborator')) return true;
+      if (hasOrgRole(studioRole, 'collaborator')) return true;
       if (hasProjectRole(projectRole, 'editor')) return true;
       if (hasGalleryRole(galleryRole, 'editor')) return true;
       return false;
     }
 
-    if (action === 'delete') return hasStudioRole(studioRole, 'admin');
+    if (action === 'delete') return hasOrgRole(studioRole, 'admin');
 
     // publish / build → same as write
     if (action === 'publish' || action === 'build') {
-      if (hasStudioRole(studioRole, 'collaborator')) return true;
+      if (hasOrgRole(studioRole, 'collaborator')) return true;
       if (hasProjectRole(projectRole, 'editor')) return true;
       if (hasGalleryRole(galleryRole, 'editor')) return true;
       return false;
@@ -151,7 +155,7 @@ export function can(user, action, resource, context = {}) {
 
     // upload (gallery resource) → collaborator+ | project contributor+ | gallery contributor+
     if (action === 'upload') {
-      if (hasStudioRole(studioRole, 'collaborator')) return true;
+      if (hasOrgRole(studioRole, 'collaborator')) return true;
       if (hasProjectRole(projectRole, 'contributor')) return true;
       if (hasGalleryRole(galleryRole, 'contributor')) return true;
       return false;
@@ -159,15 +163,15 @@ export function can(user, action, resource, context = {}) {
 
     // deletePhoto → collaborator+ | project editor+ | gallery editor
     if (action === 'deletePhoto') {
-      if (hasStudioRole(studioRole, 'collaborator')) return true;
+      if (hasOrgRole(studioRole, 'collaborator')) return true;
       if (hasProjectRole(projectRole, 'editor')) return true;
       if (hasGalleryRole(galleryRole, 'editor')) return true;
       return false;
     }
 
-    // manageAccess → admin+ | project manager | gallery editor
+    // manageAccess → collaborator+ | project manager | gallery editor
     if (action === 'manageAccess') {
-      if (hasStudioRole(studioRole, 'admin')) return true;
+      if (hasOrgRole(studioRole, 'collaborator')) return true;
       if (hasProjectRole(projectRole, 'manager')) return true;
       if (hasGalleryRole(galleryRole, 'editor')) return true;
       return false;
@@ -175,7 +179,7 @@ export function can(user, action, resource, context = {}) {
 
     // viewBuildLogs → any member (studio, project, or gallery role)
     if (action === 'viewBuildLogs') {
-      if (isValidStudioRole(studioRole)) return true;
+      if (isValidOrgRole(studioRole)) return true;
       if (hasProjectRole(projectRole, 'contributor')) return true;
       if (isValidGalleryRole(galleryRole)) return true;
       return false;
@@ -184,7 +188,7 @@ export function can(user, action, resource, context = {}) {
     // notify = signal "photos are ready" to studio admins
     if (action === 'notify') {
       if (hasGalleryRole(galleryRole, 'contributor')) return true;
-      if (isValidStudioRole(studioRole)) return true;
+      if (isValidOrgRole(studioRole)) return true;
       return false;
     }
 
@@ -195,13 +199,13 @@ export function can(user, action, resource, context = {}) {
 
   if (resource === 'photo') {
     if (action === 'upload') {
-      if (hasStudioRole(studioRole, 'collaborator')) return true;
+      if (hasOrgRole(studioRole, 'collaborator')) return true;
       if (hasProjectRole(projectRole, 'contributor')) return true;
       if (hasGalleryRole(galleryRole, 'contributor')) return true;
       return false;
     }
     if (action === 'delete') {
-      if (hasStudioRole(studioRole, 'collaborator')) return true;
+      if (hasOrgRole(studioRole, 'collaborator')) return true;
       if (hasProjectRole(projectRole, 'editor')) return true;
       if (hasGalleryRole(galleryRole, 'editor')) return true;
       return false;

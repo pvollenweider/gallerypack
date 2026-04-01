@@ -93,7 +93,7 @@ function rowToGallery(row, { dateRange = null, studio = null, project = null } =
   if (!row) return null;
   const g = {
     id:                   row.id,
-    studioId:             row.studio_id,
+    organizationId:       row.organization_id,
     projectId:            row.project_id ?? null,
     slug:                 row.slug,
     title:                row.title,
@@ -145,7 +145,7 @@ async function rowToGalleryAsync(row, opts = {}) {
 
 async function resolveProject(req, res, next) {
   const project = await getProject(req.params.projectId);
-  if (!project || project.studio_id !== req.organizationId) {
+  if (!project || project.organization_id !== req.organizationId) {
     return res.status(404).json({ error: 'Project not found' });
   }
   req.project = project;
@@ -216,7 +216,7 @@ router.post('/', async (req, res) => {
   }
 
   const [existingRows] = await query(
-    'SELECT id FROM galleries WHERE studio_id = ? AND slug = ?',
+    'SELECT id FROM galleries WHERE organization_id = ? AND slug = ?',
     [req.organizationId, slug]
   );
   if (existingRows[0]) return res.status(409).json({ error: 'A gallery with this slug already exists' });
@@ -227,7 +227,7 @@ router.post('/', async (req, res) => {
 
   await query(`
     INSERT INTO galleries
-      (id, studio_id, project_id, slug, title, description, subtitle, author, author_email, date, location,
+      (id, organization_id, project_id, slug, title, description, subtitle, author, author_email, date, location,
        locale, access, password_hash, standalone,
        allow_download_image, allow_download_gallery, cover_photo,
        slideshow_interval, copyright, build_status, created_at, updated_at)
@@ -250,7 +250,7 @@ router.post('/', async (req, res) => {
 
 async function resolveGallery(req, res, next) {
   const [rows] = await query(
-    'SELECT * FROM galleries WHERE id = ? AND project_id = ? AND studio_id = ?',
+    'SELECT * FROM galleries WHERE id = ? AND project_id = ? AND organization_id = ?',
     [req.params.id, req.project.id, req.organizationId]
   );
   if (!rows[0]) return res.status(404).json({ error: 'Gallery not found' });
@@ -327,7 +327,7 @@ router.post('/:id/rename', resolveGallery, async (req, res) => {
     return res.status(400).json({ error: 'slug must be lowercase letters, numbers, hyphens and forward slashes only' });
   }
   const [conflictRows] = await query(
-    'SELECT id FROM galleries WHERE studio_id = ? AND slug = ? AND id != ?',
+    'SELECT id FROM galleries WHERE organization_id = ? AND slug = ? AND id != ?',
     [req.organizationId, slug, req.gallery.id]
   );
   if (conflictRows[0]) return res.status(409).json({ error: 'A gallery with this slug already exists' });
@@ -453,7 +453,7 @@ router.post('/reorder', async (req, res) => {
 
 router.post('/build-all', requireStudioRole('admin'), async (req, res) => {
   const [rows] = await query(
-    "SELECT id FROM galleries WHERE project_id = ? AND studio_id = ? AND build_status != 'archived'",
+    "SELECT id FROM galleries WHERE project_id = ? AND organization_id = ? AND build_status != 'archived'",
     [req.params.projectId, req.organizationId]
   );
   if (!rows.length) return res.json({ queued: 0 });
@@ -463,7 +463,7 @@ router.post('/build-all', requireStudioRole('admin'), async (req, res) => {
   for (const { id } of rows) {
     // Skip if a build is already queued/running for this gallery
     const [existing] = await query(
-      "SELECT COUNT(*) AS n FROM build_jobs WHERE studio_id = ? AND gallery_id = ? AND status IN ('queued','running')",
+      "SELECT COUNT(*) AS n FROM build_jobs WHERE organization_id = ? AND gallery_id = ? AND status IN ('queued','running')",
       [req.organizationId, id]
     );
     if (existing[0].n > 0) continue;
@@ -484,9 +484,9 @@ router.post('/:id/notify-ready', resolveGallery, async (req, res) => {
   }
 
   const [recipients] = await query(
-    `SELECT u.email, u.name FROM studio_memberships sm
+    `SELECT u.email, u.name FROM organization_memberships sm
      JOIN users u ON u.id = sm.user_id
-     WHERE sm.studio_id = ? AND sm.role IN ('admin','owner')`,
+     WHERE sm.organization_id = ? AND sm.role IN ('admin','owner')`,
     [req.organizationId]
   );
 
@@ -496,7 +496,7 @@ router.post('/:id/notify-ready', resolveGallery, async (req, res) => {
 
   for (const r of recipients) {
     sendPhotosReadyEmail({
-      studioId:         req.organizationId,
+      organizationId:   req.organizationId,
       to:               r.email,
       photographerName: sender.name || sender.email,
       galleryTitle:     req.gallery.title || req.gallery.slug,

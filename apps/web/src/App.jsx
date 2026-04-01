@@ -37,7 +37,7 @@ const ProjectGeneralPage    = lazy(() => import('./management/pages/projects/Pro
 import InspectorLayout     from './inspector/InspectorLayout.jsx';
 import InspectorGallery    from './inspector/InspectorGallery.jsx';
 import InspectorPhoto      from './inspector/InspectorPhoto.jsx';
-import { InspectorOrganizationList, InspectorOrganizationDetail } from './inspector/InspectorStudio.jsx';
+import { InspectorOrganizationList, InspectorOrganizationDetail } from './inspector/InspectorOrganization.jsx';
 import { InspectorProjectList, InspectorProjectDetail } from './inspector/InspectorProject.jsx';
 import { InspectorUserList, InspectorUserDetail } from './inspector/InspectorUser.jsx';
 import InspectorDashboard  from './inspector/InspectorDashboard.jsx';

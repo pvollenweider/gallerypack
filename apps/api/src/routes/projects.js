@@ -36,8 +36,7 @@ function projectToJson(p) {
   if (!p) return null;
   return {
     id:               p.id,
-    organizationId:   p.organization_id ?? p.studio_id,  // canonical (Sprint 22)
-    studioId:         p.studio_id,                        // legacy alias
+    organizationId:   p.organization_id,
     slug:             p.slug,
     name:             p.name,
     description:      p.description,
@@ -96,14 +95,14 @@ router.post('/', requireStudioRole('admin'), async (req, res) => {
 // GET /api/projects/:id — detail
 router.get('/:id', async (req, res) => {
   const project = await getProject(req.params.id);
-  if (!project || project.studio_id !== req.organizationId) return res.status(404).json({ error: 'Project not found' });
+  if (!project || project.organization_id !== req.organizationId) return res.status(404).json({ error: 'Project not found' });
   res.json(projectToJson(project));
 });
 
 // PATCH /api/projects/:id — update (manager+)
 router.patch('/:id', async (req, res) => {
   const project = await getProject(req.params.id);
-  if (!project || project.studio_id !== req.organizationId) return res.status(404).json({ error: 'Project not found' });
+  if (!project || project.organization_id !== req.organizationId) return res.status(404).json({ error: 'Project not found' });
 
   const effectiveRole = await resolveProjectAccess(req.userId, req.studioRole, project.id);
   if (!effectiveRole || PROJECT_ROLE_HIERARCHY.indexOf(effectiveRole) < PROJECT_ROLE_HIERARCHY.indexOf('manager')) {
@@ -135,7 +134,7 @@ router.patch('/:id', async (req, res) => {
 // DELETE /api/projects/:id — permanently delete project and all its galleries (admin+)
 router.delete('/:id', requireStudioRole('admin'), async (req, res) => {
   const project = await getProject(req.params.id);
-  if (!project || project.studio_id !== req.organizationId) return res.status(404).json({ error: 'Project not found' });
+  if (!project || project.organization_id !== req.organizationId) return res.status(404).json({ error: 'Project not found' });
 
   // Load all galleries in this project
   const [galleries] = await query(
@@ -180,7 +179,7 @@ router.delete('/:id', requireStudioRole('admin'), async (req, res) => {
 // GET /api/projects/:id/members
 router.get('/:id/members', async (req, res) => {
   const project = await getProject(req.params.id);
-  if (!project || project.studio_id !== req.organizationId) return res.status(404).json({ error: 'Project not found' });
+  if (!project || project.organization_id !== req.organizationId) return res.status(404).json({ error: 'Project not found' });
 
   const effectiveRole = await resolveProjectAccess(req.userId, req.studioRole, project.id);
   if (!effectiveRole) return res.status(403).json({ error: 'Forbidden' });
@@ -191,7 +190,7 @@ router.get('/:id/members', async (req, res) => {
 // PUT /api/projects/:id/members/:userId — grant/update project role
 router.put('/:id/members/:userId', async (req, res) => {
   const project = await getProject(req.params.id);
-  if (!project || project.studio_id !== req.organizationId) return res.status(404).json({ error: 'Project not found' });
+  if (!project || project.organization_id !== req.organizationId) return res.status(404).json({ error: 'Project not found' });
 
   const effectiveRole = await resolveProjectAccess(req.userId, req.studioRole, project.id);
   if (!effectiveRole || PROJECT_ROLE_HIERARCHY.indexOf(effectiveRole) < PROJECT_ROLE_HIERARCHY.indexOf('manager')) {
@@ -211,7 +210,7 @@ router.put('/:id/members/:userId', async (req, res) => {
 // DELETE /api/projects/:id/members/:userId
 router.delete('/:id/members/:userId', async (req, res) => {
   const project = await getProject(req.params.id);
-  if (!project || project.studio_id !== req.organizationId) return res.status(404).json({ error: 'Project not found' });
+  if (!project || project.organization_id !== req.organizationId) return res.status(404).json({ error: 'Project not found' });
 
   const effectiveRole = await resolveProjectAccess(req.userId, req.studioRole, project.id);
   if (!effectiveRole || PROJECT_ROLE_HIERARCHY.indexOf(effectiveRole) < PROJECT_ROLE_HIERARCHY.indexOf('manager')) {
@@ -228,7 +227,7 @@ router.delete('/:id/members/:userId', async (req, res) => {
 
 router.post('/:id/viewer-tokens', async (req, res) => {
   const project = await getProject(req.params.id);
-  if (!project || project.studio_id !== req.organizationId) return res.status(404).json({ error: 'Project not found' });
+  if (!project || project.organization_id !== req.organizationId) return res.status(404).json({ error: 'Project not found' });
 
   const effectiveRole = await resolveProjectAccess(req.userId, req.studioRole, project.id);
   if (!can(req.user, 'manageAccess', 'project', { studioRole: req.studioRole, projectRole: effectiveRole })) {
@@ -243,7 +242,7 @@ router.post('/:id/viewer-tokens', async (req, res) => {
 
 router.get('/:id/viewer-tokens', async (req, res) => {
   const project = await getProject(req.params.id);
-  if (!project || project.studio_id !== req.organizationId) return res.status(404).json({ error: 'Project not found' });
+  if (!project || project.organization_id !== req.organizationId) return res.status(404).json({ error: 'Project not found' });
 
   const effectiveRole = await resolveProjectAccess(req.userId, req.studioRole, project.id);
   if (!can(req.user, 'manageAccess', 'project', { studioRole: req.studioRole, projectRole: effectiveRole })) {
@@ -255,7 +254,7 @@ router.get('/:id/viewer-tokens', async (req, res) => {
 
 router.delete('/:id/viewer-tokens/:tokenId', async (req, res) => {
   const project = await getProject(req.params.id);
-  if (!project || project.studio_id !== req.organizationId) return res.status(404).json({ error: 'Project not found' });
+  if (!project || project.organization_id !== req.organizationId) return res.status(404).json({ error: 'Project not found' });
 
   const effectiveRole = await resolveProjectAccess(req.userId, req.studioRole, project.id);
   if (!can(req.user, 'manageAccess', 'project', { studioRole: req.studioRole, projectRole: effectiveRole })) {
