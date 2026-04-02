@@ -250,10 +250,13 @@ export function createTusServer(studioId) {
   const datastore = new FileStore({ directory: tusStoreDir() });
 
   const server = new Server({
-    path: '/api/tus',              // used by tus for self-referential Upload-Location URLs
-    relativeLocation: true,        // return relative URL — avoids http:// mixed-content behind HTTPS proxy
+    path: '/api/tus',
     datastore,
     maxSize: MAX_FILE_SIZE_BYTES,
+    generateUrl(_req, { id }) {
+      const base = (process.env.BASE_URL || '').replace(/\/$/, '');
+      return base ? `${base}/api/tus/${id}` : `/api/tus/${id}`;
+    },
     // ── onCreate: validate gallery access before accepting any bytes ──────────
     // @tus/server v2: hooks receive (req: FetchRequest, upload) — no res param.
     // The original Express req is accessible via req.node?.req (srvx bridge).
@@ -339,10 +342,13 @@ export function getPublicTusServer() {
     const datastore = new FileStore({ directory: tusStoreDir() });
 
     const server = new Server({
-      path:             '/upload/tus',
-      relativeLocation: true,
+      path:    '/upload/tus',
       datastore,
-      maxSize:          MAX_FILE_SIZE_BYTES,
+      maxSize: MAX_FILE_SIZE_BYTES,
+      generateUrl(_req, { id }) {
+        const base = (process.env.BASE_URL || '').replace(/\/$/, '');
+        return base ? `${base}/upload/tus/${id}` : `/upload/tus/${id}`;
+      },
 
       async onUploadCreate(req, upload) {
         const nodeReq = req.node?.req ?? req;
