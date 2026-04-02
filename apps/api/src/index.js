@@ -223,8 +223,101 @@ app.use('/api/galleries',           galleryMaintenanceRoutes);
 app.use('/api/tokens',              personalTokensRoutes);
 app.use('/api/upload/token',        uploadRateLimit, personalUploadRoutes);
 
+// ── Public project index — must be before express.static so it's org-aware ───
+app.get('/', async (req, res) => {
+  // Resolve org from request context (set by organizationContext middleware).
+  // Fall back to default org for backward-compat (single-org / platform root).
+  const orgId = req.organizationId ?? null;
+  const [orgRows] = orgId
+    ? await query('SELECT id, name, description FROM organizations WHERE id = ? LIMIT 1', [orgId])
+    : await query('SELECT id, name, description FROM organizations WHERE is_default = 1 LIMIT 1');
+  const org       = orgRows[0] ?? null;
+  const effectiveOrgId = org?.id ?? null;
+  const settings  = effectiveOrgId ? await getSettings(effectiveOrgId) : null;
+  const siteTitle = settings?.site_title || 'GalleryPack';
+  const orgName   = org?.name || siteTitle;
+  const orgDescHtml = org?.description ? marked.parse(org.description) : '';
+  const token     = req.cookies?.session;
+  const isLoggedIn = token ? !!(await getSession(token)) : false;
+
+  const projQuery = effectiveOrgId
+    ? `SELECT p.id, p.slug, p.name, p.description, p.sort_order, p.cover_gallery_id,
+              COUNT(g.id) AS gallery_count,
+              MIN(g.date) AS date_from,
+              MAX(g.date) AS date_to,
+              (SELECT g2.slug FROM galleries g2
+               WHERE g2.project_id = p.id AND g2.access = 'public' AND g2.build_status = 'done'
+               ORDER BY g2.date DESC, g2.created_at DESC LIMIT 1) AS fallback_gallery_slug,
+              (SELECT g2.cover_photo FROM galleries g2
+               WHERE g2.project_id = p.id AND g2.access = 'public' AND g2.build_status = 'done'
+               ORDER BY g2.date DESC, g2.created_at DESC LIMIT 1) AS fallback_cover_photo
+       FROM projects p
+       JOIN galleries g ON g.project_id = p.id AND g.access = 'public' AND g.build_status = 'done'
+       WHERE p.organization_id = ?
+       GROUP BY p.id
+       ORDER BY p.sort_order ASC, date_to DESC, p.created_at DESC`
+    : `SELECT p.id, p.slug, p.name, p.description, p.sort_order, p.cover_gallery_id,
+              COUNT(g.id) AS gallery_count,
+              MIN(g.date) AS date_from,
+              MAX(g.date) AS date_to,
+              (SELECT g2.slug FROM galleries g2
+               WHERE g2.project_id = p.id AND g2.access = 'public' AND g2.build_status = 'done'
+               ORDER BY g2.date DESC, g2.created_at DESC LIMIT 1) AS fallback_gallery_slug,
+              (SELECT g2.cover_photo FROM galleries g2
+               WHERE g2.project_id = p.id AND g2.access = 'public' AND g2.build_status = 'done'
+               ORDER BY g2.date DESC, g2.created_at DESC LIMIT 1) AS fallback_cover_photo
+       FROM projects p
+       JOIN galleries g ON g.project_id = p.id AND g.access = 'public' AND g.build_status = 'done'
+       GROUP BY p.id
+       ORDER BY p.sort_order ASC, date_to DESC, p.created_at DESC`;
+  const [projRows] = effectiveOrgId
+    ? await query(projQuery, [effectiveOrgId])
+    : await query(projQuery);
+
+  const coverGalIds = projRows.filter(p => p.cover_gallery_id).map(p => p.cover_gallery_id);
+  let coverGalMap = {};
+  if (coverGalIds.length > 0) {
+    const [cgRows] = await query(
+      `SELECT id, slug, cover_photo FROM galleries WHERE id IN (${coverGalIds.map(() => '?').join(',')})`,
+      coverGalIds
+    );
+    for (const r of cgRows) coverGalMap[r.id] = r;
+  }
+
+  const projects = await Promise.all(projRows.map(async p => {
+    let coverGallerySlug, coverPhoto;
+    if (p.cover_gallery_id && coverGalMap[p.cover_gallery_id]) {
+      coverGallerySlug = coverGalMap[p.cover_gallery_id].slug;
+      coverPhoto       = coverGalMap[p.cover_gallery_id].cover_photo;
+    } else {
+      coverGallerySlug = p.fallback_gallery_slug;
+      coverPhoto       = p.fallback_cover_photo;
+    }
+    let coverName = null;
+    if (coverGallerySlug) {
+      coverName = await getCoverName({ cover_photo: coverPhoto }, `${p.slug}/${coverGallerySlug}`);
+    }
+    const dateRange = (p.date_from || p.date_to)
+      ? { from: p.date_from || p.date_to, to: p.date_to || p.date_from }
+      : null;
+    return {
+      slug:         p.slug,
+      name:         p.name,
+      description:  p.description || null,
+      galleryCount: Number(p.gallery_count),
+      coverSlug:    coverGallerySlug,
+      coverName,
+      dateRange,
+    };
+  }));
+
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(renderProjectIndex(projects, siteTitle, isLoggedIn, orgName, orgDescHtml));
+});
+
 // ── Built galleries — static files (fallback when no reverse proxy in front) ──
-app.use(express.static(DIST_DIR, { index: 'index.html' }));
+// index: false so the root '/' is always handled by the org-aware route above.
+app.use(express.static(DIST_DIR, { index: false }));
 
 // ── Shared vendor/fonts fallback for project-scoped galleries ─────────────────
 // Galleries at /{project}/{gallery}/ use relative ../vendor/ and ../fonts/ paths
@@ -250,10 +343,10 @@ app.get(/^\/([^/]+)\/?$/, async (req, res, next) => {
   const indexHtml = path.join(DIST_DIR, projectSlug, 'index.html');
   if (fs.existsSync(indexHtml)) return next();
 
-  const [projRows] = await query(
-    'SELECT id, name, description FROM projects WHERE slug = ? LIMIT 1',
-    [projectSlug]
-  );
+  const orgId = req.organizationId ?? null;
+  const [projRows] = orgId
+    ? await query('SELECT id, name, description FROM projects WHERE slug = ? AND organization_id = ? LIMIT 1', [projectSlug, orgId])
+    : await query('SELECT id, name, description FROM projects WHERE slug = ? LIMIT 1', [projectSlug]);
   const project = projRows[0];
   if (!project) return next();
   const projectDescHtml = project.description ? marked.parse(project.description) : '';
@@ -304,10 +397,11 @@ app.get(/^\/([^/]+)\/?$/, async (req, res, next) => {
     };
   }));
 
-  const [studioRows] = await query('SELECT id FROM organizations LIMIT 1');
-  const settings = studioRows[0] ? await getSettings(studioRows[0].id) : null;
+  const [orgRows2] = orgId
+    ? await query('SELECT id, name FROM organizations WHERE id = ? LIMIT 1', [orgId])
+    : await query('SELECT id, name FROM organizations WHERE is_default = 1 LIMIT 1');
+  const settings = orgRows2[0] ? await getSettings(orgRows2[0].id) : null;
   const siteTitle = settings?.site_title || 'GalleryPack';
-  const [orgRows2] = await query('SELECT name FROM organizations WHERE is_default = 1 LIMIT 1');
   const orgName = orgRows2[0]?.name || '';
   const token = req.cookies?.session;
   const isLoggedIn = token ? !!(await getSession(token)) : false;
@@ -316,78 +410,6 @@ app.get(/^\/([^/]+)\/?$/, async (req, res, next) => {
   res.send(renderProjectListing(projectSlug, project.name, galleries, siteTitle, isLoggedIn, projectDescHtml, orgName));
 });
 
-// ── Public project index ──────────────────────────────────────────────────────
-app.get('/', async (req, res) => {
-  const [studioRows] = await query('SELECT id FROM organizations LIMIT 1');
-  const studioRow  = studioRows[0];
-  const settings   = studioRow ? await getSettings(studioRow.id) : null;
-  const siteTitle  = settings?.site_title || 'GalleryPack';
-  const [orgRows]  = await query('SELECT name, description FROM organizations WHERE is_default = 1 LIMIT 1');
-  const org        = orgRows[0] ?? null;
-  const orgName    = org?.name || siteTitle;
-  const orgDescHtml = org?.description ? marked.parse(org.description) : '';
-  const token      = req.cookies?.session;
-  const isLoggedIn = token ? !!(await getSession(token)) : false;
-
-  // Fetch projects that have at least one public, published gallery
-  const [projRows] = await query(
-    `SELECT p.id, p.slug, p.name, p.description, p.sort_order, p.cover_gallery_id,
-            COUNT(g.id) AS gallery_count,
-            MIN(g.date) AS date_from,
-            MAX(g.date) AS date_to,
-            (SELECT g2.slug FROM galleries g2
-             WHERE g2.project_id = p.id AND g2.access = 'public' AND g2.build_status = 'done'
-             ORDER BY g2.date DESC, g2.created_at DESC LIMIT 1) AS fallback_gallery_slug,
-            (SELECT g2.cover_photo FROM galleries g2
-             WHERE g2.project_id = p.id AND g2.access = 'public' AND g2.build_status = 'done'
-             ORDER BY g2.date DESC, g2.created_at DESC LIMIT 1) AS fallback_cover_photo
-     FROM projects p
-     JOIN galleries g ON g.project_id = p.id AND g.access = 'public' AND g.build_status = 'done'
-     GROUP BY p.id
-     ORDER BY p.sort_order ASC, date_to DESC, p.created_at DESC`
-  );
-
-  // Resolve explicit cover galleries
-  const coverGalIds = projRows.filter(p => p.cover_gallery_id).map(p => p.cover_gallery_id);
-  let coverGalMap = {};
-  if (coverGalIds.length > 0) {
-    const [cgRows] = await query(
-      `SELECT id, slug, cover_photo FROM galleries WHERE id IN (${coverGalIds.map(() => '?').join(',')})`,
-      coverGalIds
-    );
-    for (const r of cgRows) coverGalMap[r.id] = r;
-  }
-
-  const projects = await Promise.all(projRows.map(async p => {
-    let coverGallerySlug, coverPhoto;
-    if (p.cover_gallery_id && coverGalMap[p.cover_gallery_id]) {
-      coverGallerySlug = coverGalMap[p.cover_gallery_id].slug;
-      coverPhoto       = coverGalMap[p.cover_gallery_id].cover_photo;
-    } else {
-      coverGallerySlug = p.fallback_gallery_slug;
-      coverPhoto       = p.fallback_cover_photo;
-    }
-    let coverName = null;
-    if (coverGallerySlug) {
-      coverName = await getCoverName({ cover_photo: coverPhoto }, `${p.slug}/${coverGallerySlug}`);
-    }
-    const dateRange = (p.date_from || p.date_to)
-      ? { from: p.date_from || p.date_to, to: p.date_to || p.date_from }
-      : null;
-    return {
-      slug:         p.slug,
-      name:         p.name,
-      description:  p.description || null,
-      galleryCount: Number(p.gallery_count),
-      coverSlug:    coverGallerySlug,
-      coverName,
-      dateRange,
-    };
-  }));
-
-  res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.send(renderProjectIndex(projects, siteTitle, isLoggedIn, orgName, orgDescHtml));
-});
 
 // ── Error handler ─────────────────────────────────────────────────────────────
 app.use(sentryErrorHandler);  // must be before custom error handler
