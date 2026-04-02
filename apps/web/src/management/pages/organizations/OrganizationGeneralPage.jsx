@@ -35,7 +35,7 @@ export default function OrganizationGeneralPage() {
 
   const [identity,    setIdentity]    = useState({ name: '', slug: '', description: '', locale: 'en', country: '' });
   const [identityErr, setIdentityErr] = useState('');
-  const [defaults,    setDefaults]    = useState({ defaultAccess: 'public', defaultDownloadMode: 'display' });
+  const [defaults,    setDefaults]    = useState({ defaultAccess: 'public', defaultDownloadMode: 'display', hostname: '' });
   const [defaultsErr, setDefaultsErr] = useState('');
   const [toast,       setToast]       = useState('');
 
@@ -51,6 +51,7 @@ export default function OrganizationGeneralPage() {
       setDefaults({
         defaultAccess:       s?.defaultAccess       || 'public',
         defaultDownloadMode: s?.defaultDownloadMode || 'display',
+        hostname:            s?.hostname            || '',
       });
     }).catch(() => {});
   }, [orgId]);
@@ -145,6 +146,19 @@ export default function OrganizationGeneralPage() {
                 />
               </div>
             </div>
+          </AdminCard>
+
+          {/* Hostname */}
+          <AdminCard title={t('field_hostname')}>
+            <p className="text-muted mb-3" style={{ fontSize: '0.875rem' }}>{t('field_hostname_hint')}</p>
+            <AdminInput
+              label={t('field_hostname')}
+              value={defaults.hostname}
+              onChange={e => setDefaults(f => ({ ...f, hostname: e.target.value }))}
+              onBlur={() => saveDefaults({ hostname: defaults.hostname })}
+              placeholder={`${identity.slug || 'my-org'}.gallerypack.app`}
+              style={{ fontFamily: 'monospace' }}
+            />
           </AdminCard>
 
           {/* Gallery Defaults */}
