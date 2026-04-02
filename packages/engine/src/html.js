@@ -455,7 +455,7 @@ export function buildHTML(cfg, photos, fontCss = '', standalone = false, customL
   // Lightbox transition settings from build.config.json.
   const VALID_EFFECTS = new Set(['slide', 'fade', 'zoom', 'none']);
   const autoplayCfg = cfg.build.autoplay || {};
-  const slideEffect = VALID_EFFECTS.has(autoplayCfg.slideEffect) ? autoplayCfg.slideEffect : 'fade';
+  const slideEffect = VALID_EFFECTS.has(autoplayCfg.slideEffect) ? autoplayCfg.slideEffect : 'slide';
   const slideSpeed  = Math.max(50, Math.min(2000, Number(autoplayCfg.slideSpeed) || 400));
 
   // Mobile srcset sizes — injected into the JS template so the browser gets
