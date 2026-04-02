@@ -125,8 +125,8 @@ router.patch('/:id', async (req, res) => {
     if (h) {
       await query('DELETE FROM organization_domains WHERE organization_id = ? AND is_primary = 1', [org.id]);
       await query(
-        'INSERT INTO organization_domains (organization_id, domain, is_primary) VALUES (?, ?, 1) ON DUPLICATE KEY UPDATE is_primary = 1',
-        [org.id, h]
+        'INSERT INTO organization_domains (id, organization_id, domain, is_primary, created_at) VALUES (?, ?, ?, 1, ?) ON DUPLICATE KEY UPDATE is_primary = 1',
+        [genId(), org.id, h, Date.now()]
       );
     } else {
       await query('UPDATE organization_domains SET is_primary = 0 WHERE organization_id = ?', [org.id]);
