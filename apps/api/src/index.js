@@ -9,6 +9,7 @@
 import express    from 'express';
 import { marked }  from 'marked';
 import cookieParser from 'cookie-parser';
+import cors        from 'cors';
 import path       from 'path';
 import fs         from 'fs';
 import { fileURLToPath } from 'url';
@@ -70,6 +71,28 @@ initSentry();
 // ── App ───────────────────────────────────────────────────────────────────────
 const app = express();
 app.set('trust proxy', 1); // trust X-Forwarded-Proto from Traefik
+
+const BASE_DOMAIN = (process.env.BASE_DOMAIN || 'gallerypack.app').toLowerCase();
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true); // same-origin / non-browser
+    try {
+      const host = new URL(origin).hostname.toLowerCase();
+      const allowed =
+        host === BASE_DOMAIN ||
+        host === `www.${BASE_DOMAIN}` ||
+        host.endsWith(`.${BASE_DOMAIN}`);
+      cb(null, allowed ? origin : false);
+    } catch {
+      cb(null, false);
+    }
+  },
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'Upload-Offset', 'Upload-Length',
+                   'Upload-Metadata', 'Tus-Resumable', 'X-Requested-With'],
+  exposedHeaders: ['Upload-Offset', 'Location', 'Tus-Resumable'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'],
+}));
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
