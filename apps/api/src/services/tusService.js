@@ -142,15 +142,17 @@ async function finaliseUpload({ upload, galleryId, userId, studioId, req }) {
     return { ok: false, reason: `Unsupported format. Accepted: ${SUPPORTED_FORMATS}` };
   }
 
-  // Resolve gallery slug
-  // studioId may be null when superadmin uploads via platform root domain;
-  // _studioId is resolved in onUploadCreate but use a safe fallback here too.
-  const [gRows] = studioId
+  // Resolve gallery slug.
+  // Superadmins upload via their home-org context (req.organizationId ≠ gallery's org).
+  // Always use the gallery's own org as the effective studioId.
+  const nodeReq = req?.node?.req ?? req;
+  const isSuperadmin = nodeReq?.platformRole === 'superadmin';
+  const [gRows] = (studioId && !isSuperadmin)
     ? await query('SELECT id, slug, organization_id FROM galleries WHERE id = ? AND organization_id = ?', [galleryId, studioId])
     : await query('SELECT id, slug, organization_id FROM galleries WHERE id = ?', [galleryId]);
   const gallery = gRows[0];
   if (!gallery) return { ok: false, reason: 'Gallery not found' };
-  if (!studioId) studioId = gallery.organization_id;
+  studioId = gallery.organization_id;
 
   // Gallery quota
   const [countRows] = await query('SELECT COUNT(*) AS n FROM photos WHERE gallery_id = ?', [gallery.id]);
@@ -272,16 +274,17 @@ export function createTusServer(studioId) {
         throw { status_code: 400, body: 'Missing galleryId in Upload-Metadata' };
       }
 
-      // When studioId is null (superadmin via platform root domain), resolve the
-      // gallery's org directly instead of filtering by organization_id.
-      let effectiveStudioId = studioId;
-      const [rows] = studioId
-        ? await query('SELECT id, organization_id FROM galleries WHERE id = ? AND organization_id = ?', [galleryId, studioId])
-        : await query('SELECT id, organization_id FROM galleries WHERE id = ?', [galleryId]);
+      // Superadmins can upload to any org's gallery (their req.organizationId is
+      // their home org, not the gallery's org). Skip the org filter for them and
+      // derive effectiveStudioId from the gallery row instead.
+      const isSuperadmin = nodeReq.platformRole === 'superadmin';
+      const [rows] = isSuperadmin
+        ? await query('SELECT id, organization_id FROM galleries WHERE id = ?', [galleryId])
+        : await query('SELECT id, organization_id FROM galleries WHERE id = ? AND organization_id = ?', [galleryId, studioId]);
       if (!rows[0]) {
         throw { status_code: 404, body: 'Gallery not found' };
       }
-      if (!effectiveStudioId) effectiveStudioId = rows[0].organization_id;
+      const effectiveStudioId = rows[0].organization_id;
 
       // Check storage quota before accepting any bytes
       if (upload.size > 0) {
@@ -307,7 +310,6 @@ export function createTusServer(studioId) {
         const meta      = decodeMetadata(upload.metadata);
         const galleryId = meta.galleryId || upload._galleryId;
         const userId    = nodeReq._tusUserId  || upload._userId;
-        log.info({ studioId, _studioId: upload._studioId, galleryId, metaRaw: JSON.stringify(upload.metadata)?.slice(0, 200) }, 'tus: onUploadFinish debug');
 
         const outcome = await finaliseUpload({
           upload,
