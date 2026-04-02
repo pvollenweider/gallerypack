@@ -145,7 +145,8 @@ async function rowToGalleryAsync(row, opts = {}) {
 
 async function resolveProject(req, res, next) {
   const project = await getProject(req.params.projectId);
-  if (!project || project.organization_id !== req.organizationId) {
+  const isSuperadmin = req.platformRole === 'superadmin';
+  if (!project || (!isSuperadmin && project.organization_id !== req.organizationId)) {
     return res.status(404).json({ error: 'Project not found' });
   }
   req.project = project;

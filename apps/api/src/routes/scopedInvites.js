@@ -90,7 +90,8 @@ router.post('/', requireAuth, async (req, res) => {
   }
   if (scopeType === 'project') {
     const project = await getProject(scopeId);
-    if (!project || project.organization_id !== req.organizationId) {
+    const isSuperadmin = req.platformRole === 'superadmin';
+    if (!project || (!isSuperadmin && project.organization_id !== req.organizationId)) {
       return res.status(404).json({ error: 'Project not found' });
     }
   }
