@@ -110,8 +110,10 @@ export async function prerenderProject(projectSlug) {
   const projectDescHtml = project.description ? marked.parse(project.description) : '';
 
   const [galRows] = await query(
-    `SELECT g.id, g.slug, g.title, g.date, g.location, g.description, g.cover_photo
+    `SELECT g.id, g.slug, g.title, g.date, g.location, g.description, g.cover_photo,
+            g.primary_photographer_id, u.name AS primary_photographer_name
      FROM galleries g
+     LEFT JOIN users u ON u.id = g.primary_photographer_id
      WHERE g.project_id = ? AND g.access = 'public' AND g.build_status = 'done'
      ORDER BY g.sort_order ASC, g.date DESC, g.created_at DESC`,
     [project.id]
@@ -140,10 +142,14 @@ export async function prerenderProject(projectSlug) {
       getPublicPhotoCount(g.slug),
       getPublicDateRange(distSlug),
     ]);
+    // Fall back to primary_photographer_id if no per-photo attribution exists
+    const photographers = pgMap[g.id]?.length
+      ? pgMap[g.id]
+      : (g.primary_photographer_name ? [g.primary_photographer_name] : []);
     return {
       slug: g.slug, title: g.title, date: g.date, location: g.location,
       description: g.description || null,
-      photographers: pgMap[g.id] || [],
+      photographers,
       coverName, photoCount, dateRange,
     };
   }));
