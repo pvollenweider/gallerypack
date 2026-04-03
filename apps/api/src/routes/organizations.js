@@ -42,6 +42,8 @@ import {
 import { ROLE_HIERARCHY, audit, genId, hashPassword, createJob } from '../db/helpers.js';
 import { query } from '../db/database.js';
 import { prerenderRoot, prerenderOrg } from '../services/prerender.js';
+import { computeInsights } from '../services/photoInsights.js';
+import { photoThumbnails } from '../services/thumbnailService.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -408,6 +410,56 @@ router.post('/:id/prerender', async (req, res) => {
   }
   await prerenderOrg(org.id);
   res.json({ ok: true });
+});
+
+// ── Org-level insights ────────────────────────────────────────────────────────
+
+router.get('/:id/insights', async (req, res) => {
+  const org = await loadOrg(req, res);
+  if (!org) return;
+
+  const callerRole = isSuperadmin(req) ? 'owner' : (await getOrgRole(req.userId, org.id));
+  if (!['admin', 'owner'].includes(callerRole)) {
+    return res.status(403).json({ error: 'Requires admin role or higher' });
+  }
+
+  const [rows] = await query(
+    `SELECT p.id, p.filename, p.exif, p.gallery_id, u.name AS photographer_name
+     FROM photos p
+     LEFT JOIN users u ON u.id = p.photographer_id
+     WHERE p.gallery_id IN (SELECT id FROM galleries WHERE organization_id = ?)
+       AND p.status != 'uploaded'
+       AND p.exif IS NOT NULL`,
+    [org.id]
+  );
+
+  if (!rows.length) {
+    return res.json({
+      focal:    { total: 0, withData: 0, photos: [], dominant: null, items: [] },
+      lens:     { total: 0, withData: 0, items: [] },
+      aperture: { total: 0, withData: 0, items: [] },
+      shutter:  { total: 0, withData: 0, items: [] },
+      iso:      { total: 0, withData: 0, items: [] },
+      insights: {},
+    });
+  }
+
+  const photos = rows.map(r => {
+    let exif = r.exif;
+    if (typeof exif === 'string') {
+      try { exif = JSON.parse(exif); } catch { exif = {}; }
+    }
+    return {
+      filename:    r.filename,
+      exif,
+      id:          r.id,
+      thumbnail:   photoThumbnails(r.id),
+      photographer: r.photographer_name,
+      galleryId:   r.gallery_id,
+    };
+  });
+
+  return res.json(computeInsights(photos));
 });
 
 export default router;

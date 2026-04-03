@@ -12,3 +12,4 @@ export { default as OrganizationDefaultsPage } from './OrganizationDefaultsPage.
 export { default as OrganizationAccessPage }   from './OrganizationAccessPage.jsx';
 export { default as OrganizationTeamPage }     from './OrganizationTeamPage.jsx';
 export { default as OrganizationProjectsPage } from './OrganizationProjectsPage.jsx';
+export { default as OrganizationInsightsPage } from './OrganizationInsightsPage.jsx';

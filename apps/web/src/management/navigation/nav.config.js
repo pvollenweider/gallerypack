@@ -33,6 +33,7 @@ export const scopeNav = {
     { key: 'access',    labelKey: 'nav_org_access', icon: 'fas fa-lock',         href: '/admin/organizations/:orgId/access' },
     { key: 'team',      labelKey: 'nav_team',       icon: 'fas fa-users',        href: '/admin/organizations/:orgId/team' },
     { key: 'projects',  labelKey: 'nav_projects',   icon: 'fas fa-folder-open',  href: '/admin/organizations/:orgId/projects' },
+    { key: 'insights',  labelKey: 'tab_insights',   icon: 'fas fa-chart-bar',    href: '/admin/organizations/:orgId/insights' },
   ],
 
   project: [

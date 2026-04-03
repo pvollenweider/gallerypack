@@ -27,7 +27,8 @@ import { ProjectGalleriesPage } from './management/pages/projects/index.jsx';
 import { GalleryJobsPage, GalleryPhotosPage } from './management/pages/galleries/index.jsx';
 
 // Lazy-loaded heavy pages (chart.js ~200KB, @uiw/react-md-editor ~150KB)
-const GalleryInsightsPage   = lazy(() => import('./management/pages/galleries/GalleryInsightsPage.jsx'));
+const GalleryInsightsPage        = lazy(() => import('./management/pages/galleries/GalleryInsightsPage.jsx'));
+const OrganizationInsightsPage   = lazy(() => import('./management/pages/organizations/OrganizationInsightsPage.jsx'));
 const GalleryGeneralPage    = lazy(() => import('./management/pages/galleries/GalleryGeneralPage.jsx'));
 const OrganizationGeneralPage = lazy(() => import('./management/pages/organizations/OrganizationGeneralPage.jsx'));
 const OrganizationTeamPage  = lazy(() => import('./management/pages/organizations/OrganizationTeamPage.jsx'));
@@ -138,6 +139,7 @@ export default function App() {
       <Route path="/admin/organizations/:orgId/access"         element={<OrgSettingsRedirect />} />
       <Route path="/admin/organizations/:orgId/overview"       element={<OrgSettingsRedirect />} />
       <Route path="/admin/organizations/:orgId/projects"       element={<Navigate to="/admin/organizations" replace />} />
+      <Route path="/admin/organizations/:orgId/insights"       element={<W><SuspenseRoute><OrganizationInsightsPage /></SuspenseRoute></W>} />
 
       {/* Project home = gallery list */}
       <Route path="/admin/organizations/:orgId/projects/:projectId"                element={<W><ProjectGalleriesPage /></W>} />

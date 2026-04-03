@@ -185,6 +185,7 @@ export const api = {
   listOrgDomains:           (id)          => req('GET',    `/organizations/${id}/domains`),
   addOrgDomain:             (id, domain, isPrimary) => req('POST', `/organizations/${id}/domains`, { domain, isPrimary }),
   removeOrgDomain:          (id, domain)  => req('DELETE', `/organizations/${id}/domains/${encodeURIComponent(domain)}`),
+  getOrgInsights:           (orgId)       => req('GET',    `/organizations/${orgId}/insights`),
 
   // Platform (superadmin)
   listPlatformOrganizations:  ()            => req('GET',    '/platform/organizations'),
