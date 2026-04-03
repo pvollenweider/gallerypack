@@ -257,7 +257,14 @@ export function createTusServer(studioId) {
     path: '/api/tus',
     datastore,
     maxSize: MAX_FILE_SIZE_BYTES,
-    generateUrl(_req, { id }) {
+    generateUrl(req, { id }) {
+      // Use the incoming request's host so Location headers preserve the
+      // subdomain (e.g. pol.gallerypack.app). A static BASE_URL would strip
+      // the subdomain, routing subsequent PATCH requests to the wrong org → 401.
+      const nodeReq = req.node?.req ?? req;
+      const host    = nodeReq.headers?.['x-forwarded-host'] || nodeReq.headers?.host;
+      const proto   = nodeReq.headers?.['x-forwarded-proto'] || 'https';
+      if (host) return `${proto}://${host}/api/tus/${id}`;
       const base = (process.env.BASE_URL || '').replace(/\/$/, '');
       return base ? `${base}/api/tus/${id}` : `/api/tus/${id}`;
     },
@@ -352,7 +359,11 @@ export function getPublicTusServer() {
       path:    '/upload/tus',
       datastore,
       maxSize: MAX_FILE_SIZE_BYTES,
-      generateUrl(_req, { id }) {
+      generateUrl(req, { id }) {
+        const nodeReq = req.node?.req ?? req;
+        const host    = nodeReq.headers?.['x-forwarded-host'] || nodeReq.headers?.host;
+        const proto   = nodeReq.headers?.['x-forwarded-proto'] || 'https';
+        if (host) return `${proto}://${host}/upload/tus/${id}`;
         const base = (process.env.BASE_URL || '').replace(/\/$/, '');
         return base ? `${base}/upload/tus/${id}` : `/upload/tus/${id}`;
       },
