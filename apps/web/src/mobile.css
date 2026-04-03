@@ -182,3 +182,97 @@
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.5; }
 }
+
+/* ── AdminPage header — ensure row aligns properly when columns stack ──────── */
+
+@media (max-width: 575px) {
+  .app-content-header .row {
+    align-items: flex-start !important;
+  }
+}
+
+/* ── GalleryDetail (legacy public view) — settings form ──────────────────── */
+
+@media (max-width: 575px) {
+  /* Stack label above input field */
+  .gallery-settings-row {
+    flex-direction: column !important;
+    gap: 0.3rem !important;
+  }
+  .gallery-settings-row > label {
+    width: auto !important;
+    padding-top: 0 !important;
+  }
+  /* Remove the hardcoded left margin used to align with the input column */
+  .gallery-settings-indent {
+    margin-left: 0 !important;
+  }
+  /* Modals — ensure they don't bleed off screen edges */
+  .gallery-detail-modal-box {
+    margin: 0.75rem !important;
+    padding: 1rem !important;
+    max-width: calc(100vw - 1.5rem) !important;
+  }
+  /* Content area padding */
+  .gallery-detail-content {
+    padding: 1rem !important;
+    padding-top: 1rem !important;
+  }
+}
+
+/* ── GalleryDetail jobs list — wrap on narrow screens ────────────────────── */
+
+@media (max-width: 575px) {
+  .gallery-job-row {
+    flex-wrap: wrap !important;
+    gap: 0.35rem !important;
+  }
+  .gallery-job-date {
+    margin-left: 0 !important;
+    width: 100%;
+    font-size: 0.75rem !important;
+  }
+}
+
+/* ── GalleryCard action buttons — larger touch targets on mobile ──────────── */
+
+@media (max-width: 768px) {
+  .gallery-card-action-btn {
+    min-height: 34px !important;
+    min-width: 34px !important;
+    padding: 0.2rem 0.55rem !important;
+    font-size: 0.85rem !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+}
+
+/* ── Photo grid — slightly smaller min-width on very small screens ─────────── */
+
+@media (max-width: 400px) {
+  .photo-grid-auto {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)) !important;
+  }
+}
+
+/* ── Dashboard tables — scrollable on mobile ─────────────────────────────── */
+/* (handled by wrapping with .table-responsive in JSX)                         */
+
+/* ── Invite/upload link code blocks — don't overflow on mobile ───────────── */
+
+@media (max-width: 768px) {
+  .invite-link-code {
+    word-break: break-all;
+    overflow-wrap: anywhere;
+    font-size: 0.72rem !important;
+  }
+}
+
+/* ── Content header action rows — prevent button overflow ────────────────── */
+
+@media (max-width: 768px) {
+  .app-content-header .d-flex.flex-wrap {
+    row-gap: 0.35rem;
+  }
+}

@@ -258,7 +258,7 @@ function InsightCards({ insights }) {
   const cards = INSIGHT_META.map(m => ({ ...m, insight: insights?.[m.key] })).filter(c => c.insight);
   if (!cards.length) return null;
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '0.75rem' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(260px, 100%), 1fr))', gap: '0.75rem' }}>
       {cards.map(({ key, icon, insight }) => (
         <div key={key} className="card border-0 shadow-sm" style={{ background: 'var(--bs-tertiary-bg, #f8f9fa)' }}>
           <div className="card-body p-3">

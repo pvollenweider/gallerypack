@@ -404,6 +404,7 @@ export default function GalleryGeneralPage() {
             ) : links.length === 0 ? (
               <p className="text-muted mb-3" style={{ fontSize: '0.875rem' }}>{t('gal_upload_no_links')}</p>
             ) : (
+              <div className="table-responsive">
               <table className="table table-sm table-hover mb-3">
                 <thead className="table-light">
                   <tr>
@@ -434,6 +435,7 @@ export default function GalleryGeneralPage() {
                   })}
                 </tbody>
               </table>
+              </div>
             )}
             <AdminAlert message={linkError} />
             <form onSubmit={createLink} className="d-flex gap-2 align-items-end">

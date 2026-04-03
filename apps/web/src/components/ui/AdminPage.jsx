@@ -23,7 +23,7 @@ export default function AdminPage({ title, actions, children, maxWidth = '960px'
               <h1 className="m-0" style={{ fontSize: '1.1rem', fontWeight: 600 }}>{title}</h1>
             </div>
             {actions && (
-              <div className="col-sm-6 d-flex justify-content-end gap-2 flex-wrap">
+              <div className="col-sm-6 d-flex justify-content-sm-end justify-content-start gap-2 flex-wrap mt-2 mt-sm-0">
                 {actions}
               </div>
             )}

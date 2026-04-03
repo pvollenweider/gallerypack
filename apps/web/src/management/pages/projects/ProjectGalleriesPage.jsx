@@ -267,6 +267,7 @@ export default function ProjectGalleriesPage() {
               </AdminButton>
             </div>
           ) : (
+            <div className="table-responsive">
             <table className="table table-hover mb-0">
               <thead className="table-light">
                 <tr>
@@ -329,6 +330,7 @@ export default function ProjectGalleriesPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       </div>

@@ -117,17 +117,18 @@ export function GalleryCard({ gallery, onBuild, onDelete, canBuild = true }) {
 
           <div style={s.actions} onClick={e => e.stopPropagation()}>
             {gallery.buildStatus === 'done' && (
-              <a href={`/${gallery.slug}/`} target="_blank" rel="noreferrer" style={s.viewBtn} title={t('view_gallery')}><i className="fas fa-external-link-alt" /></a>
+              <a href={`/${gallery.slug}/`} target="_blank" rel="noreferrer" className="gallery-card-action-btn" style={s.viewBtn} title={t('view_gallery')}><i className="fas fa-external-link-alt" /></a>
             )}
             {canBuild && (
               <button
+                className="gallery-card-action-btn"
                 style={{ ...s.btn, ...(isUpToDate ? s.btnDisabled : {}) }}
                 onClick={() => onBuild(gallery.id)}
                 disabled={isUpToDate}
                 title={isUpToDate ? t('already_published') : t('build_action')}
               ><i className="fas fa-play" /></button>
             )}
-            <button style={{ ...s.btn, color: '#dc2626' }} onClick={() => onDelete(gallery.id)} title={t('delete')}><i className="fas fa-times" /></button>
+            <button className="gallery-card-action-btn" style={{ ...s.btn, color: '#dc2626' }} onClick={() => onDelete(gallery.id)} title={t('delete')}><i className="fas fa-times" /></button>
           </div>
         </div>
       </div>

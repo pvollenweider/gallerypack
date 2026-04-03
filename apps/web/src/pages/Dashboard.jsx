@@ -184,6 +184,7 @@ export default function Dashboard() {
                     </h3>
                   </div>
                   <div className="card-body p-0">
+                    <div className="table-responsive">
                     <table className="table table-sm table-hover mb-0">
                       <tbody>
                         {data.inbox.by_gallery.map(g => (
@@ -193,13 +194,14 @@ export default function Dashboard() {
                                 {g.gallery_title || g.gallery_id}
                               </Link>
                             </td>
-                            <td className="text-end text-warning fw-bold">
+                            <td className="text-end text-warning fw-bold" style={{ whiteSpace: 'nowrap' }}>
                               {g.unvalidated_count} {t('hub_pending')}
                             </td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -215,6 +217,7 @@ export default function Dashboard() {
                   {data.builds.recent.length === 0 ? (
                     <div className="text-center text-muted py-4">{t('hub_no_builds')}</div>
                   ) : (
+                    <div className="table-responsive">
                     <table className="table table-sm table-hover mb-0">
                       <thead>
                         <tr>
@@ -233,7 +236,7 @@ export default function Dashboard() {
                             <td>
                               <span className={`badge bg-${STATUS_COLOR[b.status] || 'secondary'}`}>{b.status}</span>
                             </td>
-                            <td className="text-muted" style={{ fontSize: '0.8rem' }}>
+                            <td className="text-muted" style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
                               {new Date(b.created_at).toLocaleString()}
                             </td>
                             <td>
@@ -245,6 +248,7 @@ export default function Dashboard() {
                         ))}
                       </tbody>
                     </table>
+                    </div>
                   )}
                 </div>
               </div>

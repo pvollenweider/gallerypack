@@ -183,13 +183,14 @@ export default function OrganizationProjectsPage() {
               action={<AdminButton size="sm" icon="fas fa-plus" onClick={openCreate}>{t('proj_new_btn')}</AdminButton>}
             />
           ) : (
+            <div className="table-responsive">
             <table className="table table-hover mb-0">
               <thead className="table-light">
                 <tr>
                   <th style={{ width: '32px' }}></th>
                   <th style={{ width: '32px' }} title={t('proj_cover_project_hint')}><i className="fas fa-star" style={{ color: '#ccc', fontSize: '0.8rem' }} /></th>
                   <th>{t('orgs_th_name')}</th>
-                  <th>{t('orgs_th_slug')}</th>
+                  <th className="d-none d-sm-table-cell">{t('orgs_th_slug')}</th>
                   <th></th>
                 </tr>
               </thead>
@@ -225,7 +226,7 @@ export default function OrganizationProjectsPage() {
                       <Link to={`/admin/organizations/${orgId}/projects/${p.id}`} className="fw-semibold text-body">{p.name}</Link>
                       {p.description && <small className="text-muted d-block">{p.description}</small>}
                     </td>
-                    <td><code className="text-muted">{p.slug}</code></td>
+                    <td className="d-none d-sm-table-cell"><code className="text-muted">{p.slug}</code></td>
                     <td className="text-end">
                       <Link to={`/admin/organizations/${orgId}/projects/${p.id}`} className="btn btn-sm btn-outline-secondary">
                         {t('gal_overview_manage')} <i className="fas fa-chevron-right ms-1" />
@@ -235,6 +236,7 @@ export default function OrganizationProjectsPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       </div>

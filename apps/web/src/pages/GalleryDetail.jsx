@@ -436,7 +436,7 @@ export default function GalleryDetail() {
                 </button>
               )}
             </div>
-            <div className="col-sm-7 text-sm-end d-flex justify-content-end flex-wrap align-items-center" style={{ gap: '0.4rem' }}>
+            <div className="col-sm-7 mt-2 mt-sm-0 d-flex justify-content-sm-end justify-content-start flex-wrap align-items-center" style={{ gap: '0.4rem' }}>
               {gallery.buildStatus === 'done' && (
                 <a href={`${publicPath}/`} target="_blank" rel="noreferrer" className="btn btn-success btn-sm">
                   {t('view_gallery_btn')} <i className="fas fa-external-link-alt ms-1" />
@@ -498,7 +498,7 @@ export default function GalleryDetail() {
       )}
 
       <section className="content">
-      <div className="container-fluid" style={{ maxWidth: 960, paddingTop: '1.5rem' }}>
+      <div className="container-fluid gallery-detail-content" style={{ maxWidth: 960, paddingTop: '1.5rem' }}>
 
         {/* ── PHOTOS ── */}
         {tab === 'photos' && (
@@ -676,8 +676,8 @@ export default function GalleryDetail() {
                       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleRenameSlug(e); } }}
                     />
                   </Row>
-                  <p style={{ ...s.fieldHint, marginLeft: 216 }}>{t('rename_slug_hint')}</p>
-                  <div style={{ marginLeft: 216 }}>
+                  <p className="gallery-settings-indent" style={s.fieldHint}>{t('rename_slug_hint')}</p>
+                  <div className="gallery-settings-indent">
                     <button
                       type="button"
                       style={{ ...s.primaryBtn, background:'#dc2626' }}
@@ -709,10 +709,10 @@ export default function GalleryDetail() {
             {jobs.length === 0 && <p style={s.dim}>{t('no_builds')}</p>}
             <div style={s.jobList}>
               {jobs.map(j => (
-                <Link key={j.id} to={`/jobs/${j.id}`} style={s.jobRow}>
+                <Link key={j.id} to={`/jobs/${j.id}`} className="gallery-job-row" style={s.jobRow}>
                   <span style={{ ...s.jobStatus, color: STATUS_COLOR[j.status] || '#888' }}>{j.status}</span>
                   <span style={s.jobId}>{j.id.slice(-10)}</span>
-                  <span style={s.jobDate}>{new Date(j.createdAt).toLocaleString()}</span>
+                  <span className="gallery-job-date" style={s.jobDate}>{new Date(j.createdAt).toLocaleString()}</span>
                 </Link>
               ))}
             </div>
@@ -1042,7 +1042,7 @@ export default function GalleryDetail() {
       {/* Share upload link modal (with QR code) */}
       {shareModal && (
         <div style={s.modalOverlay} onClick={() => setShareModal(null)}>
-          <div style={s.modalBox} onClick={e => e.stopPropagation()}>
+          <div className="gallery-detail-modal-box" style={s.modalBox} onClick={e => e.stopPropagation()}>
             <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem', color: '#eee' }}>
               Upload link — {shareModal.label}
             </h3>
@@ -1072,7 +1072,7 @@ export default function GalleryDetail() {
       {/* QR-only modal (from upload links list) */}
       {qrModal && (
         <div style={s.modalOverlay} onClick={() => setQrModal(null)}>
-          <div style={{ ...s.modalBox, textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+          <div className="gallery-detail-modal-box" style={{ ...s.modalBox, textAlign: 'center' }} onClick={e => e.stopPropagation()}>
             <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem', color: '#eee' }}>
               QR code — {qrModal.label}
             </h3>
@@ -1103,7 +1103,7 @@ function SortIcon({ asc }) {
 
 function Row({ label, children }) {
   return (
-    <div style={{ display:'flex', alignItems:'flex-start', gap:'1rem', marginBottom:'0.6rem' }}>
+    <div className="gallery-settings-row" style={{ display:'flex', alignItems:'flex-start', gap:'1rem', marginBottom:'0.6rem' }}>
       <label style={{ width:200, fontSize:'0.85rem', color:'#555', flexShrink:0, paddingTop:'0.4rem' }}>{label}</label>
       {children}
     </div>

@@ -47,6 +47,7 @@ export default function GalleryJobsPage() {
           {jobs.length === 0 ? (
             <div className="text-center text-muted py-5">{t('no_builds')}</div>
           ) : (
+            <div className="table-responsive">
             <table className="table table-sm table-hover mb-0">
               <thead>
                 <tr>
@@ -85,6 +86,7 @@ export default function GalleryJobsPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </AdminCard>
       )}

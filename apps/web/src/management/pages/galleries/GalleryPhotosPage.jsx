@@ -583,7 +583,7 @@ export default function GalleryPhotosPage() {
                     )}
                   </div>
                 )}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '0.5rem', padding: '1rem' }}>
+              <div className="photo-grid-auto" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '0.5rem', padding: '1rem' }}>
                 {filteredPhotos.map((p, i) => {
                   const isSelected    = selected.has(p.id);
                   const isBeingDragged = filterPhotographerId === null && dragIdx === i && !isGroupDrag.current;

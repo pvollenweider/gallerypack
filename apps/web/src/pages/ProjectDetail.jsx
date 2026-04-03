@@ -154,7 +154,7 @@ export default function ProjectDetail() {
                 </button>
               )}
             </div>
-            <div className="col-sm-6 text-sm-end d-flex justify-content-end align-items-center">
+            <div className="col-sm-6 mt-2 mt-sm-0 d-flex justify-content-sm-end justify-content-start align-items-center">
               {canCreate && (
                 <button className="btn btn-primary btn-sm" onClick={() => setCreating(v => !v)}>
                   <i className="fas fa-plus me-1" />{t('new_gallery')}
