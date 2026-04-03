@@ -400,6 +400,14 @@ router.post('/:id/rebuild-all', async (req, res) => {
   res.json({ queued, total: rows.length });
 });
 
+// POST /api/organizations/prerender — re-generate static index.html for all orgs (superadmin)
+router.post('/prerender', async (req, res) => {
+  if (!isSuperadmin(req)) return res.status(403).json({ error: 'Forbidden' });
+  const { prerenderAll } = await import('../services/prerender.js');
+  await prerenderAll();
+  res.json({ ok: true });
+});
+
 // POST /api/organizations/:id/prerender — re-generate static index.html for this org's projects
 router.post('/:id/prerender', async (req, res) => {
   const org = await loadOrg(req, res);
