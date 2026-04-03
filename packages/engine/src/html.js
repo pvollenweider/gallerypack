@@ -1271,7 +1271,7 @@ function fmtDateRange(from, to) {
 }
 const dateFmt = fmtDateRange(PROJECT.date, PROJECT.dateEnd);
 document.getElementById('bTitle').textContent = PROJECT.title || '';
-const bMetaParts = [PROJECT.location, dateFmt];
+const bMetaParts = [PROJECT.location];
 if (PROJECT.photographers && PROJECT.photographers.length > 0)
   bMetaParts.push(PROJECT.photographers.join(' \u00b7 '));
 document.getElementById('bMeta').textContent  = bMetaParts.filter(Boolean).join(' \u00b7 ');
