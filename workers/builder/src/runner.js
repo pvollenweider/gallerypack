@@ -207,6 +207,21 @@ export async function runJob(jobId) {
     const newPhotoCount = newlyPublished.affectedRows || 0;
     await appendEvent(jobId, 'log', `Published ${newPhotoCount} new photo(s)`);
 
+    // Auto-populate gallery.date from the latest photo EXIF date when not set
+    if (!gallery.date) {
+      const [dateRows] = await query(
+        `SELECT MAX(JSON_UNQUOTE(JSON_EXTRACT(exif, '$.date'))) AS max_date
+         FROM photos WHERE gallery_id = ? AND status IN ('validated', 'published') AND exif IS NOT NULL`,
+        [gallery.id]
+      );
+      const maxDate = dateRows[0]?.max_date;
+      if (maxDate) {
+        const dateStr = maxDate.slice(0, 10); // YYYY-MM-DD
+        await query('UPDATE galleries SET date = ? WHERE id = ?', [dateStr, gallery.id]);
+        await appendEvent(jobId, 'log', `Auto-set gallery date from EXIF: ${dateStr}`);
+      }
+    }
+
     // Persist artifact metadata back to the gallery row
     await query(
       'UPDATE galleries SET build_status = ?, built_at = ?, dist_name = ?, needs_rebuild = 0, workflow_status = \'published\', updated_at = ? WHERE id = ?',

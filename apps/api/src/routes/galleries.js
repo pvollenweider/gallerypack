@@ -129,7 +129,9 @@ function rowToGallery(row, { dateRange = null } = {}) {
 }
 
 async function rowToGalleryAsync(row) {
-  const dateRange = row.build_status === 'done' ? await getDateRange(row.slug) : null;
+  const distSlug = row.dist_name || row.slug;
+  let dateRange = row.build_status === 'done' ? await getDateRange(distSlug) : null;
+  if (!dateRange && row.date) dateRange = { from: row.date, to: row.date };
   return rowToGallery(row, { dateRange });
 }
 
