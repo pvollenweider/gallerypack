@@ -28,16 +28,30 @@ function fmtDateCard(dateRange, fallback) {
   const ord       = d => d === 1 ? '1er' : String(d);
   const mLong     = d => d.toLocaleDateString(loc, { month: 'long' });
   const y         = a.getFullYear();
+
+  // "23 mars 2026"
   if (diff === 0)
     return `${ord(a.getDate())} ${mLong(a)} ${y}`;
-  if (diff === 1) {
-    if (sameMonth)
-      return `${ord(a.getDate())} et ${ord(b.getDate())} ${mLong(a)} ${y}`;
-    return `${ord(a.getDate())} ${mLong(a)} et ${ord(b.getDate())} ${mLong(b)} ${y}`;
+  // "23 et 24 mars 2026"
+  if (diff === 1 && sameMonth)
+    return `${ord(a.getDate())} et ${ord(b.getDate())} ${mLong(a)} ${y}`;
+  // "juin 2026"
+  if (sameMonth)
+    return `${mLong(a)} ${y}`;
+  // Short cross-month span ≤ 30 days: day precision
+  if (diff <= 30) {
+    if (sameYear)
+      return `${ord(a.getDate())} ${mLong(a)} – ${ord(b.getDate())} ${mLong(b)} ${y}`;
+    return `${ord(a.getDate())} ${mLong(a)} ${y} – ${ord(b.getDate())} ${mLong(b)} ${b.getFullYear()}`;
   }
-  if (sameMonth)  return `${mLong(a)} ${y}`;
-  if (sameYear)   return `${mLong(a)} à ${mLong(b)} ${y}`;
-  return `${mLong(a)} ${y} à ${mLong(b)} ${b.getFullYear()}`;
+  // Longer spans: month-level
+  if (sameYear) {
+    const monthDiff = b.getMonth() - a.getMonth();
+    if (monthDiff === 1) return `${mLong(a)} et ${mLong(b)} ${y}`;
+    if (diff < 300)      return `${mLong(a)} – ${mLong(b)} ${y}`;
+    return String(y);
+  }
+  return `${mLong(a)} ${y} – ${mLong(b)} ${b.getFullYear()}`;
 }
 
 const ICON_CAMERA   = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;

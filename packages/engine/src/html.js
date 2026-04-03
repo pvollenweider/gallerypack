@@ -60,27 +60,47 @@ function fmtPrisesLe(from, to) {
   const parse = s => new Date(s + 'T12:00:00');
   const a = parse(from);
   const b = to ? parse(to) : a;
-  const diff = Math.round((b - a) / 86400000);
-  const loc  = 'fr-CH';
-  const ord  = d => d === 1 ? '1er' : String(d);
-  const mLong = d => d.toLocaleDateString(loc, { month: 'long' });
-  const y = a.getFullYear();
+  const diff      = Math.round((b - a) / 86400000);
+  const loc       = 'fr-CH';
+  const ord       = d => d === 1 ? '1er' : String(d);
+  const mLong     = d => d.toLocaleDateString(loc, { month: 'long' });
   const sameMonth = a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
   const sameYear  = a.getFullYear() === b.getFullYear();
+  const y         = a.getFullYear();
 
+  // "le 23 mars 2026"
   if (diff === 0)
     return `prises le ${ord(a.getDate())} ${mLong(a)} ${y}`;
-  if (diff === 1) {
-    if (sameMonth)
-      return `prises les ${ord(a.getDate())} et ${ord(b.getDate())} ${mLong(a)} ${y}`;
-    return `prises les ${ord(a.getDate())} ${mLong(a)} et ${ord(b.getDate())} ${mLong(b)} ${y}`;
-  }
-  // > 2 days
+
+  // "les 23 et 24 mars 2026"
+  if (diff === 1 && sameMonth)
+    return `prises les ${ord(a.getDate())} et ${ord(b.getDate())} ${mLong(a)} ${y}`;
+
+  // "en juin 2026" (same month, span > 1 day)
   if (sameMonth)
     return `prises en ${mLong(a)} ${y}`;
-  if (sameYear)
-    return `prises en ${mLong(a)} à ${mLong(b)} ${y}`;
-  return `prises en ${mLong(a)} ${y} à ${mLong(b)} ${b.getFullYear()}`;
+
+  // "entre le 23 février et le 15 mars 2026" (short cross-month span ≤ 30 days)
+  if (diff <= 30) {
+    if (sameYear)
+      return `prises entre le ${ord(a.getDate())} ${mLong(a)} et le ${ord(b.getDate())} ${mLong(b)} ${y}`;
+    return `prises entre le ${ord(a.getDate())} ${mLong(a)} ${y} et le ${ord(b.getDate())} ${mLong(b)} ${b.getFullYear()}`;
+  }
+
+  // Longer spans: month-level
+  if (sameYear) {
+    const monthDiff = b.getMonth() - a.getMonth();
+    // "en mai et en juin 2026" (adjacent months)
+    if (monthDiff === 1)
+      return `prises en ${mLong(a)} et en ${mLong(b)} ${y}`;
+    // "entre mai et décembre 2026" (wider span)
+    if (diff < 300)
+      return `prises entre ${mLong(a)} et ${mLong(b)} ${y}`;
+    // "en 2026" (nearly a full year)
+    return `prises en ${y}`;
+  }
+  // Cross-year
+  return `prises en ${mLong(a)} ${y} et en ${mLong(b)} ${b.getFullYear()}`;
 }
 
 // ── Legal token replacement ───────────────────────────────────────────────────
