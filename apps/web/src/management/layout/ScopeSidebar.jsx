@@ -196,6 +196,7 @@ export default function ScopeSidebar({ scope, params = {}, isMobileDrawer = fals
                 )}
 
                 {canManageOrg && <TreeLink to={`${orgBase}/team`} label={t('nav_team')} depth={2} onClick={click} />}
+                {canManageOrg && <TreeLink to={`${orgBase}/insights`} label={t('tab_insights')} depth={2} onClick={click} />}
               </>
             )}
           </ul>
