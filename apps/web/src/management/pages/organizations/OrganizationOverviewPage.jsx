@@ -40,7 +40,7 @@ export default function OrganizationOverviewPage() {
   async function buildAll() {
     setBuildingAll(true);
     try {
-      const r = await api.buildAllOrgGalleries();
+      const r = await api.buildAllOrgGalleries(orgId);
       setBuildToast(t('build_all_queued_of', { queued: r.queued, total: r.total }));
     } catch (err) {
       setBuildToast(t('build_all_error', { message: err.message }));

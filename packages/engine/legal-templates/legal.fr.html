@@ -5,7 +5,7 @@
 <h2>Droit d&rsquo;auteur</h2>
 <p>
   Les photographies présentées dans cette galerie sont des œuvres originales de
-  <strong>{{author}}</strong>{{#if photographerNames}} et de <strong>{{photographerNames}}</strong>{{/if}}
+  {{#if author}}<strong>{{author}}</strong>{{/if}}{{#if photographerNames}}{{#if author}} et de {{/if}}<strong>{{photographerNames}}</strong>{{/if}}
   (&copy;&nbsp;{{year}}).
   {{#if location}}Prises à {{location}}.{{/if}}
   Chaque image constitue une œuvre individuelle protégée à ce titre par le droit

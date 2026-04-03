@@ -5,7 +5,7 @@
 <h2>Copyright</h2>
 <p>
   The photographs presented in this gallery are original works by
-  <strong>{{author}}</strong>{{#if photographerNames}} and <strong>{{photographerNames}}</strong>{{/if}}
+  {{#if author}}<strong>{{author}}</strong>{{/if}}{{#if photographerNames}}{{#if author}} and {{/if}}<strong>{{photographerNames}}</strong>{{/if}}
   (&copy;&nbsp;{{year}}).
   {{#if location}}Shot in {{location}}.{{/if}}
   Each image constitutes an individual work protected in its own right

@@ -5,7 +5,7 @@
 <h2>Direitos de autor</h2>
 <p>
   As fotografias apresentadas nesta galeria são obras originais de
-  <strong>{{author}}</strong>{{#if photographerNames}} e de <strong>{{photographerNames}}</strong>{{/if}}
+  {{#if author}}<strong>{{author}}</strong>{{/if}}{{#if photographerNames}}{{#if author}} e de {{/if}}<strong>{{photographerNames}}</strong>{{/if}}
   (&copy;&nbsp;{{year}}).
   {{#if location}}Tiradas em {{location}}.{{/if}}
   Cada imagem constitui uma obra individual protegida pela lei suíça

@@ -39,7 +39,7 @@ import {
   addOrgDomain,
   removeOrgDomain,
 } from '../services/organization.js';
-import { ROLE_HIERARCHY, audit, genId, hashPassword } from '../db/helpers.js';
+import { ROLE_HIERARCHY, audit, genId, hashPassword, createJob } from '../db/helpers.js';
 import { query } from '../db/database.js';
 import { prerenderRoot, prerenderOrg } from '../services/prerender.js';
 
@@ -364,6 +364,38 @@ router.delete('/:id/domains/:domain', async (req, res) => {
 
   await removeOrgDomain(org.id, req.params.domain);
   res.json({ ok: true });
+});
+
+// POST /api/organizations/:id/rebuild-all — queue rebuild jobs for every gallery in the org
+router.post('/:id/rebuild-all', async (req, res) => {
+  const org = await loadOrg(req, res);
+  if (!org) return;
+  const callerRole = isSuperadmin(req) ? 'owner' : (await getOrgRole(req.userId, org.id));
+  if (!['admin', 'owner'].includes(callerRole)) {
+    return res.status(403).json({ error: 'Requires admin role or higher' });
+  }
+
+  const [rows] = await query(
+    "SELECT id FROM galleries WHERE organization_id = ?",
+    [org.id]
+  );
+  if (!rows.length) return res.json({ queued: 0, total: 0 });
+
+  let queued = 0;
+  for (const { id } of rows) {
+    const [existing] = await query(
+      "SELECT COUNT(*) AS n FROM build_jobs WHERE organization_id = ? AND gallery_id = ? AND status IN ('queued','running')",
+      [org.id, id]
+    );
+    if (existing[0].n > 0) continue;
+    try {
+      await createJob({ galleryId: id, organizationId: org.id, triggeredBy: req.user.id, force: false });
+      queued++;
+    } catch {}
+  }
+
+  try { await audit(org.id, req.userId, 'organization.rebuild_all', 'organization', org.id, { queued, total: rows.length }); } catch {}
+  res.json({ queued, total: rows.length });
 });
 
 // POST /api/organizations/:id/prerender — re-generate static index.html for this org's projects

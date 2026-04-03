@@ -124,11 +124,16 @@ export function applyLegalTokens(tpl, project) {
       .map(s => `<p>${s}</p>`)
       .join(''),
   };
-  // Process {{#if field}}...{{/if}} conditional blocks first.
-  // If the field value is non-empty the block content is kept; otherwise removed.
-  let out = tpl.replace(/\{\{#if (\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (_, key, inner) => {
-    return (map[key] || '').trim() ? inner : '';
-  });
+  // Process {{#if field}}...{{/if}} conditional blocks.
+  // Multi-pass so nested conditionals are resolved inside-out.
+  let out = tpl;
+  let prev;
+  do {
+    prev = out;
+    out = out.replace(/\{\{#if (\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (_, key, inner) => {
+      return (map[key] || '').trim() ? inner : '';
+    });
+  } while (out !== prev);
   // Then replace remaining {{token}} placeholders.
   return out.replace(/\{\{(\w+)\}\}/g, (_, key) => key in map ? map[key] : `{{${key}}}`);
 }

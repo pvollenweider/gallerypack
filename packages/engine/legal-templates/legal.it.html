@@ -5,7 +5,7 @@
 <h2>Diritto d&rsquo;autore</h2>
 <p>
   Le fotografie presentate in questa galleria sono opere originali di
-  <strong>{{author}}</strong>{{#if photographerNames}} e di <strong>{{photographerNames}}</strong>{{/if}}
+  {{#if author}}<strong>{{author}}</strong>{{/if}}{{#if photographerNames}}{{#if author}} e di {{/if}}<strong>{{photographerNames}}</strong>{{/if}}
   (&copy;&nbsp;{{year}}).
   {{#if location}}Scattate a {{location}}.{{/if}}
   Ogni immagine costituisce un&rsquo;opera individuale protetta dalla legge
