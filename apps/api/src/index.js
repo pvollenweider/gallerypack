@@ -201,6 +201,20 @@ app.get(/^\/admin(\/.*)?$/, (req, res) => {
 app.use('/api/public',              publicRoutes);
 app.use('/api/settings',            settingsRoutes);
 app.use('/api/auth',                authRoutes);
+
+// For superadmin: when a gallery-scoped request arrives from a hostname that
+// belongs to a different org, realign req.organizationId with the gallery's
+// actual org so all downstream route handlers work without modification.
+app.use('/api/galleries/:id', async (req, res, next) => {
+  if (req.platformRole === 'superadmin' && req.params.id) {
+    try {
+      const [rows] = await query('SELECT organization_id FROM galleries WHERE id = ?', [req.params.id]);
+      if (rows[0]) req.organizationId = rows[0].organization_id;
+    } catch {}
+  }
+  next();
+});
+
 app.use('/api/galleries',           galleriesRoutes);
 app.use('/api/galleries',           accessRoutes);
 app.use('/api/galleries',           authUploadRateLimit, photosRoutes);
