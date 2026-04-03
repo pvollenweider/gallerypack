@@ -165,7 +165,7 @@ spec:
       # DNS-01 pour le wildcard *.gallerypack.app
       - dns01:
           webhook:
-            groupName: acme.bwolf.info
+            groupName: acme.bwolf.me
             solverName: gandi
             config:
               apiKeySecretRef:

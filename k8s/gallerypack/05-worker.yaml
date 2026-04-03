@@ -1,0 +1,46 @@
+# Remplacer pvollenweider par ton username GitHub
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: gallerypack
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: worker
+          image: ghcr.io/pvollenweider/gallerypack-worker:latest
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: DB_HOST
+              value: mariadb
+            - name: DB_NAME
+              value: gallerypack
+            - name: DB_USER
+              value: gallerypack
+            - name: DB_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: gallerypack-secrets
+                  key: DB_PASS
+            - name: REDIS_URL
+              value: redis://redis:6379
+            - name: STORAGE_ROOT
+              value: /srv/gallerypack
+          volumeMounts:
+            - name: storage
+              mountPath: /srv/gallerypack
+      volumes:
+        - name: storage
+          persistentVolumeClaim:
+            claimName: gallerypack-storage
