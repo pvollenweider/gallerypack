@@ -201,6 +201,21 @@ export default function GalleryGeneralPage() {
   const showApacheToggle = form.standalone && form.access === 'password';
   const downloadsDisabled = form.downloadMode === 'none';
   const modeLockedDownloads = !!form.galleryMode;
+  const modeLockedWatermark = !!form.galleryMode;
+
+  // Watermark enabled by policy for each mode (null = custom, no lock)
+  const MODE_WATERMARK = { portfolio: false, client_preview: true, client_delivery: true, archive: false };
+  const modeWatermarkEnabled = form.galleryMode ? (MODE_WATERMARK[form.galleryMode] ?? false) : null;
+
+  // Auto-compute watermark text from primary photographer name, fallback to author/title
+  const autoWatermarkText = (() => {
+    if (form.primaryPhotographerId) {
+      const pg = photographers.find(p => p.id === form.primaryPhotographerId);
+      if (pg?.name) return `© ${pg.name}`;
+    }
+    if (form.author) return `© ${form.author}`;
+    return form.title ? `© ${form.title}` : '';
+  })();
 
   const MODES = [
     { value: 'portfolio',       labelKey: 'gal_mode_portfolio',       descKey: 'gal_mode_portfolio_desc' },
@@ -327,9 +342,20 @@ export default function GalleryGeneralPage() {
               })()}
               <select className="form-select" value={form.galleryMode ?? ''}
                 onChange={e => {
-                  const next = { ...form, galleryMode: e.target.value || null };
+                  const newMode = e.target.value || null;
+                  const next = { ...form, galleryMode: newMode };
                   setForm(next);
                   saveGallery(next);
+                  // Sync watermark state when mode changes
+                  if (newMode) {
+                    const shouldEnable = MODE_WATERMARK[newMode] ?? false;
+                    const text = shouldEnable ? (autoWatermarkText || watermarkText) : watermarkText;
+                    if (shouldEnable !== watermarkEnabled || (shouldEnable && !watermarkText)) {
+                      setWatermarkEnabled(shouldEnable);
+                      if (shouldEnable && !watermarkText) setWatermarkText(text);
+                      saveWatermark(shouldEnable, shouldEnable ? text : watermarkText);
+                    }
+                  }
                 }}>
                 <option value="">{t('gal_mode_none')}</option>
                 {MODES.map(m => (
@@ -417,12 +443,19 @@ export default function GalleryGeneralPage() {
 
             {/* Watermark */}
             <AdminCard title={t('gal_watermark_section')}>
+              {modeLockedWatermark && (
+                <div className="alert alert-info d-flex align-items-center gap-2 py-2 mb-3" role="alert" style={{ fontSize: '0.82rem' }}>
+                  <i className="fas fa-lock" />
+                  {t('gal_mode_locked_hint')}
+                </div>
+              )}
               <div className="form-check form-switch mb-3">
                 <input className="form-check-input" type="checkbox" id="watermark-toggle"
-                  checked={watermarkEnabled}
+                  checked={modeLockedWatermark ? modeWatermarkEnabled : watermarkEnabled}
+                  disabled={modeLockedWatermark}
                   onChange={e => {
                     const enabled = e.target.checked;
-                    const text = watermarkText || (enabled ? (form.author ? `© ${form.author}` : form.title || '') : '');
+                    const text = watermarkText || (enabled ? autoWatermarkText : '');
                     setWatermarkEnabled(enabled);
                     if (text !== watermarkText) setWatermarkText(text);
                     saveWatermark(enabled, text);
@@ -432,15 +465,18 @@ export default function GalleryGeneralPage() {
                 </label>
                 <div className="text-muted mt-1" style={{ fontSize: '0.8rem' }}>{t('gal_watermark_enable_hint')}</div>
               </div>
-              {watermarkEnabled && (
+              {(modeLockedWatermark ? modeWatermarkEnabled : watermarkEnabled) && (
                 <div>
                   <label className="form-label">{t('gal_watermark_text_label')}</label>
                   <input
                     className="form-control"
-                    value={watermarkText}
+                    value={watermarkText || autoWatermarkText}
                     onChange={e => setWatermarkText(e.target.value)}
-                    onBlur={() => saveWatermark(watermarkEnabled, watermarkText)}
-                    placeholder="© Nom de l'auteur"
+                    onBlur={() => saveWatermark(
+                      modeLockedWatermark ? modeWatermarkEnabled : watermarkEnabled,
+                      watermarkText || autoWatermarkText
+                    )}
+                    placeholder={autoWatermarkText || "© Nom de l'auteur"}
                     style={{ maxWidth: 360 }}
                   />
                 </div>
