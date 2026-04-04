@@ -345,7 +345,7 @@ export default function ProjectGalleriesPage() {
                         )}
                         {g.access === 'private' && (
                           <Link
-                            to={`/admin/organizations/${orgId}/projects/${projectId}/galleries/${g.id}/general`}
+                            to={`/admin/organizations/${orgId}/projects/${projectId}/galleries/${g.id}/access`}
                             className="btn btn-sm btn-outline-secondary"
                             title={t('gal_share_section')}
                           >

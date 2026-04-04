@@ -30,6 +30,7 @@ import { GalleryJobsPage, GalleryPhotosPage } from './management/pages/galleries
 const GalleryInsightsPage        = lazy(() => import('./management/pages/galleries/GalleryInsightsPage.jsx'));
 const OrganizationInsightsPage   = lazy(() => import('./management/pages/organizations/OrganizationInsightsPage.jsx'));
 const GalleryGeneralPage    = lazy(() => import('./management/pages/galleries/GalleryGeneralPage.jsx'));
+const GalleryAccessPage     = lazy(() => import('./management/pages/galleries/GalleryAccessPage.jsx'));
 const OrganizationGeneralPage = lazy(() => import('./management/pages/organizations/OrganizationGeneralPage.jsx'));
 const OrganizationTeamPage  = lazy(() => import('./management/pages/organizations/OrganizationTeamPage.jsx'));
 const ProjectGeneralPage    = lazy(() => import('./management/pages/projects/ProjectGeneralPage.jsx'));
@@ -88,6 +89,11 @@ function ProjectSettingsRedirect() {
 function GallerySettingsRedirect() {
   const { orgId, projectId, galleryId } = useParams();
   return <Navigate to={`/admin/organizations/${orgId}/projects/${projectId}/galleries/${galleryId}/settings`} replace />;
+}
+
+function GalleryAccessRedirect() {
+  const { orgId, projectId, galleryId } = useParams();
+  return <Navigate to={`/admin/organizations/${orgId}/projects/${projectId}/galleries/${galleryId}/access`} replace />;
 }
 
 function ManageRedirect() {
@@ -152,12 +158,12 @@ export default function App() {
       <Route path="/admin/organizations/:orgId/projects/:projectId/galleries/:galleryId"             element={<GalleryPhotosRedirect />} />
       <Route path="/admin/organizations/:orgId/projects/:projectId/galleries/:galleryId/photos"      element={<W><GalleryPhotosPage /></W>} />
       <Route path="/admin/organizations/:orgId/projects/:projectId/galleries/:galleryId/settings"    element={<W><SuspenseRoute><GalleryGeneralPage /></SuspenseRoute></W>} />
+      <Route path="/admin/organizations/:orgId/projects/:projectId/galleries/:galleryId/access"      element={<W><SuspenseRoute><GalleryAccessPage /></SuspenseRoute></W>} />
       <Route path="/admin/organizations/:orgId/projects/:projectId/galleries/:galleryId/jobs"        element={<W><GalleryJobsPage /></W>} />
       <Route path="/admin/organizations/:orgId/projects/:projectId/galleries/:galleryId/statistics"  element={<W><SuspenseRoute><GalleryInsightsPage /></SuspenseRoute></W>} />
       <Route path="/admin/organizations/:orgId/projects/:projectId/galleries/:galleryId/publish"     element={<GalleryPhotosRedirect />} />
       <Route path="/admin/organizations/:orgId/projects/:projectId/galleries/:galleryId/general"     element={<GallerySettingsRedirect />} />
-      <Route path="/admin/organizations/:orgId/projects/:projectId/galleries/:galleryId/access"      element={<GallerySettingsRedirect />} />
-      <Route path="/admin/organizations/:orgId/projects/:projectId/galleries/:galleryId/downloads"       element={<GallerySettingsRedirect />} />
+      <Route path="/admin/organizations/:orgId/projects/:projectId/galleries/:galleryId/downloads"   element={<GalleryAccessRedirect />} />
 
       {/* Platform (superadmin only) */}
       <Route path="/admin/platform"              element={<Navigate to="/admin/platform/branding" replace />} />

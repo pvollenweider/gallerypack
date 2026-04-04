@@ -186,6 +186,7 @@ export default function ScopeSidebar({ scope, params = {}, isMobileDrawer = fals
                         <TreeLink to={projBase} label={t('nav_galleries')} depth={4} end onClick={click} />
                         <TreeLink to={`${galBase}/photos`} label={galleryName} depth={5} bold onClick={click} />
                         <TreeLink to={`${galBase}/settings`}   label={t('nav_settings')}   depth={6} onClick={click} />
+                        <TreeLink to={`${galBase}/access`}     label={t('nav_access')}     depth={6} onClick={click} />
                         <TreeLink to={`${galBase}/jobs`}       label={t('tab_jobs')}       depth={6} onClick={click} />
                         <TreeLink to={`${galBase}/statistics`} label={t('nav_statistics')} depth={6} onClick={click} />
                       </>
