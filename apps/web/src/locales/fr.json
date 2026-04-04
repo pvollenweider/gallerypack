@@ -720,6 +720,7 @@
   "gal_mode_archive": "Archive",
   "gal_mode_archive_desc": "Archive interne. Accès complet incluant les originaux.",
   "gal_mode_locked_hint": "Ces paramètres sont contrôlés par le mode de galerie.",
+  "gal_settings_rebuild_warning": "Les paramètres ont changé — la galerie doit être regénérée pour les appliquer.",
   "gal_downloads_section": "Mode de téléchargement",
   "download_mode_label": "Que peuvent télécharger les visiteurs ?",
   "download_mode_none": "Aucun téléchargement",

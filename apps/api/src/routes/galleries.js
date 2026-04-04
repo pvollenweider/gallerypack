@@ -327,15 +327,20 @@ router.patch('/:id', async (req, res) => {
     updates[col] = boolCols.has(col) ? (val ? 1 : 0) : val;
   }
 
-  // When a mode is being set, validate constraints and apply mode-derived defaults
+  // When a mode is being set, apply its defaults first (they override any incoming download flags),
+  // then validate. When no mode change, validate incoming flags against the currently-set mode.
   const incomingMode = updates.gallery_mode;
   if (incomingMode !== undefined) {
     if (incomingMode !== null && !GALLERY_MODES.includes(incomingMode)) {
       return res.status(400).json({ error: `gallery_mode must be one of: ${GALLERY_MODES.join(', ')}` });
     }
+    if (incomingMode) {
+      // Apply mode defaults first — they win over any form-submitted download flags
+      Object.assign(updates, applyModeDefaults(incomingMode));
+    }
+    // After defaults are applied, validate (null mode has no constraints)
     const constraintErr = validateModeConstraints(incomingMode, updates);
     if (constraintErr) return res.status(400).json({ error: constraintErr });
-    if (incomingMode) Object.assign(updates, applyModeDefaults(incomingMode));
   } else {
     // No mode change — still validate against currently-set mode
     const currentMode = row.gallery_mode;

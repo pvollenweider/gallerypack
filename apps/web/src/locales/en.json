@@ -555,6 +555,7 @@
   "gal_mode_archive": "Archive",
   "gal_mode_archive_desc": "Internal archive. Full access including originals.",
   "gal_mode_locked_hint": "These settings are controlled by the gallery mode.",
+  "gal_settings_rebuild_warning": "Settings have changed — the gallery needs to be rebuilt to apply them.",
   "gal_downloads_title": "Downloads",
   "gal_downloads_section": "Download mode",
   "download_mode_label": "What can visitors download?",

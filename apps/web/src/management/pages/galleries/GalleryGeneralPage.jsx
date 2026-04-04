@@ -66,6 +66,10 @@ export default function GalleryGeneralPage() {
   // Gallery metadata (for share URL)
   const [galleryMeta, setGalleryMeta] = useState({ distName: null, projectSlug: null, buildStatus: null });
 
+  // Rebuild warning — shown after a save when the gallery was already built
+  const [needsRebuild, setNeedsRebuild]  = useState(false);
+  const [rebuilding,   setRebuilding]    = useState(false);
+
   // Viewer tokens (client sharing)
   const [viewerTokens,  setViewerTokens]  = useState([]);
   const [vtLabel,       setVtLabel]       = useState('');
@@ -172,9 +176,19 @@ export default function GalleryGeneralPage() {
     };
     if (patch.access === 'password' && patch.password?.trim()) payload.password = patch.password.trim();
     try {
-      await api.updateGallery(galleryId, payload);
+      const updated = await api.updateGallery(galleryId, payload);
       setToast(t('changes_saved'));
-      if (patch.password) setForm(f => ({ ...f, password: '' }));
+      // Sync form from response so mode-applied defaults (access, downloadMode, etc.) are reflected
+      setForm(f => ({
+        ...f,
+        access:               updated.access               ?? f.access,
+        downloadMode:         updated.downloadMode         ?? f.downloadMode,
+        allowDownloadGallery: updated.allowDownloadGallery ?? f.allowDownloadGallery,
+        apacheProtection:     updated.apacheProtection     ?? f.apacheProtection,
+        ...(patch.password ? { password: '' } : {}),
+      }));
+      // Show rebuild warning if the gallery was already built
+      if (galleryMeta.buildStatus === 'done') setNeedsRebuild(true);
     } catch (err) {
       setError(err.message);
     }
@@ -185,8 +199,23 @@ export default function GalleryGeneralPage() {
     try {
       await api.updateGallery(galleryId, { configJson: JSON.stringify({ watermark: { enabled, text } }) });
       setToast(t('changes_saved'));
+      if (galleryMeta.buildStatus === 'done') setNeedsRebuild(true);
     } catch (err) {
       setError(err.message);
+    }
+  }
+
+  async function triggerRebuild() {
+    setRebuilding(true);
+    try {
+      await api.triggerBuild(galleryId, false);
+      setNeedsRebuild(false);
+      setGalleryMeta(m => ({ ...m, buildStatus: 'queued' }));
+      setToast(t('build_action'));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setRebuilding(false);
     }
   }
 
@@ -290,6 +319,21 @@ export default function GalleryGeneralPage() {
   return (
     <AdminPage title={form.title ? t('gal_settings_title', { title: form.title }) : t('nav_settings')}>
       <AdminToast message={toast} onDone={() => setToast('')} />
+      {needsRebuild && (
+        <div className="alert alert-warning d-flex align-items-center justify-content-between gap-3 mb-3" role="alert">
+          <div className="d-flex align-items-center gap-2">
+            <i className="fas fa-exclamation-triangle" />
+            <span>{t('gal_settings_rebuild_warning')}</span>
+          </div>
+          <AdminButton
+            size="sm" variant="warning" loading={rebuilding}
+            loadingLabel={t('republishing')} onClick={triggerRebuild}
+            icon="fas fa-sync-alt"
+          >
+            {t('build_now')}
+          </AdminButton>
+        </div>
+      )}
       <div className="row">
         <div className="col-lg-7">
           <div>
