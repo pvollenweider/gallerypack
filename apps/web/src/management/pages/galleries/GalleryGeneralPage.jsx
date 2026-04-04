@@ -116,11 +116,10 @@ export default function GalleryGeneralPage() {
   }
 
   function buildShareUrl(rawToken) {
-    const { distName, projectSlug } = galleryMeta;
+    const { distName } = galleryMeta;
+    // distName (or slug) already contains the project-slug prefix (e.g. "saison-2025/symbiosis")
     const name = distName || form.slug;
-    const base = window.location.origin;
-    const path = projectSlug ? `/${projectSlug}/${name}/` : `/${name}/`;
-    return `${base}${path}?vt=${rawToken}`;
+    return `${window.location.origin}/${name}/?vt=${rawToken}`;
   }
 
   async function createViewerToken(e) {

@@ -332,9 +332,9 @@ export default function ProjectGalleriesPage() {
                     </td>
                     <td className="text-end">
                       <div className="d-flex gap-1 justify-content-end">
-                        {g.access === 'public' && g.buildStatus === 'done' && project?.slug && (g.distName || g.slug) && (
+                        {g.access === 'public' && g.buildStatus === 'done' && (g.distName || g.slug) && (
                           <a
-                            href={`/${project.slug}/${g.distName || g.slug}/`}
+                            href={`/${g.distName || g.slug}/`}
                             target="_blank"
                             rel="noreferrer"
                             className="btn btn-sm btn-outline-success"
