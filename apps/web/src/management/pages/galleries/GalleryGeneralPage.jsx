@@ -63,6 +63,18 @@ export default function GalleryGeneralPage() {
   const [linkError,   setLinkError]   = useState('');
   const [copied,      setCopied]      = useState('');
 
+  // Gallery metadata (for share URL)
+  const [galleryMeta, setGalleryMeta] = useState({ distName: null, projectSlug: null, buildStatus: null });
+
+  // Viewer tokens (client sharing)
+  const [viewerTokens,  setViewerTokens]  = useState([]);
+  const [vtLabel,       setVtLabel]       = useState('');
+  const [vtExpiry,      setVtExpiry]      = useState('');
+  const [vtCreating,    setVtCreating]    = useState(false);
+  const [vtError,       setVtError]       = useState('');
+  const [freshLink,     setFreshLink]     = useState(null); // { url } — shown once
+  const [copiedVt,      setCopiedVt]      = useState(false);
+
   useEffect(() => {
     Promise.all([api.getGallery(galleryId), api.getSettings(), api.listOrgPhotographers(orgId)]).then(([g, s, pgs]) => {
       setForm({
@@ -79,14 +91,57 @@ export default function GalleryGeneralPage() {
       setSlugEdited(true);
       setOrgDefault(s?.defaultAccess ?? null);
       setPhotographers(pgs);
+      setGalleryMeta({
+        distName:    g.distName || g.slug,
+        projectSlug: g.breadcrumb?.project?.slug ?? null,
+        buildStatus: g.buildStatus,
+      });
     }).catch(() => {});
     api.listPhotos(galleryId).then(photos => setPhotoCount(photos.length)).catch(() => {});
     loadLinks();
+    loadViewerTokens();
   }, [galleryId]);
 
   function loadLinks() {
     setLinksLoading(true);
     api.listUploadLinks(galleryId).then(setLinks).catch(() => {}).finally(() => setLinksLoading(false));
+  }
+
+  function loadViewerTokens() {
+    api.getViewerTokens(galleryId).then(setViewerTokens).catch(() => {});
+  }
+
+  function buildShareUrl(rawToken) {
+    const { distName, projectSlug } = galleryMeta;
+    const name = distName || form.slug;
+    const base = window.location.origin;
+    const path = projectSlug ? `/${projectSlug}/${name}/` : `/${name}/`;
+    return `${base}${path}?vt=${rawToken}`;
+  }
+
+  async function createViewerToken(e) {
+    e.preventDefault();
+    setVtCreating(true); setVtError('');
+    try {
+      const data = {};
+      if (vtLabel.trim()) data.label = vtLabel.trim();
+      if (vtExpiry) data.expiresAt = new Date(vtExpiry).getTime();
+      const vt = await api.createViewerToken(galleryId, data);
+      setViewerTokens(ts => [{ id: vt.id, label: vt.label, expires_at: vt.expires_at, created_at: vt.created_at }, ...ts]);
+      setFreshLink({ url: buildShareUrl(vt.token), label: vt.label });
+      setCopiedVt(false);
+      setVtLabel('');
+      setVtExpiry('');
+    } catch (err) { setVtError(err.message); }
+    finally { setVtCreating(false); }
+  }
+
+  async function revokeViewerToken(tokenId) {
+    try {
+      await api.deleteViewerToken(galleryId, tokenId);
+      setViewerTokens(ts => ts.filter(t => t.id !== tokenId));
+      if (freshLink) setFreshLink(null);
+    } catch {}
   }
 
   function handleTitleChange(e) {
@@ -199,6 +254,7 @@ export default function GalleryGeneralPage() {
 
   const canDelete = confirmTitle.trim() === form.title;
   const showApacheToggle = form.standalone && form.access === 'password';
+  const showShareSection = form.access === 'private';
   const downloadsDisabled = form.downloadMode === 'none';
   const modeLockedDownloads = !!form.galleryMode;
   const modeLockedWatermark = !!form.galleryMode;
@@ -485,6 +541,92 @@ export default function GalleryGeneralPage() {
 
             <AdminAlert message={error} />
           </div>
+
+          {/* Client sharing links — visible for private galleries */}
+          {showShareSection && (
+            <AdminCard title={t('gal_share_section')} className="mb-4">
+              <p className="text-muted mb-3" style={{ fontSize: '0.875rem' }}>{t('gal_share_hint')}</p>
+
+              {/* One-time fresh link banner */}
+              {freshLink && (
+                <div className="alert alert-success mb-3" role="alert">
+                  <div className="fw-semibold mb-1" style={{ fontSize: '0.85rem' }}>{t('gal_share_fresh_title')}</div>
+                  <div className="text-muted mb-2" style={{ fontSize: '0.8rem' }}>{t('gal_share_fresh_hint')}</div>
+                  <div className="d-flex gap-2 align-items-center">
+                    <code className="flex-grow-1" style={{ fontSize: '0.75rem', wordBreak: 'break-all' }}>{freshLink.url}</code>
+                    <AdminButton size="sm" variant={copiedVt ? 'success' : 'outline-success'}
+                      onClick={() => {
+                        navigator.clipboard.writeText(freshLink.url);
+                        setCopiedVt(true);
+                      }}>
+                      <i className={`fas ${copiedVt ? 'fa-check' : 'fa-copy'} me-1`} />
+                      {copiedVt ? t('gal_share_copied') : t('gal_share_copy')}
+                    </AdminButton>
+                    <AdminButton size="sm" variant="outline-secondary" onClick={() => setFreshLink(null)}>
+                      {t('gal_share_dismiss')}
+                    </AdminButton>
+                  </div>
+                </div>
+              )}
+
+              {galleryMeta.buildStatus !== 'done' && (
+                <div className="alert alert-warning py-2 mb-3" style={{ fontSize: '0.82rem' }}>
+                  <i className="fas fa-exclamation-triangle me-2" />{t('gal_share_not_built')}
+                </div>
+              )}
+
+              {/* Token list */}
+              {viewerTokens.length === 0 ? (
+                <p className="text-muted mb-3" style={{ fontSize: '0.875rem' }}>{t('gal_share_no_tokens')}</p>
+              ) : (
+                <div className="table-responsive mb-3">
+                  <table className="table table-sm table-hover mb-0">
+                    <thead className="table-light">
+                      <tr>
+                        <th>{t('gal_upload_th_label')}</th>
+                        <th>{t('gal_share_expiry_label')}</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {viewerTokens.map(vt => (
+                        <tr key={vt.id}>
+                          <td>{vt.label || <em className="text-muted">{t('gal_upload_unnamed')}</em>}</td>
+                          <td style={{ fontSize: '0.8rem' }}>
+                            {vt.expires_at
+                              ? new Date(vt.expires_at).toLocaleDateString()
+                              : <span className="text-muted">—</span>}
+                          </td>
+                          <td className="text-end">
+                            <AdminButton variant="outline-danger" size="sm" onClick={() => revokeViewerToken(vt.id)}>
+                              {t('gal_share_revoke')}
+                            </AdminButton>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              <AdminAlert message={vtError} />
+              <form onSubmit={createViewerToken} className="d-flex gap-2 align-items-end flex-wrap">
+                <div style={{ flex: '1 1 160px' }}>
+                  <label className="form-label mb-1" style={{ fontSize: '0.85rem' }}>{t('gal_upload_th_label')} <span className="text-muted">{t('gal_upload_label_optional')}</span></label>
+                  <input className="form-control form-control-sm" value={vtLabel}
+                    onChange={e => setVtLabel(e.target.value)} placeholder={t('gal_share_label_placeholder')} />
+                </div>
+                <div style={{ flex: '1 1 160px' }}>
+                  <label className="form-label mb-1" style={{ fontSize: '0.85rem' }}>{t('gal_share_expiry_label')}</label>
+                  <input className="form-control form-control-sm" type="date" value={vtExpiry}
+                    onChange={e => setVtExpiry(e.target.value)} />
+                </div>
+                <AdminButton type="submit" size="sm" loading={vtCreating} icon="fas fa-link">
+                  {t('gal_share_create_btn')}
+                </AdminButton>
+              </form>
+            </AdminCard>
+          )}
 
           {/* Upload links / Photographers */}
           <AdminCard title={t('gal_upload_links_section')} className="mb-4">

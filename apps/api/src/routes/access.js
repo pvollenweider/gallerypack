@@ -10,6 +10,7 @@ import { Router } from 'express';
 import { query }  from '../db/database.js';
 import {
   verifyPassword, createViewerToken, verifyViewerToken,
+  getViewerToken, touchViewerToken,
 } from '../db/helpers.js';
 
 const router = Router();
@@ -48,7 +49,7 @@ router.post('/:id/verify-password', async (req, res) => {
 // Public route: return gallery data if authorized.
 router.get('/:id/view', async (req, res) => {
   const [rows] = await query(
-    `SELECT id, slug, title, subtitle, author, author_email, date, location,
+    `SELECT id, slug, project_id, title, subtitle, author, author_email, date, location,
             locale, access, cover_photo, allow_download_image, allow_download_gallery,
             build_status, built_at
      FROM galleries WHERE id = ?`,
@@ -71,7 +72,22 @@ router.get('/:id/view', async (req, res) => {
     return res.json(gallery);
   }
 
-  // private — require studio auth (handled by requireAuth middleware in caller)
+  // private — check for a valid viewer token in ?vt= query param
+  if (gallery.access === 'private') {
+    const rawToken = req.query.vt;
+    if (rawToken) {
+      const vt = await getViewerToken(rawToken);
+      if (vt && (
+        (vt.scope_type === 'gallery' && vt.scope_id === gallery.id) ||
+        (vt.scope_type === 'project' && gallery.project_id && vt.scope_id === gallery.project_id)
+      )) {
+        await touchViewerToken(vt.id);
+        return res.json(gallery);
+      }
+    }
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
   return res.status(403).json({ error: 'Access denied' });
 });
 
