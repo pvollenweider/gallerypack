@@ -12,7 +12,9 @@ import { useT } from '../../../lib/I18nContext.jsx';
 import { slugify } from '../../../lib/i18n.js';
 import { AdminPage, AdminCard, AdminInput, AdminAlert, AdminButton, AdminBadge, AdminToast } from '../../../components/ui/index.js';
 
-const STATUS_BADGE = { done: 'success', error: 'danger', running: 'primary', queued: 'warning', draft: 'secondary' };
+const STATUS_BADGE    = { done: 'success', error: 'danger', running: 'primary', queued: 'warning', draft: 'secondary' };
+const MODE_BADGE      = { portfolio: 'primary', client_preview: 'info', client_delivery: 'success', archive: 'secondary' };
+const ACCESS_ICON     = { public: 'fa-globe', private: 'fa-lock', password: 'fa-key' };
 
 // Smart date formatting for gallery cards
 const MONTHS_FR = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
@@ -274,6 +276,7 @@ export default function ProjectGalleriesPage() {
                   <th style={{ width: '32px' }}></th>
                   <th style={{ width: '32px' }} title={t('proj_cover_gallery_hint')}><i className="fas fa-star" style={{ color: '#ccc', fontSize: '0.8rem' }} /></th>
                   <th>{t('proj_th_title')}</th>
+                  <th className="d-none d-sm-table-cell">{t('gal_mode_label')}</th>
                   <th>{t('proj_th_status')}</th>
                   <th className="d-none d-md-table-cell">Date</th>
                   <th className="d-none d-lg-table-cell">{t('th_photographers')}</th>
@@ -312,6 +315,12 @@ export default function ProjectGalleriesPage() {
                       <Link to={`/admin/organizations/${orgId}/projects/${projectId}/galleries/${g.id}/photos`} className="fw-semibold text-body">{g.title || g.slug}</Link>
                       <div><code className="text-muted" style={{ fontSize: '0.72rem' }}>{g.slug}</code></div>
                     </td>
+                    <td className="d-none d-sm-table-cell">
+                      {g.mode
+                        ? <AdminBadge color={MODE_BADGE[g.mode] || 'secondary'}>{t(`gal_mode_${g.mode}`)}</AdminBadge>
+                        : <span className="text-muted" style={{ fontSize: '0.8rem' }}>—</span>
+                      }
+                    </td>
                     <td><AdminBadge color={STATUS_BADGE[g.buildStatus] || 'secondary'}>{g.buildStatus || t('proj_status_draft')}</AdminBadge></td>
                     <td className="d-none d-md-table-cell text-muted" style={{ fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
                       {formatDateRange(g.dateRange) || '—'}
@@ -322,9 +331,36 @@ export default function ProjectGalleriesPage() {
                         : '—'}
                     </td>
                     <td className="text-end">
-                      <Link to={`/admin/organizations/${orgId}/projects/${projectId}/galleries/${g.id}/photos`} className="btn btn-sm btn-outline-secondary">
-                        {t('gal_overview_manage')} <i className="fas fa-chevron-right ms-1" />
-                      </Link>
+                      <div className="d-flex gap-1 justify-content-end">
+                        {g.access === 'public' && g.buildStatus === 'done' && project?.slug && (g.distName || g.slug) && (
+                          <a
+                            href={`/${project.slug}/${g.distName || g.slug}/`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="btn btn-sm btn-outline-success"
+                            title={t('view_gallery_btn')}
+                          >
+                            <i className={`fas ${ACCESS_ICON.public}`} />
+                          </a>
+                        )}
+                        {g.access === 'private' && (
+                          <Link
+                            to={`/admin/organizations/${orgId}/projects/${projectId}/galleries/${g.id}/general`}
+                            className="btn btn-sm btn-outline-secondary"
+                            title={t('gal_share_section')}
+                          >
+                            <i className={`fas ${ACCESS_ICON.private}`} />
+                          </Link>
+                        )}
+                        {g.access === 'password' && (
+                          <span className="btn btn-sm btn-outline-warning disabled" title={t('password_indicator')}>
+                            <i className={`fas ${ACCESS_ICON.password}`} />
+                          </span>
+                        )}
+                        <Link to={`/admin/organizations/${orgId}/projects/${projectId}/galleries/${g.id}/photos`} className="btn btn-sm btn-outline-secondary">
+                          {t('gal_overview_manage')} <i className="fas fa-chevron-right ms-1" />
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))}
