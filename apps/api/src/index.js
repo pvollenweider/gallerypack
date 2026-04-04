@@ -368,17 +368,18 @@ app.get(/^\/([^/]+)\/([^/]+)\/?$/, async (req, res, next) => {
       `SELECT g.dist_name, g.slug
        FROM galleries g
        JOIN projects p ON p.id = g.project_id
-       WHERE g.slug = ? AND p.slug = ?
+       WHERE (g.slug = ? OR g.dist_name = ?) AND p.slug = ?
        LIMIT 1`,
-      [galSlug, projSlug]
+      [galSlug, galSlug, projSlug]
     );
     const g = rows[0];
     if (!g) return next();
     const altDistName = g.dist_name || g.slug;
     const altIndex = path.join(DIST_DIR, altDistName, 'index.html');
     if (fs.existsSync(altIndex)) {
-      // Files are at the old flat path — redirect there until a rebuild moves them
-      return res.redirect(302, `/${altDistName}/`);
+      // Files are at the old flat path — redirect there, preserving query string
+      const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+      return res.redirect(302, `/${altDistName}/${qs}`);
     }
   } catch {}
   next();
