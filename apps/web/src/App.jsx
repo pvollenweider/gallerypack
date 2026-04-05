@@ -42,8 +42,9 @@ import InspectorPhoto      from './inspector/InspectorPhoto.jsx';
 import { InspectorOrganizationList, InspectorOrganizationDetail } from './inspector/InspectorOrganization.jsx';
 import { InspectorProjectList, InspectorProjectDetail } from './inspector/InspectorProject.jsx';
 import { InspectorUserList, InspectorUserDetail } from './inspector/InspectorUser.jsx';
-import InspectorDashboard  from './inspector/InspectorDashboard.jsx';
-import InspectorAnomalies  from './inspector/InspectorAnomalies.jsx';
+import InspectorDashboard     from './inspector/InspectorDashboard.jsx';
+import InspectorAnomalies     from './inspector/InspectorAnomalies.jsx';
+import InspectorActivityLog   from './inspector/InspectorActivityLog.jsx';
 
 import Login from './pages/Login.jsx';
 
@@ -189,6 +190,7 @@ export default function App() {
         <Route path="users/:id"                  element={<InspectorUserDetail />} />
         <Route path="anomalies"                  element={<InspectorAnomalies />} />
         <Route path="dashboard"                  element={<InspectorDashboard />} />
+        <Route path="activity"                   element={<InspectorActivityLog />} />
       </Route>
 
       <Route path="*"                            element={<Navigate to="/admin/organizations" replace />} />

@@ -557,6 +557,103 @@ router.get('/anomalies', async (req, res) => {
   res.json({ total: items.length, items });
 });
 
+// ── GET /api/inspector/activity-log — unified cross-source event feed ─────────
+router.get('/activity-log', async (req, res) => {
+  const limit  = Math.min(200, Math.max(1, Number(req.query.limit)  || 50));
+  const offset = Math.max(0,              Number(req.query.offset) || 0);
+  const type   = req.query.type || '';    // build | upload | admin | email
+  const since  = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // 30 days
+
+  // Build sub-queries dynamically; include only the requested type (or all)
+  const parts = [];
+  const params = [];
+
+  if (!type || type === 'build') {
+    parts.push(`
+      SELECT 'build'  AS type,
+             bj.id    AS id,
+             bj.created_at,
+             bj.status                              AS detail,
+             bj.error_msg                           AS extra,
+             g.id                                   AS resource_id,
+             COALESCE(g.title, g.slug)              AS resource_name,
+             'gallery'                              AS resource_type,
+             o.name                                 AS org_name,
+             COALESCE(u.name, u.email)              AS actor_name
+      FROM build_jobs bj
+      JOIN galleries     g ON g.id = bj.gallery_id
+      JOIN organizations o ON o.id = bj.organization_id
+      LEFT JOIN users    u ON u.id = bj.triggered_by
+      WHERE bj.created_at >= ?`);
+    params.push(since);
+  }
+
+  if (!type || type === 'upload') {
+    parts.push(`
+      SELECT 'upload' AS type,
+             CAST(MIN(ph.id) AS CHAR(64))           AS id,
+             MAX(ph.created_at)                     AS created_at,
+             CAST(COUNT(*) AS CHAR(16))             AS detail,
+             NULL                                   AS extra,
+             ph.gallery_id                          AS resource_id,
+             COALESCE(g.title, g.slug)              AS resource_name,
+             'gallery'                              AS resource_type,
+             o.name                                 AS org_name,
+             NULL                                   AS actor_name
+      FROM photos ph
+      JOIN galleries     g ON g.id = ph.gallery_id
+      JOIN organizations o ON o.id = g.organization_id
+      WHERE ph.created_at >= ?
+      GROUP BY ph.gallery_id, DATE(ph.created_at)`);
+    params.push(since);
+  }
+
+  if (!type || type === 'admin') {
+    parts.push(`
+      SELECT 'admin'  AS type,
+             al.id    AS id,
+             al.created_at,
+             al.action                              AS detail,
+             al.target_type                         AS extra,
+             al.target_id                           AS resource_id,
+             al.target_type                         AS resource_name,
+             al.target_type                         AS resource_type,
+             NULL                                   AS org_name,
+             COALESCE(u.name, u.email)              AS actor_name
+      FROM inspector_audit_log al
+      LEFT JOIN users u ON u.id = al.actor_id
+      WHERE al.created_at >= ?`);
+    params.push(since);
+  }
+
+  if (!type || type === 'email') {
+    parts.push(`
+      SELECT 'email'  AS type,
+             id       AS id,
+             COALESCE(sent_at, created_at)          AS created_at,
+             template                               AS detail,
+             status                                 AS extra,
+             CAST(organization_id AS CHAR(64))      AS resource_id,
+             to_address                             AS resource_name,
+             'email'                                AS resource_type,
+             NULL                                   AS org_name,
+             to_address                             AS actor_name
+      FROM email_log
+      WHERE COALESCE(sent_at, created_at) >= ?`);
+    params.push(since);
+  }
+
+  if (parts.length === 0) return res.json({ events: [], total: 0 });
+
+  const [rows] = await query(
+    `SELECT * FROM (${parts.join(' UNION ALL ')}) AS feed
+     ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+    [...params, limit, offset]
+  );
+
+  res.json({ events: rows, limit, offset });
+});
+
 // ── POST /api/inspector/rebuild-all — force-rebuild every gallery platform-wide ─
 router.post('/rebuild-all', async (req, res) => {
   const [rows] = await query('SELECT id, organization_id FROM galleries');

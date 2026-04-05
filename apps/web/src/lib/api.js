@@ -162,6 +162,7 @@ export const api = {
   inspectorRebuildAll:      ()                     => req('POST',   `/inspector/rebuild-all`),
   inspectorRebuildWatermarks: ()                   => req('POST',   `/inspector/rebuild-watermarks`),
   inspectorAnomalies:       (params = {})          => req('GET',    `/inspector/anomalies?${new URLSearchParams(params)}`),
+  inspectorActivityLog:     (params = {})          => req('GET',    `/inspector/activity-log?${new URLSearchParams(params)}`),
 
   // Photographers (issue #133)
   listPhotographers:        (galleryId)               => req('GET',    `/galleries/${galleryId}/photographers`),
