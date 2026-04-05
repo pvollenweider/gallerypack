@@ -60,10 +60,15 @@ function galleryToProjectConfig(g) {
   if (g.allow_download_gallery !== null) proj.allowDownloadGallery = g.allow_download_gallery !== 0;
   try {
     const cfg = JSON.parse(g.config_json || '{}');
-    if (cfg.watermark?.enabled) {
+    // Modes with watermark always on — override config_json
+    const MODE_WATERMARK = { portfolio: true, client_preview: true, client_delivery: true, archive: false };
+    const watermarkEnabled = g.gallery_mode
+      ? (MODE_WATERMARK[g.gallery_mode] ?? cfg.watermark?.enabled ?? false)
+      : (cfg.watermark?.enabled ?? false);
+    if (watermarkEnabled) {
       proj.watermark = {
         enabled: true,
-        text: cfg.watermark.text || (g.author ? `© ${g.author}` : null) || g.title || g.slug,
+        text: cfg.watermark?.text || (g.author ? `© ${g.author}` : null) || g.title || g.slug,
       };
     }
   } catch {}
