@@ -702,6 +702,8 @@
   "gal_general_photographer_section": "Photographe",
   "gal_access_visibility": "Visibilité",
   "gal_access_password_hint": "Laisser vide pour conserver le mot de passe existant",
+  "gal_confirm_make_public": "Cette galerie deviendra visible publiquement par tous les visiteurs. Continuer ?",
+  "gal_confirm_download_original": "Activer le téléchargement des originaux permettra aux visiteurs de télécharger les photos en pleine résolution. Continuer ?",
   "gal_share_section": "Liens client",
   "gal_share_hint": "Partagez ces liens avec vos clients. Chaque lien est indépendant et peut être révoqué à tout moment.",
   "gal_share_no_tokens": "Aucun lien créé.",

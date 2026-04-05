@@ -530,6 +530,8 @@
   "gal_access_title": "Access",
   "gal_access_visibility": "Visibility",
   "gal_access_password_hint": "Leave blank to keep existing password",
+  "gal_confirm_make_public": "This gallery will become publicly visible to all visitors. Continue?",
+  "gal_confirm_download_original": "Enabling original downloads will allow visitors to download photos in full resolution. Continue?",
   "gal_share_section": "Client links",
   "gal_share_hint": "Share these links with your clients. Each link is independent and can be revoked at any time.",
   "gal_share_no_tokens": "No links created yet.",

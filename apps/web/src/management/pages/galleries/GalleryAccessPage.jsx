@@ -193,6 +193,14 @@ export default function GalleryAccessPage() {
     } catch {}
   }
 
+  // Confirmation helpers for sensitive actions
+  function confirmDownloadOriginal() {
+    return window.confirm(t('gal_confirm_download_original'));
+  }
+  function confirmMakePublic() {
+    return window.confirm(t('gal_confirm_make_public'));
+  }
+
   const modeLockedDownloads = !!form.galleryMode;
   const modeLockedWatermark = !!form.galleryMode;
   const modeWatermarkEnabled = form.galleryMode ? (MODE_WATERMARK[form.galleryMode] ?? false) : null;
@@ -280,7 +288,12 @@ export default function GalleryAccessPage() {
                 <input
                   className="form-check-input" type="radio" name="access" id={`access-${v}`}
                   value={v} checked={form.access === v}
-                  onChange={e => { const next = { ...form, access: e.target.value }; setForm(next); save(next); }}
+                  onChange={e => {
+                    const newAccess = e.target.value;
+                    if (newAccess === 'public' && form.access !== 'public' && !confirmMakePublic()) return;
+                    const next = { ...form, access: newAccess };
+                    setForm(next); save(next);
+                  }}
                 />
                 <label className="form-check-label" htmlFor={`access-${v}`}>
                   {v === 'public'   && t('access_public_full')}
@@ -317,7 +330,12 @@ export default function GalleryAccessPage() {
             <label className="form-label">{t('download_mode_label')}</label>
             <select
               className="form-select" value={form.downloadMode} disabled={modeLockedDownloads}
-              onChange={e => { const next = { ...form, downloadMode: e.target.value }; setForm(next); save(next); }}
+              onChange={e => {
+                const newMode = e.target.value;
+                if (newMode === 'original' && form.downloadMode !== 'original' && !confirmDownloadOriginal()) return;
+                const next = { ...form, downloadMode: newMode };
+                setForm(next); save(next);
+              }}
             >
               <option value="none">{t('download_mode_none')}</option>
               <option value="display">{t('download_mode_display')}</option>

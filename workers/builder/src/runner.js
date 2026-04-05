@@ -19,6 +19,7 @@ import { buildGallery }                                        from '../../../pa
 import { downloadVendors, downloadFonts }                      from '../../../packages/engine/src/network.js';
 import { SRC_ROOT, DIST_ROOT, BUILD_CFG_PATH }               from '../../../packages/engine/src/fs.js';
 import { createStorage }                                       from '../../../packages/shared/src/storage/index.js';
+import { resolveGalleryPolicy }                                from '../../../apps/api/src/services/galleryPolicy.js';
 import fs from 'fs';
 
 // Storage adapter — used for reading/writing build artifacts
@@ -51,21 +52,20 @@ function galleryToProjectConfig(g) {
   if (g.description_md)     proj.descriptionHtml    = marked.parse(g.description_md);
   if (g.cover_photo)        proj.coverPhoto         = g.cover_photo;
   if (g.slideshow_interval) proj.autoplay           = { slideshowInterval: g.slideshow_interval };
-  proj.private              = g.access !== 'public';
-  proj.standalone           = !!g.standalone;
-  proj.downloadMode         = g.download_mode || 'display';
-  proj.apacheProtection     = !!g.apache_protection;
-  // Legacy fields kept for backward compat with CLI builds
-  if (g.allow_download_image   !== null) proj.allowDownloadImage   = g.allow_download_image   !== 0;
-  if (g.allow_download_gallery !== null) proj.allowDownloadGallery = g.allow_download_gallery !== 0;
+  // Use resolveGalleryPolicy as single source of truth for all policy-derived fields.
+  // This handles both mode-based galleries and legacy flag-based galleries transparently.
+  const policy          = resolveGalleryPolicy(g);
+  proj.private          = policy.access !== 'public';
+  proj.standalone       = !!g.standalone;
+  proj.downloadMode     = policy.downloadMode;
+  proj.apacheProtection = !!g.apache_protection;
+  proj.allowDownloadImage   = policy.allowDownloadImage;
+  proj.allowDownloadGallery = policy.allowDownloadGallery;
   try {
     const cfg = JSON.parse(g.config_json || '{}');
-    // Modes with watermark always on — override config_json
-    const MODE_WATERMARK = { portfolio: true, client_preview: true, client_delivery: true, archive: false };
-    const watermarkEnabled = g.gallery_mode
-      ? (MODE_WATERMARK[g.gallery_mode] ?? cfg.watermark?.enabled ?? false)
-      : (cfg.watermark?.enabled ?? false);
-    if (watermarkEnabled) {
+    if (policy.watermarkEnabled) {
+      // Watermark text: explicit config > primary photographer > guest photographer
+      // > photo-level photographer > gallery author. No title fallback — no name = no watermark.
       const photographerName = g.primary_photographer_name
         || g.guest_photographer_name
         || g.photo_photographer_name
@@ -127,11 +127,8 @@ export async function runJob(jobId) {
 
     // Log watermark resolution for diagnostics
     {
-      const MODE_WATERMARK_LOG = { portfolio: true, client_preview: true, client_delivery: true, archive: false };
-      const cfg2 = (() => { try { return JSON.parse(gallery.config_json || '{}'); } catch { return {}; } })();
-      const wmOn = gallery.gallery_mode
-        ? (MODE_WATERMARK_LOG[gallery.gallery_mode] ?? cfg2.watermark?.enabled ?? false)
-        : (cfg2.watermark?.enabled ?? false);
+      const cfg2  = (() => { try { return JSON.parse(gallery.config_json || '{}'); } catch { return {}; } })();
+      const wmOn  = resolveGalleryPolicy(gallery).watermarkEnabled;
       if (wmOn) {
         const src = cfg2.watermark?.text       ? 'explicit text'
           : gallery.primary_photographer_name  ? `primary_photographer (${gallery.primary_photographer_name})`
