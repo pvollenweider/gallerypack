@@ -5,6 +5,9 @@ metadata:
   name: worker
   namespace: gallerypack
 spec:
+  # Augmenter replicas pour des builds parallèles (ex: 2 ou 3).
+  # Chaque replica consomme jusqu'à 2 CPU + 2Gi RAM.
+  # Assure-toi que le VPS a assez de ressources avant de scaler.
   replicas: 1
   selector:
     matchLabels:
@@ -37,6 +40,17 @@ spec:
               value: redis://redis:6379
             - name: STORAGE_ROOT
               value: /srv/gallerypack
+          resources:
+            requests:
+              # Minimum garanti — le pod est schedulé uniquement si disponible
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              # Maximum autorisé — le traitement d'images (Sharp/libvips,
+              # watermark, EXIF) peut utiliser jusqu'à 2 cœurs et 2 Go.
+              # Ajuster selon les specs du VPS (ex: 4 Go sur un VPS 8 Go).
+              cpu: "2"
+              memory: 2Gi
           volumeMounts:
             - name: storage
               mountPath: /srv/gallerypack
