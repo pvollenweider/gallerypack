@@ -66,10 +66,12 @@ function galleryToProjectConfig(g) {
       ? (MODE_WATERMARK[g.gallery_mode] ?? cfg.watermark?.enabled ?? false)
       : (cfg.watermark?.enabled ?? false);
     if (watermarkEnabled) {
-      proj.watermark = {
-        enabled: true,
-        text: cfg.watermark?.text || (g.author ? `© ${g.author}` : null) || g.title || g.slug,
-      };
+      const wmText = cfg.watermark?.text
+        || (g.primary_photographer_name ? `© ${g.primary_photographer_name}` : null)
+        || (g.author                    ? `© ${g.author}`                    : null)
+        || g.title
+        || g.slug;
+      proj.watermark = { enabled: true, text: wmText };
     }
   } catch {}
   return proj;
@@ -84,9 +86,11 @@ export async function runJob(jobId) {
   await updateJobStatus(jobId, 'running', { started_at: Date.now() });
 
   const [galleryRows] = await query(`
-    SELECT g.*, p.slug AS project_slug, p.name AS project_name
+    SELECT g.*, p.slug AS project_slug, p.name AS project_name,
+           ph.name AS primary_photographer_name
     FROM galleries g
-    LEFT JOIN projects p ON p.id = g.project_id
+    LEFT JOIN projects p  ON p.id  = g.project_id
+    LEFT JOIN photographers ph ON ph.id = g.primary_photographer_id
     WHERE g.id = ?
   `, [job.gallery_id]);
   const gallery = galleryRows[0];
