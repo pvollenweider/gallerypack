@@ -159,6 +159,7 @@ export const api = {
   inspectorUser:            (id)                   => req('GET',    `/inspector/users/${id}`),
   inspectorAuditLog:        (params)               => req('GET',    `/inspector/audit-log?${new URLSearchParams(params)}`),
   inspectorDashboard:       ()                     => req('GET',    `/inspector/dashboard`),
+  inspectorRebuildAll:      ()                     => req('POST',   `/inspector/rebuild-all`),
   inspectorAnomalies:       (params = {})          => req('GET',    `/inspector/anomalies?${new URLSearchParams(params)}`),
 
   // Photographers (issue #133)

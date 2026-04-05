@@ -12,6 +12,7 @@ import { randomUUID } from 'crypto';
 import { query }      from '../db/database.js';
 import { requireAuth } from '../middleware/auth.js';
 import { photoThumbnails } from '../services/thumbnailService.js';
+import { createJob } from '../db/helpers.js';
 
 const router = Router();
 
@@ -554,6 +555,19 @@ router.get('/anomalies', async (req, res) => {
     .slice(0, Number(limit));
 
   res.json({ total: items.length, items });
+});
+
+// ── POST /api/inspector/rebuild-all — force-rebuild every gallery platform-wide ─
+router.post('/rebuild-all', async (req, res) => {
+  const [rows] = await query('SELECT id, organization_id FROM galleries');
+  let queued = 0;
+  for (const { id, organization_id } of rows) {
+    try {
+      await createJob({ galleryId: id, organizationId: organization_id, triggeredBy: req.user.id, force: true });
+      queued++;
+    } catch {}
+  }
+  res.json({ queued, total: rows.length });
 });
 
 export default router;

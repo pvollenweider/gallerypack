@@ -15,11 +15,26 @@ const BUILD_COLOR = { done: '#4ade80', error: '#f87171', running: '#60a5fa', que
 
 export default function InspectorDashboard() {
   const t = useT();
-  const [data, setData] = useState(null);
+  const [data,          setData]          = useState(null);
+  const [rebuilding,    setRebuilding]    = useState(false);
+  const [rebuildResult, setRebuildResult] = useState(null);
 
   useEffect(() => {
     api.inspectorDashboard().then(setData).catch(() => {});
   }, []);
+
+  async function rebuildAll() {
+    if (!window.confirm(t('inspector_rebuild_all_confirm'))) return;
+    setRebuilding(true); setRebuildResult(null);
+    try {
+      const r = await api.inspectorRebuildAll();
+      setRebuildResult(t('inspector_rebuild_all_done', { queued: r.queued, total: r.total }));
+    } catch (err) {
+      setRebuildResult(`Erreur : ${err.message}`);
+    } finally {
+      setRebuilding(false);
+    }
+  }
 
   return (
     <>
@@ -29,7 +44,23 @@ export default function InspectorDashboard() {
             <div className="col-sm-6">
               <h1 className="m-0" style={{ color: '#eee', fontSize: '1.3rem' }}>{t('inspector_dashboard_title')}</h1>
             </div>
+            <div className="col-sm-6 text-end">
+              <button
+                className="btn btn-sm btn-warning"
+                onClick={rebuildAll}
+                disabled={rebuilding}
+                style={{ fontSize: '0.8rem' }}
+              >
+                {rebuilding
+                  ? <><i className="fas fa-spinner fa-spin me-1" />{t('inspector_rebuild_all_running')}</>
+                  : <><i className="fas fa-sync-alt me-1" />{t('inspector_rebuild_all_btn')}</>
+                }
+              </button>
+            </div>
           </div>
+          {rebuildResult && (
+            <div className="alert alert-info py-1 mb-2" style={{ fontSize: '0.82rem' }}>{rebuildResult}</div>
+          )}
         </div>
       </div>
 
