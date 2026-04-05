@@ -688,6 +688,8 @@
   "inspector_default_badge": "default",
   "inspector_no_memberships": "No organization memberships.",
   "inspector_dashboard_title": "Dashboard",
+  "inspector_rebuild_wm_btn": "Rebuild watermarks",
+  "inspector_rebuild_wm_confirm": "Force-rebuild all galleries that have watermark enabled? Only those galleries will be queued.",
   "inspector_rebuild_all_btn": "Rebuild all galleries",
   "inspector_rebuild_all_running": "Queuing…",
   "inspector_rebuild_all_confirm": "Force-rebuild ALL galleries on the platform? This will queue a build job for every gallery.",

@@ -66,12 +66,12 @@ function galleryToProjectConfig(g) {
       ? (MODE_WATERMARK[g.gallery_mode] ?? cfg.watermark?.enabled ?? false)
       : (cfg.watermark?.enabled ?? false);
     if (watermarkEnabled) {
+      const photographerName = g.primary_photographer_name || g.guest_photographer_name || null;
       const wmText = cfg.watermark?.text
-        || (g.primary_photographer_name ? `© ${g.primary_photographer_name}` : null)
-        || (g.author                    ? `© ${g.author}`                    : null)
-        || g.title
-        || g.slug;
-      proj.watermark = { enabled: true, text: wmText };
+        || (photographerName ? `© ${photographerName}` : null)
+        || (g.author         ? `© ${g.author}`         : null)
+        || null; // do not fall back to gallery title/slug — no name means no watermark text
+      if (wmText) proj.watermark = { enabled: true, text: wmText };
     }
   } catch {}
   return proj;
@@ -87,10 +87,11 @@ export async function runJob(jobId) {
 
   const [galleryRows] = await query(`
     SELECT g.*, p.slug AS project_slug, p.name AS project_name,
-           ph.name AS primary_photographer_name
+           u.name AS primary_photographer_name,
+           (SELECT name FROM photographers WHERE gallery_id = g.id ORDER BY created_at ASC LIMIT 1) AS guest_photographer_name
     FROM galleries g
-    LEFT JOIN projects p  ON p.id  = g.project_id
-    LEFT JOIN photographers ph ON ph.id = g.primary_photographer_id
+    LEFT JOIN projects p ON p.id = g.project_id
+    LEFT JOIN users    u ON u.id = g.primary_photographer_id
     WHERE g.id = ?
   `, [job.gallery_id]);
   const gallery = galleryRows[0];

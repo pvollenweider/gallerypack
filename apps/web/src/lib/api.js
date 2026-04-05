@@ -160,6 +160,7 @@ export const api = {
   inspectorAuditLog:        (params)               => req('GET',    `/inspector/audit-log?${new URLSearchParams(params)}`),
   inspectorDashboard:       ()                     => req('GET',    `/inspector/dashboard`),
   inspectorRebuildAll:      ()                     => req('POST',   `/inspector/rebuild-all`),
+  inspectorRebuildWatermarks: ()                   => req('POST',   `/inspector/rebuild-watermarks`),
   inspectorAnomalies:       (params = {})          => req('GET',    `/inspector/anomalies?${new URLSearchParams(params)}`),
 
   // Photographers (issue #133)

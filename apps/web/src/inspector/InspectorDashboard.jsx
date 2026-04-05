@@ -15,9 +15,11 @@ const BUILD_COLOR = { done: '#4ade80', error: '#f87171', running: '#60a5fa', que
 
 export default function InspectorDashboard() {
   const t = useT();
-  const [data,          setData]          = useState(null);
-  const [rebuilding,    setRebuilding]    = useState(false);
-  const [rebuildResult, setRebuildResult] = useState(null);
+  const [data,             setData]             = useState(null);
+  const [rebuilding,       setRebuilding]       = useState(false);
+  const [rebuildResult,    setRebuildResult]    = useState(null);
+  const [wmRebuilding,     setWmRebuilding]     = useState(false);
+  const [wmRebuildResult,  setWmRebuildResult]  = useState(null);
 
   useEffect(() => {
     api.inspectorDashboard().then(setData).catch(() => {});
@@ -36,6 +38,19 @@ export default function InspectorDashboard() {
     }
   }
 
+  async function rebuildWatermarks() {
+    if (!window.confirm(t('inspector_rebuild_wm_confirm'))) return;
+    setWmRebuilding(true); setWmRebuildResult(null);
+    try {
+      const r = await api.inspectorRebuildWatermarks();
+      setWmRebuildResult(t('inspector_rebuild_all_done', { queued: r.queued, total: r.total }));
+    } catch (err) {
+      setWmRebuildResult(`Erreur : ${err.message}`);
+    } finally {
+      setWmRebuilding(false);
+    }
+  }
+
   return (
     <>
       <div className="content-header" style={{ background: '#0f1117', borderBottom: '1px solid #1e1e2e' }}>
@@ -44,7 +59,18 @@ export default function InspectorDashboard() {
             <div className="col-sm-6">
               <h1 className="m-0" style={{ color: '#eee', fontSize: '1.3rem' }}>{t('inspector_dashboard_title')}</h1>
             </div>
-            <div className="col-sm-6 text-end">
+            <div className="col-sm-6 d-flex gap-2 justify-content-end">
+              <button
+                className="btn btn-sm btn-outline-info"
+                onClick={rebuildWatermarks}
+                disabled={wmRebuilding}
+                style={{ fontSize: '0.8rem' }}
+              >
+                {wmRebuilding
+                  ? <><i className="fas fa-spinner fa-spin me-1" />{t('inspector_rebuild_all_running')}</>
+                  : <><i className="fas fa-stamp me-1" />{t('inspector_rebuild_wm_btn')}</>
+                }
+              </button>
               <button
                 className="btn btn-sm btn-warning"
                 onClick={rebuildAll}
@@ -58,6 +84,9 @@ export default function InspectorDashboard() {
               </button>
             </div>
           </div>
+          {wmRebuildResult && (
+            <div className="alert alert-info py-1 mb-2" style={{ fontSize: '0.82rem' }}>{wmRebuildResult}</div>
+          )}
           {rebuildResult && (
             <div className="alert alert-info py-1 mb-2" style={{ fontSize: '0.82rem' }}>{rebuildResult}</div>
           )}

@@ -826,6 +826,8 @@
   "inspector_default_badge": "défaut",
   "inspector_no_memberships": "Aucune appartenance à une organisation.",
   "inspector_dashboard_title": "Tableau de bord",
+  "inspector_rebuild_wm_btn": "Regénérer les filigranes",
+  "inspector_rebuild_wm_confirm": "Forcer la regénération de toutes les galeries avec filigrane activé ? Seules ces galeries seront mises en file.",
   "inspector_rebuild_all_btn": "Regénérer toutes les galeries",
   "inspector_rebuild_all_running": "Mise en file…",
   "inspector_rebuild_all_confirm": "Forcer la regénération de TOUTES les galeries de la plateforme ? Un job de build sera créé pour chaque galerie.",

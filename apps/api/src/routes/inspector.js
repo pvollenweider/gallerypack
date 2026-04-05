@@ -570,4 +570,23 @@ router.post('/rebuild-all', async (req, res) => {
   res.json({ queued, total: rows.length });
 });
 
+// ── POST /api/inspector/rebuild-watermarks — force-rebuild galleries with watermark enabled ─
+// Targets: mode-based galleries (portfolio/client_preview/client_delivery) + custom galleries
+// with config_json.watermark.enabled = true.
+router.post('/rebuild-watermarks', async (req, res) => {
+  const [rows] = await query(`
+    SELECT id, organization_id FROM galleries
+    WHERE gallery_mode IN ('portfolio', 'client_preview', 'client_delivery')
+       OR JSON_VALUE(config_json, '$.watermark.enabled') = 'true'
+  `);
+  let queued = 0;
+  for (const { id, organization_id } of rows) {
+    try {
+      await createJob({ galleryId: id, organizationId: organization_id, triggeredBy: req.user.id, force: true });
+      queued++;
+    } catch {}
+  }
+  res.json({ queued, total: rows.length });
+});
+
 export default router;
