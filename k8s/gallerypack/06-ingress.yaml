@@ -11,31 +11,9 @@ spec:
   ingressClassName: traefik
   tls:
     - hosts:
-        - gallerypack.app
-        - www.gallerypack.app
         - "*.gallerypack.app"
       secretName: gallerypack-wildcard-tls
   rules:
-    - host: gallerypack.app
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: api
-                port:
-                  number: 4000
-    - host: www.gallerypack.app
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: api
-                port:
-                  number: 4000
     - host: "*.gallerypack.app"
       http:
         paths:
