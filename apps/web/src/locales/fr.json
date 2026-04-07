@@ -389,6 +389,8 @@
   "gal_downloads_strip_btn": "Supprimer les originaux",
   "gal_photos_sort_asc": "A→Z",
   "gal_photos_sort_desc": "Z→A",
+  "gal_photos_zoom_in": "Agrandir les aperçus",
+  "gal_photos_zoom_out": "Réduire les aperçus",
   "gal_photos_sort_date_asc": "Date ↑",
   "gal_photos_sort_date_desc": "Date ↓",
   "gal_photos_selected": "{n} sélectionnée(s)",

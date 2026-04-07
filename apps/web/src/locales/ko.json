@@ -344,6 +344,8 @@
   "gal_downloads_strip_btn": "원본 제거",
   "gal_photos_sort_asc": "A→Z",
   "gal_photos_sort_desc": "Z→A",
+  "gal_photos_zoom_in": "썸네일 크게",
+  "gal_photos_zoom_out": "썸네일 작게",
   "gal_photos_sort_date_asc": "Date ↑",
   "gal_photos_sort_date_desc": "Date ↓",
   "gal_general_danger_zone": "위험 구역",

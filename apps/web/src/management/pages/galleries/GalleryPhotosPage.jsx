@@ -52,6 +52,9 @@ export default function GalleryPhotosPage() {
   const [assigning,     setAssigning]     = useState(false);
   const [filterPhotographerId, setFilterPhotographerId] = useState(null); // null=all, '__unassigned__', or pg.id
 
+  // Thumbnail size toggle
+  const [thumbSize,     setThumbSize]     = useState('sm'); // 'sm' | 'lg'
+
   // Multi-select + drag state
   const [selected,      setSelected]      = useState(new Set()); // Set<photo.id>
   const [dragIdx,       setDragIdx]       = useState(null);      // index of dragged card
@@ -507,6 +510,14 @@ export default function GalleryPhotosPage() {
             headerRight={
               photos.length > 0 && (
                 <div className="d-flex align-items-center gap-2">
+                  <button
+                    className="btn btn-sm btn-outline-secondary"
+                    style={{ fontSize: '0.75rem', padding: '2px 8px' }}
+                    title={thumbSize === 'sm' ? t('gal_photos_zoom_in') : t('gal_photos_zoom_out')}
+                    onClick={() => setThumbSize(s => s === 'sm' ? 'lg' : 'sm')}
+                  >
+                    <i className={`fas fa-${thumbSize === 'sm' ? 'magnifying-glass-plus' : 'magnifying-glass-minus'}`} />
+                  </button>
                   {selected.size > 0 ? (
                     <>
                       <span className="text-muted" style={{ fontSize: '0.8rem' }}>
@@ -583,7 +594,7 @@ export default function GalleryPhotosPage() {
                     )}
                   </div>
                 )}
-              <div className="photo-grid-auto" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '0.5rem', padding: '1rem' }}>
+              <div className="photo-grid-auto" style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${thumbSize === 'lg' ? '240px' : '130px'}, 1fr))`, gap: '0.5rem', padding: '1rem' }}>
                 {filteredPhotos.map((p, i) => {
                   const isSelected    = selected.has(p.id);
                   const isBeingDragged = filterPhotographerId === null && dragIdx === i && !isGroupDrag.current;
@@ -631,13 +642,13 @@ export default function GalleryPhotosPage() {
                         <img
                           src={p.thumbnail.sm}
                           alt={p.file}
-                          style={{ width: '100%', aspectRatio: '4/3', objectFit: 'cover', display: 'block' }}
+                          style={{ width: '100%', aspectRatio: '1/1', objectFit: 'cover', display: 'block' }}
                           loading="lazy"
                           decoding="async"
                           draggable={false}
                         />
                       ) : (
-                        <div style={{ width: '100%', aspectRatio: '4/3', background: 'linear-gradient(135deg,#e5e7eb,#d1d5db)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <div style={{ width: '100%', aspectRatio: '1/1', background: 'linear-gradient(135deg,#e5e7eb,#d1d5db)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           <i className="fas fa-image" style={{ fontSize: '1.5rem', color: '#9ca3af' }} />
                         </div>
                       )}
