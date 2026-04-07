@@ -157,6 +157,7 @@ export const api = {
   inspectorProject:         (id)                   => req('GET',    `/inspector/projects/${id}`),
   inspectorUsers:           ()                     => req('GET',    `/inspector/users`),
   inspectorUser:            (id)                   => req('GET',    `/inspector/users/${id}`),
+  inspectorUpdateUser:      (id, patch)            => req('PATCH',  `/inspector/users/${id}`, patch),
   inspectorAuditLog:        (params)               => req('GET',    `/inspector/audit-log?${new URLSearchParams(params)}`),
   inspectorDashboard:       ()                     => req('GET',    `/inspector/dashboard`),
   inspectorRebuildAll:      ()                     => req('POST',   `/inspector/rebuild-all`),

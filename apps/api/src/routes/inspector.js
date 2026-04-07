@@ -380,7 +380,10 @@ router.get('/users', async (req, res) => {
 });
 
 router.get('/users/:id', async (req, res) => {
-  const [rows] = await query('SELECT id, email, name, platform_role, created_at FROM users WHERE id = ?', [req.params.id]);
+  const [rows] = await query(
+    'SELECT id, email, name, platform_role, locale, notify_on_upload, notify_on_publish, created_at FROM users WHERE id = ?',
+    [req.params.id]
+  );
   if (!rows[0]) return res.status(404).json({ error: 'User not found' });
 
   const [memberships] = await query(`
@@ -390,7 +393,48 @@ router.get('/users/:id', async (req, res) => {
     WHERE sm.user_id = ?
   `, [req.params.id]);
 
-  res.json({ ...rows[0], memberships });
+  const u = rows[0];
+  res.json({
+    ...u,
+    notifyOnUpload:  u.notify_on_upload  !== 0,
+    notifyOnPublish: u.notify_on_publish !== 0,
+    memberships,
+  });
+});
+
+router.patch('/users/:id', async (req, res) => {
+  const [rows] = await query('SELECT id FROM users WHERE id = ?', [req.params.id]);
+  if (!rows[0]) return res.status(404).json({ error: 'User not found' });
+
+  const { name, locale, notifyOnUpload, notifyOnPublish } = req.body || {};
+  const before = {};
+  const after  = {};
+
+  if (name !== undefined) {
+    before.name = rows[0].name; after.name = name;
+    await query('UPDATE users SET name = ?, updated_at = ? WHERE id = ?', [name || null, Date.now(), req.params.id]);
+  }
+  if (locale !== undefined) {
+    before.locale = rows[0].locale; after.locale = locale;
+    await query('UPDATE users SET locale = ?, updated_at = ? WHERE id = ?', [locale || null, Date.now(), req.params.id]);
+  }
+  if (notifyOnUpload !== undefined) {
+    after.notifyOnUpload = notifyOnUpload;
+    await query('UPDATE users SET notify_on_upload = ?, updated_at = ? WHERE id = ?', [notifyOnUpload ? 1 : 0, Date.now(), req.params.id]);
+  }
+  if (notifyOnPublish !== undefined) {
+    after.notifyOnPublish = notifyOnPublish;
+    await query('UPDATE users SET notify_on_publish = ?, updated_at = ? WHERE id = ?', [notifyOnPublish ? 1 : 0, Date.now(), req.params.id]);
+  }
+
+  await auditLog(req.userId, 'user.update', 'user', req.params.id, before, after);
+
+  const [updated] = await query(
+    'SELECT id, email, name, platform_role, locale, notify_on_upload, notify_on_publish FROM users WHERE id = ?',
+    [req.params.id]
+  );
+  const u = updated[0];
+  res.json({ ...u, notifyOnUpload: u.notify_on_upload !== 0, notifyOnPublish: u.notify_on_publish !== 0 });
 });
 
 // ── Sprint 21: Audit log ──────────────────────────────────────────────────────
