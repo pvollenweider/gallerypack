@@ -193,7 +193,7 @@ async function buildPlaceholderIcon(distPath) {
  * @param {string[]} opts.photoFilenames - Ordered list of WebP filenames in dist
  * @param {string}   opts.buildHash      - Short hash to version the SW cache
  */
-export async function buildPWAAssets({ project, distPath, distName, photoFilenames, buildHash }) {
+export async function buildPWAAssets({ project, distPath, distImgPath, distName, photoFilenames, buildHash }) {
   info('PWA → generating manifest, service worker, icons...');
 
   // manifest.webmanifest
@@ -206,9 +206,10 @@ export async function buildPWAAssets({ project, distPath, distName, photoFilenam
   fs.writeFileSync(path.join(distPath, 'sw.js'), swJs, 'utf8');
   ok('PWA service worker → sw.js');
 
-  // Icons — use first photo in dist as source
+  // Icons — use first photo from img/grid/ as source
+  const imgBase = distImgPath || path.join(distPath, 'img');
   const firstPhoto = photoFilenames[0]
-    ? path.join(distPath, photoFilenames[0])
+    ? path.join(imgBase, 'grid', photoFilenames[0])
     : null;
   await buildPWAIcons(firstPhoto, distPath);
 }

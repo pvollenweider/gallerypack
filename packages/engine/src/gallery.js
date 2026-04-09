@@ -255,12 +255,13 @@ export async function buildGallery(srcName, { build, project: projectOverride, d
 
     if (galCfg.project.pwa) {
       const photoFilenames = results
-        .map(r => r.webp ? path.basename(r.webp) : null)
+        .map(r => r.name ? `${r.name}.webp` : null)
         .filter(Boolean);
       const buildHash = Date.now().toString(16).slice(-8);
       await buildPWAAssets({
-        project:      galCfg.project,
-        distPath:     paths.dist,
+        project:       galCfg.project,
+        distPath:      paths.dist,
+        distImgPath:   paths.distImg,
         distName,
         photoFilenames,
         buildHash,
