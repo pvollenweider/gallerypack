@@ -79,7 +79,10 @@ export function buildServiceWorker(photoFilenames, buildHash) {
     './gallery.js',
   ];
 
-  const photoAssets = photoFilenames.map(f => `./${f}`);
+  const photoAssets = photoFilenames.flatMap(f => [
+    `./img/grid/${f}`,
+    `./img/grid-sm/${f}`,
+  ]);
   const allAssets   = [...coreAssets, ...photoAssets];
 
   return `// GalleryPack PWA Service Worker — auto-generated, do not edit
