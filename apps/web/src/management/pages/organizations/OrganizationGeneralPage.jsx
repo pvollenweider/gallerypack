@@ -35,7 +35,7 @@ export default function OrganizationGeneralPage() {
 
   const [identity,    setIdentity]    = useState({ name: '', slug: '', description: '', locale: 'en', country: '', hostname: '' });
   const [identityErr, setIdentityErr] = useState('');
-  const [defaults,    setDefaults]    = useState({ defaultAccess: 'public', defaultDownloadMode: 'display', defaultPwa: false, defaultPwaThemeColor: '#000000', defaultPwaBgColor: '#000000' });
+  const [defaults,    setDefaults]    = useState({ defaultAccess: 'public', defaultDownloadMode: 'display', defaultPwaThemeColor: '#000000', defaultPwaBgColor: '#000000' });
   const [defaultsErr, setDefaultsErr] = useState('');
   const [rebuilding,  setRebuilding]  = useState(false);
   const [toast,       setToast]       = useState('');
@@ -56,7 +56,6 @@ export default function OrganizationGeneralPage() {
       setDefaults({
         defaultAccess:        s?.defaultAccess        || 'public',
         defaultDownloadMode:  s?.defaultDownloadMode  || 'display',
-        defaultPwa:           !!s?.defaultPwa,
         defaultPwaThemeColor: s?.defaultPwaThemeColor || '#000000',
         defaultPwaBgColor:    s?.defaultPwaBgColor    || '#000000',
       });
@@ -250,29 +249,22 @@ export default function OrganizationGeneralPage() {
             <h6 className="fw-semibold mt-3 mb-3" style={{ fontSize: '0.85rem' }}>{t('field_pwa')}</h6>
             <div className="row mb-0">
               <div className="col-sm-12 mb-3">
-                <div className="form-check form-switch mb-1">
-                  <input type="checkbox" className="form-check-input" id="orgDefPwa"
-                    checked={defaults.defaultPwa} onChange={setDefBool('defaultPwa')} />
-                  <label className="form-check-label" htmlFor="orgDefPwa">{t('field_pwa_hint')}</label>
+                <div className="d-flex gap-3">
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.82rem', color: '#555' }}>
+                    {t('field_pwa_theme_color')}
+                    <input type="color" value={defaults.defaultPwaThemeColor}
+                      onChange={setDefColor('defaultPwaThemeColor')}
+                      onBlur={saveDefColor('defaultPwaThemeColor')}
+                      style={{ width: 48, height: 32, border: 'none', cursor: 'pointer' }} />
+                  </label>
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.82rem', color: '#555' }}>
+                    {t('field_pwa_bg_color')}
+                    <input type="color" value={defaults.defaultPwaBgColor}
+                      onChange={setDefColor('defaultPwaBgColor')}
+                      onBlur={saveDefColor('defaultPwaBgColor')}
+                      style={{ width: 48, height: 32, border: 'none', cursor: 'pointer' }} />
+                  </label>
                 </div>
-                {defaults.defaultPwa && (
-                  <div className="d-flex gap-3 mt-2">
-                    <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.82rem', color: '#555' }}>
-                      {t('field_pwa_theme_color')}
-                      <input type="color" value={defaults.defaultPwaThemeColor}
-                        onChange={setDefColor('defaultPwaThemeColor')}
-                        onBlur={saveDefColor('defaultPwaThemeColor')}
-                        style={{ width: 48, height: 32, border: 'none', cursor: 'pointer' }} />
-                    </label>
-                    <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.82rem', color: '#555' }}>
-                      {t('field_pwa_bg_color')}
-                      <input type="color" value={defaults.defaultPwaBgColor}
-                        onChange={setDefColor('defaultPwaBgColor')}
-                        onBlur={saveDefColor('defaultPwaBgColor')}
-                        style={{ width: 48, height: 32, border: 'none', cursor: 'pointer' }} />
-                    </label>
-                  </div>
-                )}
               </div>
             </div>
           </AdminCard>

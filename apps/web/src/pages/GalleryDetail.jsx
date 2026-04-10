@@ -119,7 +119,6 @@ export default function GalleryDetail() {
         allowDownloadImage: g.allowDownloadImage !== false,
         allowDownloadGallery: !!g.allowDownloadGallery,
         standalone: !!g.standalone,
-        pwa: !!g.pwa,
         pwaThemeColor: g.pwaThemeColor || '#000000',
         pwaBgColor:    g.pwaBgColor    || '#000000',
       };
@@ -138,8 +137,8 @@ export default function GalleryDetail() {
     e.preventDefault();
     setSaving(true);
     try {
-      const { pwa, pwaThemeColor, pwaBgColor, ...rest } = form;
-      const configJson = { ...(gallery.configJson || {}), pwa, pwaThemeColor, pwaBgColor };
+      const { pwaThemeColor, pwaBgColor, ...rest } = form;
+      const configJson = { ...(gallery.configJson || {}), pwaThemeColor, pwaBgColor };
       const updated = await api.updateGallery(id, { ...rest, configJson });
       setGallery(updated);
       setNeedsRebuild(true);
@@ -661,15 +660,9 @@ export default function GalleryDetail() {
               </div>
             )}
 
-            {/* PWA */}
+            {/* PWA colors */}
             <Row label={t('field_pwa')}>
-              <div>
-                <input type="checkbox" checked={form.pwa} onChange={e => setForm(f => ({ ...f, pwa: e.target.checked }))} />
-                <span style={{ fontSize: '0.78rem', color: '#999', marginLeft: '0.5rem' }}>{t('field_pwa_hint')}</span>
-              </div>
-            </Row>
-            {form.pwa && (
-              <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '0.75rem', paddingLeft: '1rem' }}>
+              <div style={{ display: 'flex', gap: '1.5rem' }}>
                 <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.82rem', color: '#555' }}>
                   {t('field_pwa_theme_color')}
                   <input type="color" value={form.pwaThemeColor} onChange={e => setForm(f => ({ ...f, pwaThemeColor: e.target.value }))} style={{ width: 48, height: 32, border: 'none', cursor: 'pointer' }} />
@@ -679,7 +672,7 @@ export default function GalleryDetail() {
                   <input type="color" value={form.pwaBgColor} onChange={e => setForm(f => ({ ...f, pwaBgColor: e.target.value }))} style={{ width: 48, height: 32, border: 'none', cursor: 'pointer' }} />
                 </label>
               </div>
-            )}
+            </Row>
 
             <button style={s.primaryBtn} type="submit" disabled={saving}>
               {saving ? t('saving') : t('save_settings')}

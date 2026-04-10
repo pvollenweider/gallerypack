@@ -42,7 +42,6 @@ function projectToJson(p) {
     description:      p.description,
     visibility:       p.visibility,
     standaloneDefault:    !!p.standalone_default,
-    pwaDefault:           !!p.pwa_default,
     pwaThemeColorDefault: p.pwa_theme_color_default || '#000000',
     pwaBgColorDefault:    p.pwa_bg_color_default    || '#000000',
     startsAt:         p.starts_at,
@@ -114,9 +113,9 @@ router.patch('/:id', async (req, res) => {
     return res.status(403).json({ error: 'Forbidden: requires project manager or studio admin' });
   }
 
-  const camelToSnake = { startsAt: 'starts_at', endsAt: 'ends_at', standaloneDefault: 'standalone_default', coverGalleryId: 'cover_gallery_id', pwaDefault: 'pwa_default', pwaThemeColorDefault: 'pwa_theme_color_default', pwaBgColorDefault: 'pwa_bg_color_default' };
-  const allowed = ['slug', 'name', 'description', 'visibility', 'starts_at', 'ends_at', 'standalone_default', 'cover_gallery_id', 'pwa_default', 'pwa_theme_color_default', 'pwa_bg_color_default'];
-  const boolCols = new Set(['standalone_default', 'pwa_default']);
+  const camelToSnake = { startsAt: 'starts_at', endsAt: 'ends_at', standaloneDefault: 'standalone_default', coverGalleryId: 'cover_gallery_id', pwaThemeColorDefault: 'pwa_theme_color_default', pwaBgColorDefault: 'pwa_bg_color_default' };
+  const allowed = ['slug', 'name', 'description', 'visibility', 'starts_at', 'ends_at', 'standalone_default', 'cover_gallery_id', 'pwa_theme_color_default', 'pwa_bg_color_default'];
+  const boolCols = new Set(['standalone_default']);
   const updates = {};
   for (const [key, val] of Object.entries(req.body || {})) {
     const col = camelToSnake[key] || key;

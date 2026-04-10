@@ -92,7 +92,7 @@ export async function getSettings(orgId) {
 
 export async function upsertSettings(orgId, fields) {
   const now     = Date.now();
-  const allowed = ['smtp_host','smtp_port','smtp_user','smtp_pass','smtp_from','smtp_secure','base_url','site_title','default_author','default_author_email','default_locale','default_access','default_allow_download_image','default_allow_download_gallery','default_private','default_pwa','default_pwa_theme_color','default_pwa_bg_color'];
+  const allowed = ['smtp_host','smtp_port','smtp_user','smtp_pass','smtp_from','smtp_secure','base_url','site_title','default_author','default_author_email','default_locale','default_access','default_allow_download_image','default_allow_download_gallery','default_private','default_pwa_theme_color','default_pwa_bg_color'];
   const cols    = Object.keys(fields).filter(k => allowed.includes(k));
   if (!cols.length) return;
 

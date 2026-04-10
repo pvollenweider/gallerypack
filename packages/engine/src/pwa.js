@@ -64,14 +64,36 @@ export function buildManifest(project, distName) {
 // ── Service Worker ────────────────────────────────────────────────────────────
 
 /**
+ * Recursively list all files under a directory, returning relative paths
+ * prefixed with './' (relative to distPath).
+ *
+ * @param {string} dir      - Absolute path to directory to enumerate
+ * @param {string} distPath - Gallery dist root (used to build relative paths)
+ * @returns {string[]}
+ */
+function listFilesRecursively(dir, distPath) {
+  const result = [];
+  for (const entry of fs.readdirSync(dir)) {
+    const full = path.join(dir, entry);
+    if (fs.statSync(full).isDirectory()) {
+      result.push(...listFilesRecursively(full, distPath));
+    } else {
+      result.push('./' + path.relative(distPath, full).replace(/\\/g, '/'));
+    }
+  }
+  return result;
+}
+
+/**
  * Generate a service worker that caches all gallery assets on first load.
  * Cache name includes a hash of the build timestamp to bust on rebuild.
  *
- * @param {string[]} photoFilenames - List of WebP filenames in the gallery
- * @param {string}   buildHash      - Short hash to version the cache (e.g. build timestamp hex)
- * @returns {string}                - JS source for sw.js
+ * @param {string[]} photoFilenames  - List of WebP filenames in the gallery
+ * @param {string}   buildHash       - Short hash to version the cache (e.g. build timestamp hex)
+ * @param {string[]} [extraAssets]   - Additional assets to pre-cache (e.g. standalone vendor/fonts)
+ * @returns {string}                 - JS source for sw.js
  */
-export function buildServiceWorker(photoFilenames, buildHash) {
+export function buildServiceWorker(photoFilenames, buildHash, extraAssets = []) {
   const coreAssets = [
     './',
     './index.html',
@@ -83,7 +105,7 @@ export function buildServiceWorker(photoFilenames, buildHash) {
     `./img/grid/${f}`,
     `./img/grid-sm/${f}`,
   ]);
-  const allAssets   = [...coreAssets, ...photoAssets];
+  const allAssets   = [...coreAssets, ...photoAssets, ...extraAssets];
 
   return `// GalleryPack PWA Service Worker — auto-generated, do not edit
 // Cache version: ${buildHash}
@@ -195,8 +217,9 @@ async function buildPlaceholderIcon(distPath) {
  * @param {string}   opts.distName       - Gallery dist path segment
  * @param {string[]} opts.photoFilenames - Ordered list of WebP filenames in dist
  * @param {string}   opts.buildHash      - Short hash to version the SW cache
+ * @param {boolean}  [opts.isStandalone] - Whether vendor/fonts are bundled in dist
  */
-export async function buildPWAAssets({ project, distPath, distImgPath, distName, photoFilenames, buildHash }) {
+export async function buildPWAAssets({ project, distPath, distImgPath, distName, photoFilenames, buildHash, isStandalone }) {
   info('PWA → generating manifest, service worker, icons...');
 
   // manifest.webmanifest
@@ -204,8 +227,19 @@ export async function buildPWAAssets({ project, distPath, distImgPath, distName,
   fs.writeFileSync(path.join(distPath, 'manifest.webmanifest'), manifestJson, 'utf8');
   ok('PWA manifest → manifest.webmanifest');
 
+  // For standalone galleries, vendor and fonts are bundled — enumerate them for pre-caching
+  const standaloneAssets = [];
+  if (isStandalone) {
+    for (const subdir of ['vendor', 'fonts']) {
+      const subdirPath = path.join(distPath, subdir);
+      if (fs.existsSync(subdirPath)) {
+        standaloneAssets.push(...listFilesRecursively(subdirPath, distPath));
+      }
+    }
+  }
+
   // sw.js
-  const swJs = buildServiceWorker(photoFilenames, buildHash);
+  const swJs = buildServiceWorker(photoFilenames, buildHash, standaloneAssets);
   fs.writeFileSync(path.join(distPath, 'sw.js'), swJs, 'utf8');
   ok('PWA service worker → sw.js');
 

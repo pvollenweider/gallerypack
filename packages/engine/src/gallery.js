@@ -246,37 +246,38 @@ export async function buildGallery(srcName, { build, project: projectOverride, d
       ok('legal.txt  → gallery-specific template applied');
     }
 
-    const pwaHead = galCfg.project.pwa ? buildPWAHead(galCfg.project) : '';
+    const pwaHead = buildPWAHead(galCfg.project);
     const { html, dataJs, galleryJs } = buildHTML(galCfg, results, localFontCss, isStandalone, customLegal, distName, VERSION, process.env.BASE_URL || '', pwaHead);
     fs.writeFileSync(path.join(paths.dist, 'index.html'), html, 'utf8');
     fs.writeFileSync(path.join(paths.dist, 'data.js'),    dataJs, 'utf8');
     fs.writeFileSync(path.join(paths.dist, 'gallery.js'), galleryJs, 'utf8');
     ok('index.html + data.js + gallery.js → dist/');
 
-    if (galCfg.project.pwa) {
-      const photoFilenames = results
-        .map(r => r.name ? `${r.name}.webp` : null)
-        .filter(Boolean);
-      const buildHash = Date.now().toString(16).slice(-8);
-      await buildPWAAssets({
-        project:       galCfg.project,
-        distPath:      paths.dist,
-        distImgPath:   paths.distImg,
-        distName,
-        photoFilenames,
-        buildHash,
-      });
+    // Copy vendor/fonts before PWA generation so standalone assets are enumerable
+    if (isStandalone) {
+      if (fs.existsSync(DIST_VEN))   { copyDirSync(DIST_VEN,   path.join(paths.dist, 'vendor')); ok('vendor/ → standalone'); }
+      if (fs.existsSync(DIST_FONTS)) { copyDirSync(DIST_FONTS, path.join(paths.dist, 'fonts'));  ok('fonts/  → standalone'); }
     }
+
+    const photoFilenames = results
+      .map(r => r.name ? `${r.name}.webp` : null)
+      .filter(Boolean);
+    const buildHash = Date.now().toString(16).slice(-8);
+    await buildPWAAssets({
+      project:       galCfg.project,
+      distPath:      paths.dist,
+      distImgPath:   paths.distImg,
+      distName,
+      photoFilenames,
+      buildHash,
+      isStandalone,
+    });
+
     fs.writeFileSync(path.join(paths.dist, 'LEGAL.md'), buildLegalNotice(galCfg), 'utf8');
     ok('LEGAL.md → dist/');
     if (galCfg.project.private) {
       log(`\n  \x1b[33m🔒  Private gallery URL:\x1b[0m`);
       log(`     http://localhost:3000/${distName}/\n`);
-    }
-
-    if (isStandalone) {
-      if (fs.existsSync(DIST_VEN))   { copyDirSync(DIST_VEN,   path.join(paths.dist, 'vendor')); ok('vendor/ → standalone'); }
-      if (fs.existsSync(DIST_FONTS)) { copyDirSync(DIST_FONTS, path.join(paths.dist, 'fonts'));  ok('fonts/  → standalone'); }
     }
   }
 
