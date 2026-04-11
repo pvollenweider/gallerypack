@@ -60,6 +60,10 @@ export default function GalleryPhotosPage() {
   const [dragIdx,       setDragIdx]       = useState(null);      // index of dragged card
   const [dropTargetIdx, setDropTargetIdx] = useState(null);      // index of current drop target (group drag)
   const isGroupDrag = useRef(false); // true when dragging a selected photo (group move)
+  const touchDragActive  = useRef(false);
+  const photosRef        = useRef([]);
+  const dragIdxRef       = useRef(null);
+  const dropTargetIdxRef = useRef(null);
 
   const pollRef = useRef(null);
 
@@ -107,6 +111,42 @@ export default function GalleryPhotosPage() {
       .finally(() => setLoading(false));
     return () => { clearInterval(pollRef.current); pollRef.current = null; };
   }, [galleryId]); // eslint-disable-line
+
+  // Keep photosRef in sync for touch drag handlers
+  useEffect(() => { photosRef.current = photos; }, [photos]);
+
+  // Non-passive touchmove to enable drag-reorder on iOS / iPadOS
+  useEffect(() => {
+    function handleTouchMove(e) {
+      if (!touchDragActive.current || dragIdxRef.current === null) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      const el = document.elementFromPoint(touch.clientX, touch.clientY);
+      if (!el) return;
+      const card = el.closest('[data-photo-idx]');
+      if (!card) return;
+      const targetIdx = parseInt(card.getAttribute('data-photo-idx'), 10);
+      if (isNaN(targetIdx)) return;
+      const currentDragIdx = dragIdxRef.current;
+      if (isGroupDrag.current) {
+        if (targetIdx !== dropTargetIdxRef.current) {
+          setDropTargetIdx(targetIdx);
+          dropTargetIdxRef.current = targetIdx;
+        }
+      } else {
+        if (currentDragIdx === targetIdx) return;
+        const next = [...photosRef.current];
+        const [moved] = next.splice(currentDragIdx, 1);
+        next.splice(targetIdx, 0, moved);
+        setPhotos(next);
+        photosRef.current = next;
+        setDragIdx(targetIdx);
+        dragIdxRef.current = targetIdx;
+      }
+    }
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    return () => document.removeEventListener('touchmove', handleTouchMove);
+  }, []); // eslint-disable-line
 
   async function saveOrder(ordered) {
     setReordering(true);
@@ -305,6 +345,25 @@ export default function GalleryPhotosPage() {
       isGroupDrag.current = false;
       await saveOrder(photos);
     }
+  }
+
+  // ── Touch handlers (iOS / iPadOS) ───────────────────────────────────────────
+
+  function onTouchStart(i) {
+    const photo = photosRef.current[i];
+    if (!photo) return;
+    isGroupDrag.current = selected.has(photo.id);
+    dragIdxRef.current = i;
+    dropTargetIdxRef.current = i;
+    setDragIdx(i);
+    setDropTargetIdx(i);
+    touchDragActive.current = true;
+  }
+
+  async function onTouchEnd() {
+    if (!touchDragActive.current) return;
+    touchDragActive.current = false;
+    await onDragEnd();
   }
 
   // ── Public gallery URL ──────────────────────────────────────────────────────
@@ -605,10 +664,14 @@ export default function GalleryPhotosPage() {
                   return (
                     <div
                       key={p.file}
+                      data-photo-idx={origIdx}
                       draggable={filterPhotographerId === null}
                       onDragStart={() => filterPhotographerId === null && onDragStart(origIdx)}
                       onDragOver={e => filterPhotographerId === null && onDragOver(e, origIdx)}
                       onDragEnd={onDragEnd}
+                      onTouchStart={() => filterPhotographerId === null && onTouchStart(origIdx)}
+                      onTouchEnd={filterPhotographerId === null ? onTouchEnd : undefined}
+                      onTouchCancel={filterPhotographerId === null ? onTouchEnd : undefined}
                       onClick={e => {
                         // Don't select when clicking the delete button
                         if (e.target.closest('button')) return;
@@ -624,6 +687,7 @@ export default function GalleryPhotosPage() {
                         outline: isDropTarget ? '2px solid #f59e0b' : 'none',
                         outlineOffset: 1,
                         userSelect: 'none',
+                        touchAction: filterPhotographerId === null ? 'none' : 'auto',
                       }}
                     >
                       {/* Selection indicator */}
