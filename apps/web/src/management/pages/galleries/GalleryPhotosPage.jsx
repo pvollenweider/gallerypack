@@ -16,8 +16,7 @@ import { AdminPage, AdminCard, AdminButton, AdminAlert, AdminToast, AdminBadge }
 import {
   DndContext,
   closestCenter,
-  MouseSensor,
-  TouchSensor,
+  PointerSensor,
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
@@ -208,10 +207,11 @@ export default function GalleryPhotosPage() {
 
   const pollRef = useRef(null);
 
-  // dnd-kit sensors — distance constraint lets taps pass through on touch devices
+  // dnd-kit sensors — PointerSensor unifies mouse/touch/pen via PointerEvent API
+  // (works on iOS 13+). onPointerDown stopPropagation on buttons reliably
+  // prevents drag activation when tapping action buttons.
   const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   );
 
   // Photographers who have at least one photo in this gallery's current list
