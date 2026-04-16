@@ -21,7 +21,7 @@ import UploadPage      from './pages/UploadPage.jsx';
 import ManageLayout    from './management/layout/ManageLayout.jsx';
 import PlatformLayout  from './management/layout/PlatformLayout.jsx';
 import ProfilePage     from './management/pages/profile/ProfilePage.jsx';
-import { PlatformOverviewPage, SmtpPage, LicensePage, BrandingPage, PlatformTeamPage } from './management/pages/platform/index.jsx';
+import { PlatformOverviewPage, SmtpPage, LicensePage, BrandingPage, PlatformTeamPage, BackupPage } from './management/pages/platform/index.jsx';
 import { OrganizationsListPage, OrganizationProjectsPage } from './management/pages/organizations/index.jsx';
 import { ProjectGalleriesPage } from './management/pages/projects/index.jsx';
 import { GalleryJobsPage, GalleryPhotosPage } from './management/pages/galleries/index.jsx';
@@ -45,8 +45,6 @@ import { InspectorUserList, InspectorUserDetail } from './inspector/InspectorUse
 import InspectorDashboard     from './inspector/InspectorDashboard.jsx';
 import InspectorAnomalies     from './inspector/InspectorAnomalies.jsx';
 import InspectorActivityLog   from './inspector/InspectorActivityLog.jsx';
-import InspectorBackup        from './inspector/InspectorBackup.jsx';
-
 import Login from './pages/Login.jsx';
 
 function LazyFallback() {
@@ -173,6 +171,7 @@ export default function App() {
       <Route path="/admin/platform/license"      element={<PlatformLayout><LicensePage /></PlatformLayout>} />
       <Route path="/admin/platform/smtp"         element={<PlatformLayout><SmtpPage /></PlatformLayout>} />
       <Route path="/admin/platform/team"         element={<PlatformLayout><PlatformTeamPage /></PlatformLayout>} />
+      <Route path="/admin/platform/backup"      element={<PlatformLayout><BackupPage /></PlatformLayout>} />
 
       {/* Inspector (superadmin only) */}
       <Route path="/inspector" element={<RequireAuth><InspectorLayout /></RequireAuth>}>
@@ -192,7 +191,6 @@ export default function App() {
         <Route path="anomalies"                  element={<InspectorAnomalies />} />
         <Route path="dashboard"                  element={<InspectorDashboard />} />
         <Route path="activity"                   element={<InspectorActivityLog />} />
-        <Route path="backup"                     element={<InspectorBackup />} />
       </Route>
 
       <Route path="*"                            element={<Navigate to="/admin/organizations" replace />} />

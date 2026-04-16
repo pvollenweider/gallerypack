@@ -32,8 +32,6 @@ export default function InspectorLayout() {
     { label: t('inspector_nav_anomalies'), to: '/inspector/anomalies', icon: 'fas fa-exclamation-triangle' },
     { label: t('inspector_nav_activity'),  to: '/inspector/activity',  icon: 'fas fa-stream' },
     { label: t('inspector_nav_dashboard'), to: '/inspector/dashboard', icon: 'fas fa-tachometer-alt' },
-    { divider: true },
-    { label: t('inspector_nav_backup'),    to: '/inspector/backup',    icon: 'fas fa-cloud-upload-alt' },
   ];
 
   // Guard

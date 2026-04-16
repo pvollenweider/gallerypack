@@ -10,3 +10,4 @@ export { default as SmtpPage }             from './SmtpPage.jsx';
 export { default as LicensePage }          from './LicensePage.jsx';
 export { default as BrandingPage }         from './BrandingPage.jsx';
 export { default as PlatformTeamPage }     from './PlatformTeamPage.jsx';
+export { default as BackupPage }           from './BackupPage.jsx';

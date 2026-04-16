@@ -901,5 +901,6 @@
   "admin_token_col_prefix": "Token",
   "admin_token_col_last_used": "Τελευταία χρήση",
   "gal_photos_delete_selected": "Διαγραφή {n} φωτογραφία(ών)",
-  "gal_photos_delete_selected_confirm": "Οριστική διαγραφή {n} επιλεγμένων φωτογραφιών; Δεν μπορεί να αναιρεθεί."
+  "gal_photos_delete_selected_confirm": "Οριστική διαγραφή {n} επιλεγμένων φωτογραφιών; Δεν μπορεί να αναιρεθεί.",
+  "nav_backup": "Backup & Sync"
 }

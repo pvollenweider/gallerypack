@@ -901,5 +901,6 @@
   "admin_token_col_prefix": "Token",
   "admin_token_col_last_used": "Senast använd",
   "gal_photos_delete_selected": "Ta bort {n} foto(n)",
-  "gal_photos_delete_selected_confirm": "Ta bort {n} markerade foto(n) permanent? Det går inte att ångra."
+  "gal_photos_delete_selected_confirm": "Ta bort {n} markerade foto(n) permanent? Det går inte att ångra.",
+  "nav_backup": "Backup & Sync"
 }

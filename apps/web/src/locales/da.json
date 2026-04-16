@@ -901,5 +901,6 @@
   "admin_token_col_prefix": "Token",
   "admin_token_col_last_used": "Sidst brugt",
   "gal_photos_delete_selected": "Slet {n} foto(er)",
-  "gal_photos_delete_selected_confirm": "Sletter permanent {n} valgte foto(er)? Dette kan ikke fortrydes."
+  "gal_photos_delete_selected_confirm": "Sletter permanent {n} valgte foto(er)? Dette kan ikke fortrydes.",
+  "nav_backup": "Backup & Sync"
 }

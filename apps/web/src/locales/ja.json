@@ -901,5 +901,6 @@
   "admin_token_col_prefix": "トークン",
   "admin_token_col_last_used": "最終使用",
   "gal_photos_delete_selected": "{n}枚の写真を削除",
-  "gal_photos_delete_selected_confirm": "選択した{n}枚の写真を完全に削除しますか？この操作は取り消せません。"
+  "gal_photos_delete_selected_confirm": "選択した{n}枚の写真を完全に削除しますか？この操作は取り消せません。",
+  "nav_backup": "Backup & Sync"
 }

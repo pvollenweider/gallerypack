@@ -901,5 +901,6 @@
   "admin_token_col_prefix": "토큰",
   "admin_token_col_last_used": "마지막 사용",
   "gal_photos_delete_selected": "{n}장 사진 삭제",
-  "gal_photos_delete_selected_confirm": "선택한 {n}장의 사진을 영구적으로 삭제하시겠습니까? 이 작업은 취소할 수 없습니다."
+  "gal_photos_delete_selected_confirm": "선택한 {n}장의 사진을 영구적으로 삭제하시겠습니까? 이 작업은 취소할 수 없습니다.",
+  "nav_backup": "Backup & Sync"
 }

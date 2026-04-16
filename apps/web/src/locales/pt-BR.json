@@ -901,5 +901,6 @@
   "admin_token_col_prefix": "Token",
   "admin_token_col_last_used": "Último uso",
   "gal_photos_delete_selected": "Excluir {n} foto(s)",
-  "gal_photos_delete_selected_confirm": "Excluir permanentemente {n} foto(s) selecionada(s)? Esta ação não pode ser desfeita."
+  "gal_photos_delete_selected_confirm": "Excluir permanentemente {n} foto(s) selecionada(s)? Esta ação não pode ser desfeita.",
+  "nav_backup": "Backup & Sync"
 }

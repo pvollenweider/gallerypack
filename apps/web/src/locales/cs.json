@@ -901,5 +901,6 @@
   "admin_token_col_prefix": "Token",
   "admin_token_col_last_used": "Naposledy použit",
   "gal_photos_delete_selected": "Smazat {n} foto",
-  "gal_photos_delete_selected_confirm": "Trvale smazat {n} vybrané foto? Tuto akci nelze vrátit."
+  "gal_photos_delete_selected_confirm": "Trvale smazat {n} vybrané foto? Tuto akci nelze vrátit.",
+  "nav_backup": "Backup & Sync"
 }

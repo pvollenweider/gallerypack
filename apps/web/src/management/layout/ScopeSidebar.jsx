@@ -257,6 +257,7 @@ export default function ScopeSidebar({ scope, params = {}, isMobileDrawer = fals
                     <TreeLink to="/admin/platform/license"  label={t('nav_license')}  depth={1} onClick={click} />
                     <TreeLink to="/admin/platform/smtp"     label={t('nav_smtp')}     depth={1} onClick={click} />
                     <TreeLink to="/admin/platform/team"     label={t('nav_team')}     depth={1} onClick={click} />
+                    <TreeLink to="/admin/platform/backup"   label={t('nav_backup')}   depth={1} onClick={click} icon="fas fa-cloud-upload-alt" />
                   </>
                 )}
                 <TreeLink to="/inspector"      label={t('nav_inspector')} icon="fas fa-search" depth={0} onClick={click} />

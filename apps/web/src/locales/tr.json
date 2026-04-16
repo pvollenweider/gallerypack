@@ -901,5 +901,6 @@
   "admin_token_col_prefix": "Token",
   "admin_token_col_last_used": "Son Kullanım",
   "gal_photos_delete_selected": "{n} fotoğrafı sil",
-  "gal_photos_delete_selected_confirm": "Seçili {n} fotoğrafı kalıcı olarak silinsin mi? Bu işlem geri alınamaz."
+  "gal_photos_delete_selected_confirm": "Seçili {n} fotoğrafı kalıcı olarak silinsin mi? Bu işlem geri alınamaz.",
+  "nav_backup": "Backup & Sync"
 }

@@ -901,5 +901,6 @@
   "admin_token_col_prefix": "Token",
   "admin_token_col_last_used": "Ostatnie użycie",
   "gal_photos_delete_selected": "Usuń {n} zdjęcie/a",
-  "gal_photos_delete_selected_confirm": "Trwale usunąć {n} zaznaczone zdjęcie/a? Tej operacji nie można cofnąć."
+  "gal_photos_delete_selected_confirm": "Trwale usunąć {n} zaznaczone zdjęcie/a? Tej operacji nie można cofnąć.",
+  "nav_backup": "Backup & Sync"
 }

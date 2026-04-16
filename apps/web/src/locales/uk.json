@@ -901,5 +901,6 @@
   "admin_token_col_prefix": "Токен",
   "admin_token_col_last_used": "Останнє використання",
   "gal_photos_delete_selected": "Видалити {n} фото",
-  "gal_photos_delete_selected_confirm": "Назавжди видалити {n} вибране(их) фото? Цю дію не можна скасувати."
+  "gal_photos_delete_selected_confirm": "Назавжди видалити {n} вибране(их) фото? Цю дію не можна скасувати.",
+  "nav_backup": "Backup & Sync"
 }

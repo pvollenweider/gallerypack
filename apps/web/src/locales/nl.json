@@ -901,5 +901,6 @@
   "admin_token_col_prefix": "Token",
   "admin_token_col_last_used": "Laatst gebruikt",
   "gal_photos_delete_selected": "{n} foto(s) verwijderen",
-  "gal_photos_delete_selected_confirm": "Permanent {n} geselecteerde foto(s) verwijderen? Dit kan niet ongedaan worden gemaakt."
+  "gal_photos_delete_selected_confirm": "Permanent {n} geselecteerde foto(s) verwijderen? Dit kan niet ongedaan worden gemaakt.",
+  "nav_backup": "Backup & Sync"
 }
