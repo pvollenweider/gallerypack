@@ -27,6 +27,7 @@ const SYNC_STATUS_FILE  = path.join(INTERNAL_ROOT, '.sync-status.json');
 const SYNC_TRIGGER_FILE = path.join(INTERNAL_ROOT, '.sync-trigger');
 const SYNC_LOG_FILE     = path.join(INTERNAL_ROOT, '.sync-log');
 const SYNC_CONFIG_FILE  = path.join(INTERNAL_ROOT, 'sync-config.json');
+const RCLONE_CONF_FILE  = path.join(INTERNAL_ROOT, 'rclone.conf');
 const DB_DUMP_DIR       = path.join(INTERNAL_ROOT, 'db-dumps');
 
 const SYNC_CONFIG_DEFAULTS = {
@@ -843,7 +844,26 @@ router.get('/backup/config', async (req, res, next) => {
   try {
     let saved = {};
     try { saved = JSON.parse(await readFile(SYNC_CONFIG_FILE, 'utf8')); } catch {}
-    res.json({ ...SYNC_CONFIG_DEFAULTS, ...saved });
+    let rcloneConfigured = false;
+    try { await stat(RCLONE_CONF_FILE); rcloneConfigured = true; } catch {}
+    res.json({ ...SYNC_CONFIG_DEFAULTS, ...saved, rcloneConfigured });
+  } catch (err) { next(err); }
+});
+
+// POST /api/inspector/backup/rclone — save rclone.conf from a token JSON
+router.post('/backup/rclone', async (req, res, next) => {
+  try {
+    const { remote, token } = req.body;
+    if (!token || typeof token !== 'string') return res.status(400).json({ error: 'token required' });
+    const remoteName = (typeof remote === 'string' && remote.trim()) ? remote.trim() : 'dropbox';
+    // Validate the token is valid JSON
+    try { JSON.parse(token.trim()); } catch {
+      return res.status(400).json({ error: 'token must be valid JSON' });
+    }
+    const conf = `[${remoteName}]\ntype = dropbox\ntoken = ${token.trim()}\n`;
+    await writeFile(RCLONE_CONF_FILE, conf, 'utf8');
+    await auditLog(req.userId, 'backup_rclone_configured', 'system', 'backup');
+    res.json({ ok: true });
   } catch (err) { next(err); }
 });
 

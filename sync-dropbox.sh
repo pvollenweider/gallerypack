@@ -44,8 +44,15 @@ DATA_ROOT="${DATA_DIR:-$SCRIPT_DIR/data}"
 DROPBOX_REMOTE="${DROPBOX_REMOTE:-dropbox}"
 DROPBOX_ROOT="${DROPBOX_PATH:-gallerypack}"
 
-RCLONE_CONF="$SCRIPT_DIR/rclone.conf"
 RCLONE_IMAGE="rclone/rclone:latest"
+# Prefer rclone.conf saved via the admin UI (in the shared volume) over
+# the one at the project root so the full setup can be done without SSH.
+RCLONE_CONF_INTERNAL="$DATA_ROOT/internal/rclone.conf"
+if [[ -f "$RCLONE_CONF_INTERNAL" ]]; then
+  RCLONE_CONF="$RCLONE_CONF_INTERNAL"
+else
+  RCLONE_CONF="$SCRIPT_DIR/rclone.conf"
+fi
 
 DB_DUMP_DIR="$DATA_ROOT/internal/db-dumps"
 DB_RETENTION_DAYS="${DB_RETENTION_DAYS:-7}"
@@ -228,6 +235,7 @@ if [[ "$SYNC_INTERNAL" != "False" ]]; then
     --exclude "tus/**" \
     --exclude ".sync-*" \
     --exclude "sync-config.json" \
+    --exclude "rclone.conf" \
     2>>"$LOG_FILE"
   log "  ✓ internal/ synced"
 else

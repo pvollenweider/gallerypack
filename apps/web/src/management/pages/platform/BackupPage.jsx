@@ -108,10 +108,17 @@ export default function BackupPage() {
   const logRef = useRef(null);
 
   // Config form
-  const [cfg, setCfg]           = useState(CFG_DEFAULTS);
-  const [cfgSaving, setCfgSaving] = useState(false);
-  const [cfgSaved, setCfgSaved]   = useState('');
-  const [cfgError, setCfgError]   = useState('');
+  const [cfg, setCfg]               = useState(CFG_DEFAULTS);
+  const [cfgSaving, setCfgSaving]   = useState(false);
+  const [cfgSaved, setCfgSaved]     = useState('');
+  const [cfgError, setCfgError]     = useState('');
+
+  // rclone.conf setup
+  const [rcloneToken, setRcloneToken]       = useState('');
+  const [rcloneSaving, setRcloneSaving]     = useState(false);
+  const [rcloneSaved, setRcloneSaved]       = useState('');
+  const [rcloneError, setRcloneError]       = useState('');
+  const [rcloneConfigured, setRcloneConfigured] = useState(false);
 
   const syncState = status?.triggerPending
     ? 'pending'
@@ -132,7 +139,10 @@ export default function BackupPage() {
 
   // Load config once on mount
   useEffect(() => {
-    api.inspectorBackupConfig().then(c => setCfg({ ...CFG_DEFAULTS, ...c })).catch(() => {});
+    api.inspectorBackupConfig().then(c => {
+      setCfg({ ...CFG_DEFAULTS, ...c });
+      setRcloneConfigured(!!c.rcloneConfigured);
+    }).catch(() => {});
   }, []);
 
   async function saveConfig(e) {
@@ -151,6 +161,21 @@ export default function BackupPage() {
 
   function setCfgField(field) {
     return e => setCfg(c => ({ ...c, [field]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }));
+  }
+
+  async function saveRclone(e) {
+    e.preventDefault();
+    setRcloneSaving(true); setRcloneSaved(''); setRcloneError('');
+    try {
+      await api.inspectorBackupSaveRclone(cfg.remote, rcloneToken.trim());
+      setRcloneConfigured(true);
+      setRcloneToken('');
+      setRcloneSaved(t('backup_rclone_saved'));
+    } catch (err) {
+      setRcloneError(err.message || 'Save failed');
+    } finally {
+      setRcloneSaving(false);
+    }
   }
 
   // Poll fast when active, slow when idle
@@ -296,6 +321,68 @@ export default function BackupPage() {
           <AdminButton type="submit" loading={cfgSaving} loadingLabel={t('saving')} icon="fas fa-save">
             {t('save')}
           </AdminButton>
+        </AdminCard>
+      </form>
+
+      {/* ── Dropbox authentication ── */}
+      <form onSubmit={saveRclone}>
+        <AdminCard
+          title={t('backup_rclone_title')}
+          headerRight={
+            rcloneConfigured
+              ? <span className="badge bg-success"><i className="fas fa-check me-1" />{t('backup_rclone_ok')}</span>
+              : <span className="badge bg-warning text-dark"><i className="fas fa-exclamation-triangle me-1" />{t('backup_rclone_missing')}</span>
+          }
+          className="mb-3"
+        >
+          <div className="row">
+            <div className="col-md-6">
+              <p className="text-muted mb-2" style={{ fontSize: '0.82rem' }}>{t('backup_rclone_hint')}</p>
+              <ol className="ps-3 mb-3" style={{ fontSize: '0.82rem' }}>
+                <li>{t('backup_rclone_step1')}<br /><code style={{ fontSize: '0.8rem' }}>rclone authorize &quot;dropbox&quot;</code></li>
+                <li className="mt-1">{t('backup_rclone_step2')}</li>
+                <li className="mt-1">{t('backup_rclone_step3')}</li>
+              </ol>
+              <div className="mb-3">
+                <label className="form-label" style={{ fontSize: '0.82rem', fontWeight: 500 }}>{t('backup_rclone_token_label')}</label>
+                <textarea
+                  className="form-control form-control-sm"
+                  rows={4}
+                  style={{ fontFamily: 'ui-monospace, monospace', fontSize: '0.75rem', resize: 'vertical' }}
+                  placeholder={'{"access_token":"...","token_type":"bearer","refresh_token":"...","expiry":"..."}'}
+                  value={rcloneToken}
+                  onChange={e => setRcloneToken(e.target.value)}
+                  spellCheck={false}
+                />
+                <div className="form-text">{t('backup_rclone_token_hint', { remote: cfg.remote })}</div>
+              </div>
+              <AdminAlert variant="success" message={rcloneSaved} />
+              <AdminAlert message={rcloneError} />
+              <AdminButton
+                type="submit"
+                loading={rcloneSaving}
+                loadingLabel={t('saving')}
+                icon="fas fa-key"
+                disabled={!rcloneToken.trim()}
+              >
+                {t('backup_rclone_save')}
+              </AdminButton>
+            </div>
+            <div className="col-md-6">
+              <div className="p-3 rounded" style={{ background: 'var(--bs-light)', fontSize: '0.8rem' }}>
+                <p className="fw-semibold mb-2"><i className="fas fa-terminal me-1" />{t('backup_rclone_install')}</p>
+                <p className="text-muted mb-1">{t('backup_rclone_install_mac')}</p>
+                <code style={{ fontSize: '0.75rem' }}>brew install rclone</code>
+                <p className="text-muted mt-3 mb-1">{t('backup_rclone_install_synology')}</p>
+                <code style={{ fontSize: '0.75rem', display: 'block', whiteSpace: 'pre-wrap' }}>
+                  {`curl https://rclone.org/install.sh | bash`}
+                </code>
+                <p className="text-muted mt-3 mb-0" style={{ fontSize: '0.75rem' }}>
+                  <i className="fas fa-info-circle me-1" />{t('backup_rclone_token_note')}
+                </p>
+              </div>
+            </div>
+          </div>
         </AdminCard>
       </form>
 
