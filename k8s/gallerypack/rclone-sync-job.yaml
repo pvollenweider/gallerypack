@@ -1,0 +1,65 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rclone-sync
+  namespace: gallerypack
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      initContainers:
+        - name: copy-config
+          image: busybox
+          command: ["cp", "/data/internal/rclone.conf", "/config/rclone.conf"]
+          volumeMounts:
+            - name: storage
+              mountPath: /data
+              readOnly: true
+            - name: config
+              mountPath: /config
+      containers:
+        - name: rclone
+          image: rclone/rclone:latest
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              CONF=/config/rclone.conf
+              REMOTE=dropbox
+              ROOT=gallerypack
+
+              echo "=== GalleryPack → Dropbox sync started ==="
+
+              echo "→ Syncing private/..."
+              rclone sync /data/private "$REMOTE:$ROOT/private" \
+                --config "$CONF" --transfers=4 --checkers=8 \
+                --log-level=INFO --stats=30s
+
+              echo "→ Syncing public/..."
+              rclone sync /data/public "$REMOTE:$ROOT/public" \
+                --config "$CONF" --transfers=4 --checkers=8 \
+                --log-level=INFO --stats=30s
+
+              echo "→ Syncing internal/..."
+              rclone sync /data/internal "$REMOTE:$ROOT/internal" \
+                --config "$CONF" --transfers=4 --checkers=8 \
+                --exclude "tus/**" --exclude ".sync-*" \
+                --exclude "sync-config.json" --exclude "rclone.conf" \
+                --log-level=INFO --stats=30s
+
+              echo "=== Sync complete ==="
+          volumeMounts:
+            - name: storage
+              mountPath: /data
+              readOnly: true
+            - name: config
+              mountPath: /config
+      volumes:
+        - name: storage
+          persistentVolumeClaim:
+            claimName: gallerypack-storage
+        - name: config
+          emptyDir: {}

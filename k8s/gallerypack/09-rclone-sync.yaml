@@ -1,0 +1,102 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: rclone-sync-watcher
+  namespace: gallerypack
+spec:
+  schedule: "* * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: rclone
+              image: rclone/rclone:latest
+              command:
+                - sh
+                - -c
+                - |
+                  TRIGGER=/data/internal/.sync-trigger
+                  STATUS=/data/internal/.sync-status.json
+                  LOG=/data/internal/.sync-log
+                  CONF=/config/rclone.conf
+                  REMOTE=dropbox
+                  ROOT=gallerypack
+
+                  # No trigger → silent exit
+                  [ -f "$TRIGGER" ] || exit 0
+
+                  # Consume trigger + copy conf to writable emptyDir
+                  rm -f "$TRIGGER"
+                  cp /data/internal/rclone.conf "$CONF"
+
+                  START=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+
+                  log() {
+                    MSG="[$(date '+%Y-%m-%d %H:%M:%S')] $*"
+                    echo "$MSG"
+                    echo "$MSG" >> "$LOG"
+                  }
+
+                  trim_log() {
+                    [ -f "$LOG" ] || return
+                    n=$(wc -l < "$LOG")
+                    if [ "$n" -gt 2000 ]; then
+                      tail -n 2000 "$LOG" > "$LOG.tmp" && mv "$LOG.tmp" "$LOG"
+                    fi
+                  }
+
+                  on_error() {
+                    FINISH=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+                    printf '{"state":"error","started_at":"%s","finished_at":"%s","error":"Sync failed at line %s","trigger":"ui"}\n' \
+                      "$START" "$FINISH" "$1" > "$STATUS"
+                    log "ERROR: Sync failed at line $1"
+                    exit 1
+                  }
+                  trap 'on_error $LINENO' ERR
+                  set -e
+
+                  trim_log
+                  printf '{"state":"running","started_at":"%s","finished_at":null,"error":null,"trigger":"ui"}\n' "$START" > "$STATUS"
+                  log "=== GalleryPack → Dropbox sync started (trigger: ui) ==="
+
+                  log "→ Syncing private/..."
+                  rclone sync /data/private "$REMOTE:$ROOT/private" \
+                    --config "$CONF" --transfers=4 --checkers=8 \
+                    --log-level=INFO --stats=0 2>>"$LOG"
+                  log "  ✓ private/ synced"
+
+                  log "→ Syncing public/..."
+                  rclone sync /data/public "$REMOTE:$ROOT/public" \
+                    --config "$CONF" --transfers=4 --checkers=8 \
+                    --log-level=INFO --stats=0 2>>"$LOG"
+                  log "  ✓ public/ synced"
+
+                  log "→ Syncing internal/..."
+                  rclone sync /data/internal "$REMOTE:$ROOT/internal" \
+                    --config "$CONF" --transfers=4 --checkers=8 \
+                    --exclude "tus/**" --exclude ".sync-*" \
+                    --exclude "sync-config.json" --exclude "rclone.conf" \
+                    --log-level=INFO --stats=0 2>>"$LOG"
+                  log "  ✓ internal/ synced"
+
+                  FINISH=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+                  printf '{"state":"success","started_at":"%s","finished_at":"%s","error":null,"trigger":"ui"}\n' \
+                    "$START" "$FINISH" > "$STATUS"
+                  log "=== Sync complete ==="
+              volumeMounts:
+                - name: storage
+                  mountPath: /data
+                - name: config
+                  mountPath: /config
+          volumes:
+            - name: storage
+              persistentVolumeClaim:
+                claimName: gallerypack-storage
+            - name: config
+              emptyDir: {}
