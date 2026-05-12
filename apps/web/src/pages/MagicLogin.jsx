@@ -6,7 +6,7 @@
 // Unauthorized use is strictly prohibited.
 
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useAuth } from '../lib/auth.jsx';
 import { useT } from '../lib/I18nContext.jsx';
@@ -74,9 +74,9 @@ export default function MagicLogin() {
               {error}
             </div>
             <p className="mb-0">
-              <a href="/forgot-password" className="text-muted" style={{ fontSize: '0.875rem' }}>
+              <Link to="/forgot-password" className="text-muted" style={{ fontSize: '0.875rem' }}>
                 {t('magic_request_new')}
-              </a>
+              </Link>
             </p>
           </>
         )}
