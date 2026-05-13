@@ -25,7 +25,7 @@
     "marked": "^17.0.5",
     "multer": "^2.1.1",
     "mysql2": "^3.11.3",
-    "nodemailer": "^8.0.4",
+    "nodemailer": "^8.0.7",
     "pino": "^10.3.1",
     "pino-http": "^11.0.0",
     "prom-client": "^15.1.3",
