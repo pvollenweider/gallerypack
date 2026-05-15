@@ -68,5 +68,6 @@ export async function generateDescription(imageBuffer, mediaType, locale) {
   });
 
   const block = response.content.find(b => b.type === 'text');
-  return block?.text?.trim() ?? '';
+  if (!block?.text) throw new Error('No text block in Claude response');
+  return block.text.trim();
 }
