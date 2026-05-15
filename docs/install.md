@@ -72,6 +72,7 @@ PLATFORM_MODE=single
 | `SMTP_PASS` | — | SMTP password |
 | `SMTP_FROM` | — | Sender address, e.g. `GalleryPack <noreply@example.com>` |
 | `SMTP_SECURE` | `false` | `true` for port 465 (TLS) |
+| `ANTHROPIC_API_KEY` | — | Enables AI photo description generation (optional) |
 
 ---
 
@@ -116,3 +117,22 @@ docker compose -f docker-compose.saas.yml up -d
 ```
 
 Database migrations run automatically on startup.
+
+---
+
+## AI photo descriptions (optional)
+
+GalleryPack can generate AI-powered descriptions for photos using Claude Vision (Anthropic). Generated descriptions are used as `alt` text and captions in built galleries.
+
+To enable:
+
+1. Create an account at [console.anthropic.com](https://console.anthropic.com/) and obtain an API key.
+2. Add the key to your environment:
+   ```
+   ANTHROPIC_API_KEY=sk-ant-...
+   ```
+3. Restart the API server.
+
+Once configured, a **Generate with AI** button appears in the photo editor. Descriptions are generated on demand per photo, stored in the database, and applied during the next gallery build.
+
+If `ANTHROPIC_API_KEY` is not set, the feature is silently disabled — no errors, button is greyed out.
