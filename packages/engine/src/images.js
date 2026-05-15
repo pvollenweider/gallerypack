@@ -80,6 +80,13 @@ export function listPhotos(srcDir) {
     try { attribution = JSON.parse(fs.readFileSync(attrFile, 'utf8')); } catch {}
   }
 
+  // Load AI descriptions (photo_descriptions.json) — maps filename → description text
+  const descFile = path.join(galDir, 'photo_descriptions.json');
+  let descriptions = {};
+  if (fs.existsSync(descFile)) {
+    try { descriptions = JSON.parse(fs.readFileSync(descFile, 'utf8')); } catch {}
+  }
+
   let ordered;
   if (savedOrder && Array.isArray(savedOrder)) {
     const available = new Set(allFiles);
@@ -91,9 +98,10 @@ export function listPhotos(srcDir) {
   }
 
   return ordered.map(f => ({
-    file:   f,
-    full:   path.join(srcDir, f),
-    credit: attribution[f] ?? null,  // photographer name or null
+    file:        f,
+    full:        path.join(srcDir, f),
+    credit:      attribution[f] ?? null,  // photographer name or null
+    description: descriptions[f] ?? null,
   }));
 }
 
@@ -319,15 +327,16 @@ export async function processPhotos(photos, cfg, paths, FORCE = false) {
         : Math.round(srcBytes / 1024) + ' KB';
       const exifFull = { ...(exif || {}), originalFile: photo.file, fileSize: fileSizeStr };
       manifest.photos[photo.file] = {
-        name:   dims.name,    // stable hash ID (used for img/grid, img/full, originals paths)
-        dlName: dims.dlName,  // human-readable download name (author_title_date_NNN)
-        index:  i + 1,
-        role:   BIG_POSITIONS.has(i % 12) ? 'big' : 'small',
-        isDark: dims.isDark,
-        exif:   exifFull,
-        credit: photo.credit ?? null,  // photographer name (issue #133)
+        name:        dims.name,    // stable hash ID (used for img/grid, img/full, originals paths)
+        dlName:      dims.dlName,  // human-readable download name (author_title_date_NNN)
+        index:       i + 1,
+        role:        BIG_POSITIONS.has(i % 12) ? 'big' : 'small',
+        isDark:      dims.isDark,
+        exif:        exifFull,
+        credit:      photo.credit ?? null,  // photographer name (issue #133)
+        description: photo.description ?? null,
       };
-      results.push({ ...dims, exif: exifFull, credit: photo.credit ?? null });
+      results.push({ ...dims, exif: exifFull, credit: photo.credit ?? null, description: photo.description ?? null });
     } catch (e) {
       fail(`Erreur sur ${photo.file} : ${e.message}`);
     }
