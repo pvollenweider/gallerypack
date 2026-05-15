@@ -59,6 +59,8 @@ export const api = {
     req('POST', `/galleries/${galleryId}/photos/${photoId}/ai-description`),
   updatePhotoDescription:   (galleryId, photoId, description) =>
     req('PATCH', `/galleries/${galleryId}/photos/${photoId}`, { ai_description: description }),
+  generateAllDescriptions: (galleryId) =>
+    req('POST', `/galleries/${galleryId}/ai-descriptions/bulk`),
 
   // Upload links (photographer access)
   listUploadLinks:   (galleryId)         => req('GET',    `/galleries/${galleryId}/upload-links`),

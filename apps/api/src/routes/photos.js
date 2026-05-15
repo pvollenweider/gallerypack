@@ -31,6 +31,7 @@ import { decrementStorageUsed } from '../services/tusService.js';
 import { extractExif } from '../../../../packages/engine/src/exif.js';
 import { runSharp } from '../services/sharpProcess.js';
 import { generateDescription } from '../services/aiDescription.js';
+import { createJob, updateJobStatus, appendEvent } from '../db/helpers.js';
 
 // Storage adapter — resolved once at startup from env
 export const fileStorage = createStorage();
@@ -786,6 +787,91 @@ router.post('/:id/photos/:photoId/ai-description', async (req, res) => {
   );
 
   res.json({ description });
+});
+
+// POST /api/galleries/:id/ai-descriptions/bulk — generate descriptions for all photos without one
+router.post('/:id/ai-descriptions/bulk', async (req, res) => {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(402).json({ error: 'ANTHROPIC_API_KEY is not configured' });
+  }
+
+  const gallery = await ensureGalleryBelongsToOrg(req, res);
+  if (!gallery) return;
+  const galleryRole = await getGalleryRole(req.userId, gallery.id);
+  if (!can(req.user, 'upload', 'photo', { studioRole: req.studioRole, galleryRole })) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  // Prevent duplicate jobs
+  const [runningRows] = await query(
+    "SELECT COUNT(*) AS n FROM build_jobs WHERE gallery_id = ? AND triggered_by = 'ai-description-bulk' AND status IN ('queued','running')",
+    [gallery.id]
+  );
+  if (runningRows[0].n >= 1) {
+    return res.status(429).json({ error: 'A description generation job is already running for this gallery.' });
+  }
+
+  const job = await createJob({
+    galleryId:      gallery.id,
+    organizationId: gallery.organization_id,
+    triggeredBy:    'ai-description-bulk',
+    force:          false,
+  });
+
+  res.status(202).json({ id: job.id });
+
+  // Fire-and-forget background processing
+  (async () => {
+    try {
+      await updateJobStatus(job.id, 'running');
+      await appendEvent(job.id, 'log', 'Starting AI description generation…');
+
+      const [photoRows] = await query(
+        'SELECT id, filename FROM photos WHERE gallery_id = ? AND (ai_description IS NULL OR ai_description = ?) ORDER BY sort_order ASC',
+        [gallery.id, '']
+      );
+
+      if (photoRows.length === 0) {
+        await appendEvent(job.id, 'log', 'No photos without descriptions. Nothing to do.');
+        await updateJobStatus(job.id, 'done');
+        return;
+      }
+
+      await appendEvent(job.id, 'log', `${photoRows.length} photo(s) to process.`);
+
+      let done = 0;
+      let errors = 0;
+      const locale = gallery.locale || 'en';
+
+      for (const photo of photoRows) {
+        const mdThumbPath = thumbPath(photo.id, 'md');
+        let imageBuffer;
+        try {
+          imageBuffer = await fs.promises.readFile(mdThumbPath);
+        } catch {
+          await appendEvent(job.id, 'log', `⚠ ${photo.filename}: thumbnail not found, skipping`);
+          errors++;
+          continue;
+        }
+
+        try {
+          const description = await generateDescription(imageBuffer, 'image/webp', locale);
+          await query('UPDATE photos SET ai_description = ? WHERE id = ?', [description, photo.id]);
+          done++;
+          await appendEvent(job.id, 'log', `✓ [${done}/${photoRows.length}] ${photo.filename}`);
+        } catch (err) {
+          errors++;
+          await appendEvent(job.id, 'log', `✗ ${photo.filename}: ${err.message}`);
+        }
+      }
+
+      await appendEvent(job.id, 'log', `Done. ${done} generated, ${errors} error(s).`);
+      await updateJobStatus(job.id, errors === photoRows.length ? 'error' : 'done');
+    } catch (err) {
+      await appendEvent(job.id, 'log', `Fatal error: ${err.message}`).catch(() => {});
+      await updateJobStatus(job.id, 'error', { error_msg: err.message }).catch(() => {});
+    }
+  })();
 });
 
 export default router;

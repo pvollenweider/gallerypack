@@ -203,6 +203,10 @@ export default function GalleryPhotosPage() {
   const [buildError,  setBuildError]  = useState('');
   const [activeJobId, setActiveJobId] = useState(null);
 
+  // AI bulk description
+  const [bulkDescJobId,   setBulkDescJobId]   = useState(null);
+  const [bulkDescRunning, setBulkDescRunning] = useState(false);
+
   // Thumbnail regen + EXIF
   const [reanalyzing,     setReanalyzing]     = useState(false);
   const [reanalyzeResult, setReanalyzeResult] = useState(null);
@@ -303,6 +307,24 @@ export default function GalleryPhotosPage() {
       setBuildError(err.message);
     } finally {
       setBuilding(false);
+    }
+  }
+
+  async function handleGenerateAll() {
+    setBulkDescRunning(true);
+    setBulkDescJobId(null);
+    try {
+      const job = await api.generateAllDescriptions(galleryId);
+      setBulkDescJobId(job.id);
+    } catch (err) {
+      if (err?.status === 402) {
+        setToast('ANTHROPIC_API_KEY not configured on the server.');
+      } else if (err?.status === 429) {
+        setToast('A description generation job is already running.');
+      } else {
+        setToast(`${t('error')}: ${err.message}`);
+      }
+      setBulkDescRunning(false);
     }
   }
 
@@ -612,6 +634,16 @@ export default function GalleryPhotosPage() {
             onClick={() => reanalyze(true)}
             title={t('gal_reanalyze_force')}
           />
+          <AdminButton
+            variant="outline-secondary"
+            size="sm"
+            icon={bulkDescRunning ? 'fas fa-spinner fa-spin' : 'fas fa-magic'}
+            loading={bulkDescRunning}
+            loadingLabel="…"
+            disabled={loading || bulkDescRunning}
+            onClick={handleGenerateAll}
+            title="Generate AI descriptions for all photos without one"
+          />
         </div>
       }
     >
@@ -711,6 +743,15 @@ export default function GalleryPhotosPage() {
                   <i className="fas fa-external-link-alt me-1" />{t('gal_publish_view_logs')}
                 </Link>
               </div>
+            </div>
+          )}
+
+          {bulkDescJobId && (
+            <div className="mb-4">
+              <BuildLog
+                jobId={bulkDescJobId}
+                onDone={() => { setBulkDescRunning(false); refreshPhotos(); }}
+              />
             </div>
           )}
 
