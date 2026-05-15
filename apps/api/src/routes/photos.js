@@ -30,6 +30,7 @@ import { enqueuePrerender, uploadStarted, uploadFinished } from '../services/pre
 import { decrementStorageUsed } from '../services/tusService.js';
 import { extractExif } from '../../../../packages/engine/src/exif.js';
 import { runSharp } from '../services/sharpProcess.js';
+import { generateDescription } from '../services/aiDescription.js';
 
 // Storage adapter — resolved once at startup from env
 export const fileStorage = createStorage();
@@ -175,6 +176,7 @@ router.get('/:id/photos', async (req, res) => {
       thumb:             nameMap[p.filename] || null,
       thumbnail:         photoThumbnails(p.id),
       photographer_id:   p.photographer_id || null,
+      ai_description:    p.ai_description  || null,
     })));
   }
 
@@ -706,7 +708,7 @@ router.patch('/:id/photos/bulk-attribute', async (req, res) => {
   res.json({ ok: true, updated: count });
 });
 
-// PATCH /api/galleries/:id/photos/:photoId — manually set photographer_id on a single photo
+// PATCH /api/galleries/:id/photos/:photoId — update photo fields (photographer_id, ai_description)
 router.patch('/:id/photos/:photoId', async (req, res) => {
   const gallery = await ensureGalleryBelongsToOrg(req, res);
   if (!gallery) return;
@@ -715,15 +717,75 @@ router.patch('/:id/photos/:photoId', async (req, res) => {
     return res.status(403).json({ error: 'Forbidden' });
   }
 
-  const { photographerId } = req.body || {};
-  // photographerId = null clears attribution
+  const { photographerId, ai_description } = req.body || {};
+
   if (photographerId !== undefined && photographerId !== null) {
     const [urows] = await query('SELECT id FROM users WHERE id = ?', [photographerId]);
     if (!urows[0]) return res.status(400).json({ error: 'User not found' });
   }
 
-  await setPhotoPhotographer(req.params.photoId, photographerId ?? null);
+  if (photographerId !== undefined) {
+    await setPhotoPhotographer(req.params.photoId, photographerId ?? null);
+  }
+
+  if (ai_description !== undefined) {
+    const val = ai_description === null || ai_description === '' ? null : String(ai_description).trim();
+    await query('UPDATE photos SET ai_description = ? WHERE id = ?', [val, req.params.photoId]);
+  }
+
   res.json({ ok: true });
+});
+
+// POST /api/galleries/:id/photos/:photoId/ai-description — generate AI description via Claude Vision
+router.post('/:id/photos/:photoId/ai-description', async (req, res) => {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(402).json({ error: 'ANTHROPIC_API_KEY is not configured' });
+  }
+
+  const gallery = await ensureGalleryBelongsToOrg(req, res);
+  if (!gallery) return;
+  const galleryRole = await getGalleryRole(req.userId, gallery.id);
+  if (!can(req.user, 'upload', 'photo', { studioRole: req.studioRole, galleryRole })) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  const [photoRows] = await query(
+    'SELECT id, filename FROM photos WHERE id = ? AND gallery_id = ?',
+    [req.params.photoId, gallery.id]
+  );
+  const photo = photoRows[0];
+  if (!photo) return res.status(404).json({ error: 'Photo not found' });
+
+  const locale = gallery.locale || 'en';
+
+  const photoKey = `private/${gallery.slug}/photos/${photo.filename}`;
+  let imageBuffer;
+  try {
+    imageBuffer = await fileStorage.read(photoKey);
+  } catch {
+    return res.status(404).json({ error: 'Photo file not found in storage' });
+  }
+
+  const ext = photo.filename.split('.').pop().toLowerCase();
+  const MEDIA_TYPES = {
+    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+    webp: 'image/webp', gif: 'image/gif', heic: 'image/heic', heif: 'image/heif',
+  };
+  const mediaType = MEDIA_TYPES[ext] ?? 'image/jpeg';
+
+  let description;
+  try {
+    description = await generateDescription(imageBuffer, mediaType, locale);
+  } catch (err) {
+    return res.status(502).json({ error: 'AI generation failed', detail: err.message });
+  }
+
+  await query(
+    'UPDATE photos SET ai_description = ? WHERE id = ?',
+    [description, photo.id]
+  );
+
+  res.json({ description });
 });
 
 export default router;
