@@ -12,6 +12,7 @@
     "test": "node --test src/authorization/can.test.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.96.0",
     "@gallerypack/engine": "*",
     "@gallerypack/shared": "*",
     "@sentry/node": "^8.55.0",
