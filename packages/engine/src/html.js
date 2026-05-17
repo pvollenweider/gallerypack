@@ -1878,6 +1878,8 @@ const LEGAL_I18N = {
     work:  "Work",
     anon:  "Anonymous",
     hPhot: "Photographers",
+    hAi:   "AI-generated content",
+    pAi:   "Some descriptions and alternative texts on this gallery were generated automatically using an artificial intelligence service (Anthropic Claude). These texts are provided for informational purposes and remain under the editorial responsibility of the photographer.",
   },
   fr: {
     btn:   "Mentions l\u00e9gales",
@@ -1898,6 +1900,8 @@ const LEGAL_I18N = {
     work:  "\u0152uvre",
     anon:  "Anonyme",
     hPhot: "Photographes",
+    hAi:   "Contenus générés par IA",
+    pAi:   "Certaines descriptions et textes alternatifs de cette galerie ont été générés automatiquement par un service d'intelligence artificielle (Anthropic Claude). Ces textes sont fournis à titre indicatif et restent sous la responsabilité éditoriale du photographe.",
   },
   de: {
     btn:   "Rechtliche Hinweise",
@@ -1918,6 +1922,8 @@ const LEGAL_I18N = {
     work:  "Werk",
     anon:  "Anonym",
     hPhot: "Fotografen",
+    hAi:   "KI-generierte Inhalte",
+    pAi:   "Einige Beschreibungen und Alternativtexte in dieser Galerie wurden automatisch durch einen KI-Dienst (Anthropic Claude) erstellt. Diese Texte dienen nur zur Information und liegen in der redaktionellen Verantwortung des Fotografen.",
   },
   it: {
     btn:   "Note legali",
@@ -1938,6 +1944,8 @@ const LEGAL_I18N = {
     work:  "Opera",
     anon:  "Anonimo",
     hPhot: "Fotografi",
+    hAi:   "Contenuti generati da IA",
+    pAi:   "Alcune descrizioni e testi alternativi di questa galleria sono stati generati automaticamente da un servizio di intelligenza artificiale (Anthropic Claude). Questi testi sono forniti a titolo informativo e rimangono sotto la responsabilità editoriale del fotografo.",
   },
   es: {
     btn:   "Aviso legal",
@@ -1958,6 +1966,8 @@ const LEGAL_I18N = {
     work:  "Obra",
     anon:  "An\u00f3nimo",
     hPhot: "Fotógrafos",
+    hAi:   "Contenido generado por IA",
+    pAi:   "Algunas descripciones y textos alternativos de esta galería fueron generados automáticamente por un servicio de inteligencia artificial (Anthropic Claude). Estos textos se proporcionan a título informativo y son responsabilidad editorial del fotógrafo.",
   },
   pt: {
     btn:   "Aviso legal",
@@ -1978,6 +1988,8 @@ const LEGAL_I18N = {
     work:  "Obra",
     anon:  "An\u00f4nimo",
     hPhot: "Fotógrafos",
+    hAi:   "Conteúdo gerado por IA",
+    pAi:   "Algumas descrições e textos alternativos desta galeria foram gerados automaticamente por um serviço de inteligência artificial (Anthropic Claude). Estes textos são fornecidos a título informativo e permanecem sob a responsabilidade editorial do fotógrafo.",
   },
 };
 
@@ -2023,6 +2035,7 @@ function buildLegalHTML(l) {
     <h2>\${T.h3}</h2>
     <p>\${T.p3}</p>
     <p><strong>\${a}</strong>\${em ? '<br>' + em : ''}</p>
+    \${PHOTOS.some(p => p.desc) ? \`<h2>\${T.hAi}</h2><p>\${T.pAi}</p>\` : ''}
     <hr>
     <p>\${T.footer}</p>
   \`;
