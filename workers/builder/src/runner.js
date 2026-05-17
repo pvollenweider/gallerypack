@@ -57,6 +57,7 @@ function galleryToProjectConfig(g) {
   const policy          = resolveGalleryPolicy(g);
   proj.private          = policy.access !== 'public';
   proj.standalone       = !!g.standalone || !!g.project_standalone_default;
+  proj.aiCaptionsVisible = !!g.ai_captions_visible;
   proj.downloadMode     = policy.downloadMode;
   proj.apacheProtection = !!g.apache_protection;
   proj.allowDownloadImage   = policy.allowDownloadImage;

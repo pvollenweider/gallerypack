@@ -23,6 +23,7 @@ export default function GalleryGeneralPage() {
   const [form, setForm] = useState({
     title: '', slug: '', description: '', descriptionMd: '', locale: 'en',
     standalone: false, primaryPhotographerId: '', date: '', author: '',
+    aiCaptionsVisible: false,
   });
 
   const [slugEdited, setSlugEdited] = useState(false);
@@ -62,7 +63,7 @@ export default function GalleryGeneralPage() {
         descriptionMd: g.descriptionMd || '',
         locale: g.locale || 'en', standalone: !!g.standalone,
         primaryPhotographerId: g.primaryPhotographerId || '', date: g.date || '',
-        author: g.author || '',
+        author: g.author || '', aiCaptionsVisible: !!g.aiCaptionsVisible,
       });
       setSlugEdited(true);
       setPhotographers(pgs);
@@ -244,7 +245,7 @@ export default function GalleryGeneralPage() {
 
             {/* Build */}
             <AdminCard title={t('gal_general_build_section')}>
-              <div className="form-check form-switch mb-0">
+              <div className="form-check form-switch mb-3">
                 <input className="form-check-input" type="checkbox" id="standalone-toggle"
                   checked={form.standalone}
                   onChange={e => { const next = { ...form, standalone: e.target.checked }; setForm(next); saveGallery(next); }} />
@@ -252,6 +253,17 @@ export default function GalleryGeneralPage() {
                   {t('gal_general_standalone_label')}
                 </label>
                 <div className="text-muted mt-1" style={{ fontSize: '0.8rem' }}>{t('gal_general_standalone_hint')}</div>
+              </div>
+              <div className="form-check form-switch mb-0">
+                <input className="form-check-input" type="checkbox" id="ai-captions-toggle"
+                  checked={form.aiCaptionsVisible}
+                  onChange={e => { const next = { ...form, aiCaptionsVisible: e.target.checked }; setForm(next); saveGallery(next); }} />
+                <label className="form-check-label" htmlFor="ai-captions-toggle">
+                  Show AI captions in lightbox
+                </label>
+                <div className="text-muted mt-1" style={{ fontSize: '0.8rem' }}>
+                  When enabled, AI-generated descriptions appear as visible captions in the lightbox. Always used as <code>alt</code> text regardless.
+                </div>
               </div>
             </AdminCard>
 

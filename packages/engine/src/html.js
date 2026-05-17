@@ -546,6 +546,7 @@ export function buildHTML(cfg, photos, fontCss = '', standalone = false, customL
   const generatedBy = CREDIT_I18N[htmlLang] || CREDIT_I18N.en;
 
   const isStandalone = Boolean(cfg.project.standalone);
+  const showAiCaptions = Boolean(cfg.project.aiCaptionsVisible);
   const backLink = isStandalone ? '' : `<a href="../" class="bar-back" title="Back to gallery list">←</a>`;
 
   // ── SEO ──────────────────────────────────────────────────────────────────
@@ -1001,7 +1002,7 @@ body.glightbox-open #gl-dl-btn{display:flex}
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis
 }
 body.glightbox-open:hover #gl-title{opacity:1}
-#gl-caption{
+${showAiCaptions ? `#gl-caption{
   position:fixed;z-index:1000001;
   bottom:108px;left:24px;
   font-family:'Poppins',sans-serif;
@@ -1021,7 +1022,7 @@ body.glightbox-open:hover #gl-title{opacity:1}
 }
 body.glightbox-open:hover #gl-caption{opacity:1}
 body.glightbox-open.sw-playing #gl-caption{opacity:1}
-body.sw-idle #gl-caption{opacity:0 !important;pointer-events:none !important}
+body.sw-idle #gl-caption{opacity:0 !important;pointer-events:none !important}` : ''}
 /* During active slideshow: title visible (not just on hover) */
 body.glightbox-open.sw-playing #gl-title{opacity:1}
 
@@ -1255,8 +1256,7 @@ ${[2,3,5,8,10].map(s => {
 
 <!-- Title overlay (bottom-left) -->
 <div id="gl-title"></div>
-<!-- AI caption overlay (above title, shown when photo has a description) -->
-<div id="gl-caption"></div>
+${showAiCaptions ? '<!-- AI caption overlay (above title, shown when photo has a description) -->\n<div id="gl-caption"></div>' : ''}
 
 <!-- Modale mentions légales -->
 <div id="legal-overlay">
@@ -1385,7 +1385,7 @@ function exifHTML(exif) {
 /* Pill with frosted-glass backdrop — always legible regardless of what is
    behind it (photo or black letterbox bars). */
 const glTitle = document.getElementById('gl-title');
-const glCaption = document.getElementById('gl-caption');
+${showAiCaptions ? `const glCaption = document.getElementById('gl-caption');
 function updateCaption(idx) {
   const desc = PHOTOS[idx]?.desc;
   if (desc) {
@@ -1394,7 +1394,7 @@ function updateCaption(idx) {
   } else {
     glCaption.style.display = 'none';
   }
-}
+}` : 'function updateCaption() {}'}
 function updateTitleColor(idx) {
   const exif = PHOTOS[idx]?.exif || {};
   const photoDate = exif.date
