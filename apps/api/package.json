@@ -9,7 +9,7 @@
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
     "migrate": "node src/db/migrations/run.js",
-    "test": "node --test src/authorization/can.test.js src/routes/photos-copy-move.test.js"
+    "test": "node --test src/authorization/can.test.js src/routes/photos-copy-move.test.js src/routes/photos-copy-move-http.test.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.96.0",
