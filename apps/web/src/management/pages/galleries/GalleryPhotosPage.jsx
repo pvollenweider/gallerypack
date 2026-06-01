@@ -223,6 +223,9 @@ export default function GalleryPhotosPage() {
   // Thumbnail size toggle
   const [thumbSize, setThumbSize] = useState('sm'); // 'sm' | 'lg'
 
+  // Full-width layout toggle (persisted)
+  const [fullWidth, setFullWidth] = useState(() => localStorage.getItem('photoPageFullWidth') === '1');
+
   // Multi-select + drag state
   const [selected,     setSelected]     = useState(new Set()); // Set<photo.id>
   const [activeDragId, setActiveDragId] = useState(null);      // file of card being dragged
@@ -569,9 +572,21 @@ export default function GalleryPhotosPage() {
   return (
     <AdminPage
       title={t('tab_photos')}
+      maxWidth={fullWidth ? '100%' : '960px'}
       actions={
         <div className="d-flex gap-2 align-items-center flex-wrap">
           {reordering && <span className="text-muted" style={{ fontSize: '0.8rem' }}>{t('saving')}</span>}
+          <AdminButton
+            variant="outline-secondary"
+            size="sm"
+            icon={fullWidth ? 'fas fa-compress' : 'fas fa-expand'}
+            title={fullWidth ? 'Collapse' : 'Expand to full width'}
+            onClick={() => {
+              const next = !fullWidth;
+              setFullWidth(next);
+              localStorage.setItem('photoPageFullWidth', next ? '1' : '0');
+            }}
+          />
           <AdminButton
             variant="outline-secondary"
             size="sm"
