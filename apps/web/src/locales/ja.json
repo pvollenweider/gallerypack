@@ -942,5 +942,10 @@
   "admin_token_col_last_used": "最終使用",
   "gal_photos_delete_selected": "{n}枚の写真を削除",
   "gal_photos_delete_selected_confirm": "選択した{n}枚の写真を完全に削除しますか？この操作は取り消せません。",
-  "nav_backup": "Backup & Sync"
+  "nav_backup": "Backup & Sync",
+  "wm_mode_none": "透かしなし",
+  "wm_mode_photographer": "カメラマン名",
+  "wm_mode_photographer_hint": "写真ごと — 未割り当ての場合は透かしなし",
+  "wm_mode_forced": "カスタムテキスト",
+  "gal_mode_requires_watermark": "ギャラリーモードは透かしを必要とします"
 }

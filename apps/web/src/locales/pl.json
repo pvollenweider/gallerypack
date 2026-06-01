@@ -942,5 +942,10 @@
   "admin_token_col_last_used": "Ostatnie użycie",
   "gal_photos_delete_selected": "Usuń {n} zdjęcie/a",
   "gal_photos_delete_selected_confirm": "Trwale usunąć {n} zaznaczone zdjęcie/a? Tej operacji nie można cofnąć.",
-  "nav_backup": "Backup & Sync"
+  "nav_backup": "Backup & Sync",
+  "wm_mode_none": "Brak znaku wodnego",
+  "wm_mode_photographer": "Imię fotografa",
+  "wm_mode_photographer_hint": "na zdjęcie — brak znaku jeśli nieprzypisany",
+  "wm_mode_forced": "Własny tekst",
+  "gal_mode_requires_watermark": "tryb galerii wymaga znaku wodnego"
 }

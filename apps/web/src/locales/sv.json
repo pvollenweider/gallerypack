@@ -942,5 +942,10 @@
   "admin_token_col_last_used": "Senast använd",
   "gal_photos_delete_selected": "Ta bort {n} foto(n)",
   "gal_photos_delete_selected_confirm": "Ta bort {n} markerade foto(n) permanent? Det går inte att ångra.",
-  "nav_backup": "Backup & Sync"
+  "nav_backup": "Backup & Sync",
+  "wm_mode_none": "Inget vattenstämpel",
+  "wm_mode_photographer": "Fotografens namn",
+  "wm_mode_photographer_hint": "per foto — inget vattenstämpel om ej tilldelad",
+  "wm_mode_forced": "Anpassad text",
+  "gal_mode_requires_watermark": "galleriläge kräver vattenstämpel"
 }

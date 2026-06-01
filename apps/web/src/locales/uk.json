@@ -942,5 +942,10 @@
   "admin_token_col_last_used": "Останнє використання",
   "gal_photos_delete_selected": "Видалити {n} фото",
   "gal_photos_delete_selected_confirm": "Назавжди видалити {n} вибране(их) фото? Цю дію не можна скасувати.",
-  "nav_backup": "Backup & Sync"
+  "nav_backup": "Backup & Sync",
+  "wm_mode_none": "Без водяного знаку",
+  "wm_mode_photographer": "Ім'я фотографа",
+  "wm_mode_photographer_hint": "на фото — без знаку якщо не призначено",
+  "wm_mode_forced": "Власний текст",
+  "gal_mode_requires_watermark": "режим галереї вимагає водяного знаку"
 }

@@ -942,5 +942,10 @@
   "admin_token_col_last_used": "Último uso",
   "gal_photos_delete_selected": "Eliminar {n} foto(s)",
   "gal_photos_delete_selected_confirm": "¿Eliminar permanentemente {n} foto(s) seleccionada(s)? Esta acción no se puede deshacer.",
-  "nav_backup": "Backup & Sync"
+  "nav_backup": "Backup & Sync",
+  "wm_mode_none": "Sin marca de agua",
+  "wm_mode_photographer": "Nombre del fotógrafo",
+  "wm_mode_photographer_hint": "por foto — sin marca si no está asignado",
+  "wm_mode_forced": "Texto personalizado",
+  "gal_mode_requires_watermark": "el modo de galería requiere marca de agua"
 }

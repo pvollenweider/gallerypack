@@ -942,5 +942,10 @@
   "admin_token_col_last_used": "Laatst gebruikt",
   "gal_photos_delete_selected": "{n} foto(s) verwijderen",
   "gal_photos_delete_selected_confirm": "Permanent {n} geselecteerde foto(s) verwijderen? Dit kan niet ongedaan worden gemaakt.",
-  "nav_backup": "Backup & Sync"
+  "nav_backup": "Backup & Sync",
+  "wm_mode_none": "Geen watermerk",
+  "wm_mode_photographer": "Naam van de fotograaf",
+  "wm_mode_photographer_hint": "per foto — geen watermerk als niet toegewezen",
+  "wm_mode_forced": "Aangepaste tekst",
+  "gal_mode_requires_watermark": "galeriemodus vereist watermerk"
 }

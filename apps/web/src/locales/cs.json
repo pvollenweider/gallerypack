@@ -942,5 +942,10 @@
   "admin_token_col_last_used": "Naposledy použit",
   "gal_photos_delete_selected": "Smazat {n} foto",
   "gal_photos_delete_selected_confirm": "Trvale smazat {n} vybrané foto? Tuto akci nelze vrátit.",
-  "nav_backup": "Backup & Sync"
+  "nav_backup": "Backup & Sync",
+  "wm_mode_none": "Bez vodoznaku",
+  "wm_mode_photographer": "Jméno fotografa",
+  "wm_mode_photographer_hint": "na foto — bez vodoznaku pokud nepřiřazeno",
+  "wm_mode_forced": "Vlastní text",
+  "gal_mode_requires_watermark": "režim galerie vyžaduje vodoznak"
 }
