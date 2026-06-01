@@ -72,6 +72,11 @@ function SortablePhotoCard({
         if (e.target.closest('button')) return;
         onToggleSelect(e);
       }}
+      onDoubleClick={e => {
+        if (e.target.closest('button')) return;
+        e.preventDefault();
+        onOpenLightbox();
+      }}
       onContextMenu={e => { e.preventDefault(); onOpenLightbox(); }}
       style={{
         transform: CSS.Transform.toString(transform),
