@@ -226,6 +226,12 @@ export const api = {
   getPlatformLicenseUsage: ()         => req('GET',    '/platform/license/usage'),
   installPlatformLicense: (licenseJson) => req('POST', '/platform/license', { licenseJson }),
 
+  // Bulk photo copy / move (issue #465)
+  copyPhotos: (galleryId, photoIds, targetGalleryId) =>
+    req('POST', `/galleries/${galleryId}/photos/copy`, { photoIds, targetGalleryId }),
+  movePhotos: (galleryId, photoIds, targetGalleryId) =>
+    req('POST', `/galleries/${galleryId}/photos/move`, { photoIds, targetGalleryId }),
+
   // Gallery maintenance
   flushGalleryDist:       (id)         => req('DELETE', `/galleries/${id}/dist`),
   stripDistOriginals:     (id)         => req('DELETE', `/galleries/${id}/dist/originals`),

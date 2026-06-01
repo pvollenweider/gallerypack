@@ -13,6 +13,7 @@ import { useAuth } from '../../../lib/auth.jsx';
 import { UploadZone } from '../../../components/UploadZone.jsx';
 import { BuildLog } from '../../../components/BuildLog.jsx';
 import { AdminLightbox } from '../../../components/AdminLightbox.jsx';
+import GalleryPickerModal from '../../../components/GalleryPickerModal.jsx';
 import { AdminPage, AdminCard, AdminButton, AdminAlert, AdminToast, AdminBadge } from '../../../components/ui/index.js';
 import {
   DndContext,
@@ -244,6 +245,10 @@ export default function GalleryPhotosPage() {
   // Multi-select + drag state
   const [selected,     setSelected]     = useState(new Set()); // Set<photo.id>
   const [activeDragId, setActiveDragId] = useState(null);      // file of card being dragged
+
+  // Bulk copy / move state (issue #465)
+  const [pickerAction,      setPickerAction]      = useState(null);  // 'copy' | 'move' | null
+  const [bulkActionRunning, setBulkActionRunning] = useState(false);
 
   // Lightbox
   const [lightboxIndex, setLightboxIndex] = useState(null);
@@ -477,6 +482,36 @@ export default function GalleryPhotosPage() {
     } finally {
       setAssigning(false);
     }
+  }
+
+  // ── Bulk copy / move (issue #465) ──────────────────────────────────────────
+
+  async function handleBulkCopy(targetGalleryId, targetGalleryTitle) {
+    setBulkActionRunning(true);
+    setPickerAction(null);
+    try {
+      const result = await api.copyPhotos(galleryId, [...selected], targetGalleryId);
+      const msg = `${result.moved} photo(s) copied to "${targetGalleryTitle}"`;
+      if (result.failed?.length) setToast(`${msg} (${result.failed.length} failed)`);
+      else setToast(msg);
+      clearSelection();
+      refreshPhotos();
+    } catch (e) { setToast(e.message); }
+    finally { setBulkActionRunning(false); }
+  }
+
+  async function handleBulkMove(targetGalleryId, targetGalleryTitle) {
+    setBulkActionRunning(true);
+    setPickerAction(null);
+    try {
+      const result = await api.movePhotos(galleryId, [...selected], targetGalleryId);
+      const msg = `${result.moved} photo(s) moved to "${targetGalleryTitle}"`;
+      if (result.failed?.length) setToast(`${msg} (${result.failed.length} failed)`);
+      else setToast(msg);
+      clearSelection();
+      refreshPhotos();
+    } catch (e) { setToast(e.message); }
+    finally { setBulkActionRunning(false); }
   }
 
   // ── Move selected to front / end ────────────────────────────────────────────
@@ -861,16 +896,34 @@ export default function GalleryPhotosPage() {
                         </select>
                       )}
                       {canEdit && (
-                        <button
-                          className="btn btn-sm btn-danger"
-                          style={{ fontSize: '0.75rem', padding: '2px 8px' }}
-                          disabled={deletingSelected}
-                          onClick={handleDeleteSelected}
-                        >
-                          {deletingSelected
-                            ? <i className="fas fa-spinner fa-spin" />
-                            : t('gal_photos_delete_selected', { n: selected.size })}
-                        </button>
+                        <>
+                          <button
+                            className="btn btn-sm btn-outline-secondary"
+                            style={{ fontSize: '0.75rem', padding: '2px 8px' }}
+                            disabled={bulkActionRunning}
+                            onClick={() => setPickerAction('copy')}
+                          >
+                            <i className="fas fa-copy me-1" />{t('bulk_copy_to') || 'Copy to…'}
+                          </button>
+                          <button
+                            className="btn btn-sm btn-outline-secondary"
+                            style={{ fontSize: '0.75rem', padding: '2px 8px' }}
+                            disabled={bulkActionRunning}
+                            onClick={() => setPickerAction('move')}
+                          >
+                            <i className="fas fa-arrow-right me-1" />{t('bulk_move_to') || 'Move to…'}
+                          </button>
+                          <button
+                            className="btn btn-sm btn-danger"
+                            style={{ fontSize: '0.75rem', padding: '2px 8px' }}
+                            disabled={deletingSelected}
+                            onClick={handleDeleteSelected}
+                          >
+                            {deletingSelected
+                              ? <i className="fas fa-spinner fa-spin" />
+                              : t('gal_photos_delete_selected', { n: selected.size })}
+                          </button>
+                        </>
                       )}
                       <button
                         className="btn btn-sm btn-outline-secondary"
@@ -1029,6 +1082,19 @@ export default function GalleryPhotosPage() {
             </div>
           )}
         </>
+      )}
+      {pickerAction && (
+        <GalleryPickerModal
+          title={pickerAction === 'copy' ? (t('bulk_copy_to') || 'Copy to gallery') : (t('bulk_move_to') || 'Move to gallery')}
+          orgId={orgId}
+          currentGalleryId={galleryId}
+          onSelect={(targetId, targetTitle) =>
+            pickerAction === 'copy'
+              ? handleBulkCopy(targetId, targetTitle)
+              : handleBulkMove(targetId, targetTitle)
+          }
+          onClose={() => setPickerAction(null)}
+        />
       )}
       {lightboxIndex !== null && (
         <AdminLightbox
