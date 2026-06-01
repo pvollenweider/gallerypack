@@ -12,19 +12,7 @@ import assert from 'node:assert/strict';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-
-// Inline the helper under test (same logic as in photos.js)
-function resolveDestFilename(dir, filename) {
-  const ext  = path.extname(filename);
-  const base = path.basename(filename, ext);
-  let candidate = filename;
-  let n = 0;
-  while (fs.existsSync(path.join(dir, candidate))) {
-    n++;
-    candidate = n === 1 ? `${base}_copy${ext}` : `${base}_copy${n}${ext}`;
-  }
-  return candidate;
-}
+import { resolveDestFilename } from './photos.js';
 
 describe('resolveDestFilename', () => {
   let tmpDir;

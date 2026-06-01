@@ -906,7 +906,10 @@ router.post('/:id/ai-descriptions/bulk', async (req, res) => {
 // ── Helper: resolve a non-colliding destination filename ─────────────────────
 // If `{dir}/{filename}` already exists, returns `{basename}_copy.{ext}`,
 // then `{basename}_copy2.{ext}`, `{basename}_copy3.{ext}`, …
-function resolveDestFilename(dir, filename) {
+// TOCTOU note: there is a race between existsSync and the actual write — a
+// concurrent request could claim the same resolved filename before this one
+// writes it. This is acceptable for this use case (low-frequency manual moves).
+export function resolveDestFilename(dir, filename) {
   const ext  = path.extname(filename);
   const base = path.basename(filename, ext);
   let candidate = filename;
@@ -968,6 +971,7 @@ router.post('/:id/photos/copy', async (req, res) => {
   fs.mkdirSync(destDir, { recursive: true });
 
   const foundIds = new Set(photoRows.map(p => p.id));
+  const photoMap = new Map(photoRows.map(p => [p.id, p]));
   let copied = 0;
   const failed = [];
 
@@ -976,7 +980,7 @@ router.post('/:id/photos/copy', async (req, res) => {
       failed.push({ photoId, reason: 'Photo not found in source gallery' });
       continue;
     }
-    const photo = photoRows.find(p => p.id === photoId);
+    const photo = photoMap.get(photoId);
     try {
       const srcFile  = path.join(srcDir, path.basename(photo.filename));
       const destName = resolveDestFilename(destDir, photo.filename);
@@ -989,14 +993,10 @@ router.post('/:id/photos/copy', async (req, res) => {
       await query(
         `INSERT INTO photos
            (id, gallery_id, filename, original_name, exif, photographer_id, content_hash, size_bytes, sort_order, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 'validated')`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM photos AS _p WHERE _p.gallery_id = ?), 'validated')`,
         [newId, destGallery.id, destName, photo.original_name, exifVal,
-         photo.photographer_id || null, photo.content_hash || null, photo.size_bytes || null]
-      );
-
-      await query(
-        'UPDATE galleries SET needs_rebuild = 1, updated_at = ? WHERE id = ?',
-        [Date.now(), destGallery.id]
+         photo.photographer_id || null, photo.content_hash || null, photo.size_bytes || null,
+         destGallery.id]
       );
 
       copied++;
@@ -1006,6 +1006,10 @@ router.post('/:id/photos/copy', async (req, res) => {
   }
 
   if (copied > 0) {
+    await query(
+      'UPDATE galleries SET needs_rebuild = 1, updated_at = ? WHERE id = ?',
+      [Date.now(), destGallery.id]
+    );
     try { await audit(req.organizationId, req.userId, 'photo.copy', 'gallery', srcGallery.id, { targetGalleryId, count: copied }); } catch {}
   }
 
@@ -1053,6 +1057,7 @@ router.post('/:id/photos/move', async (req, res) => {
   fs.mkdirSync(destDir, { recursive: true });
 
   const foundIds = new Set(photoRows.map(p => p.id));
+  const photoMap = new Map(photoRows.map(p => [p.id, p]));
   let moved = 0;
   const failed = [];
 
@@ -1061,7 +1066,7 @@ router.post('/:id/photos/move', async (req, res) => {
       failed.push({ photoId, reason: 'Photo not found in source gallery' });
       continue;
     }
-    const photo = photoRows.find(p => p.id === photoId);
+    const photo = photoMap.get(photoId);
     try {
       const srcFile  = path.join(srcDir, path.basename(photo.filename));
       const destName = resolveDestFilename(destDir, photo.filename);
@@ -1079,14 +1084,15 @@ router.post('/:id/photos/move', async (req, res) => {
         }
       }
 
-      await query(
-        'UPDATE photos SET gallery_id = ?, filename = ?, sort_order = 0 WHERE id = ?',
-        [destGallery.id, destName, photo.id]
+      // MySQL/MariaDB does not allow a subquery on the same table in an UPDATE,
+      // so we fetch the current max sort_order in a separate query first.
+      const [[maxRow]] = await query(
+        'SELECT COALESCE(MAX(sort_order), 0) + 1 AS next_order FROM photos WHERE gallery_id = ?',
+        [destGallery.id]
       );
-
       await query(
-        'UPDATE galleries SET needs_rebuild = 1, updated_at = ? WHERE id = ?',
-        [Date.now(), destGallery.id]
+        'UPDATE photos SET gallery_id = ?, filename = ?, sort_order = ? WHERE id = ?',
+        [destGallery.id, destName, maxRow.next_order, photo.id]
       );
 
       moved++;
@@ -1096,6 +1102,10 @@ router.post('/:id/photos/move', async (req, res) => {
   }
 
   if (moved > 0) {
+    await query(
+      'UPDATE galleries SET needs_rebuild = 1, updated_at = ? WHERE id = ?',
+      [Date.now(), destGallery.id]
+    );
     await query(
       'UPDATE galleries SET needs_rebuild = 1, updated_at = ? WHERE id = ?',
       [Date.now(), srcGallery.id]
