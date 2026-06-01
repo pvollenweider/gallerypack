@@ -46,8 +46,8 @@ export default function GalleryAccessPage() {
     standalone: false, title: '', slug: '', primaryPhotographerId: '', author: '',
   });
 
-  const [watermarkEnabled, setWatermarkEnabled] = useState(false);
-  const [watermarkText,    setWatermarkText]    = useState('');
+  const [watermarkMode,       setWatermarkMode]       = useState('none'); // 'none'|'forced'|'photographer'
+  const [watermarkForcedText, setWatermarkForcedText] = useState('');
 
   const [galleryMeta, setGalleryMeta] = useState({ distName: null, buildStatus: null });
   const [needsRebuild, setNeedsRebuild] = useState(false);
@@ -86,8 +86,14 @@ export default function GalleryAccessPage() {
         primaryPhotographerId: g.primaryPhotographerId || '',
         author: g.author || '',
       });
-      setWatermarkEnabled(g.watermark?.enabled ?? false);
-      setWatermarkText(g.watermark?.text || '');
+      const wm = g.watermark || {};
+      if (wm.mode) {
+        setWatermarkMode(wm.mode);
+        setWatermarkForcedText(wm.text || '');
+      } else {
+        setWatermarkMode(wm.enabled ? 'forced' : 'none');
+        setWatermarkForcedText(wm.text || '');
+      }
       setPhotographers(pgs);
       setGalleryMeta({ distName: g.distName || g.slug, buildStatus: g.buildStatus });
     }).catch(() => {});
@@ -131,10 +137,10 @@ export default function GalleryAccessPage() {
     }
   }
 
-  async function saveWatermark(enabled, text) {
+  async function saveWatermark(mode, text) {
     setError('');
     try {
-      await api.updateGallery(galleryId, { configJson: JSON.stringify({ watermark: { enabled, text } }) });
+      await api.updateGallery(galleryId, { configJson: JSON.stringify({ watermark: { mode, text } }) });
       setToast(t('changes_saved'));
       if (galleryMeta.buildStatus === 'done') setNeedsRebuild(true);
     } catch (err) {
@@ -264,9 +270,10 @@ export default function GalleryAccessPage() {
                 save(next);
                 if (newMode) {
                   const shouldEnable = MODE_WATERMARK[newMode] ?? false;
-                  if (shouldEnable !== watermarkEnabled) {
-                    setWatermarkEnabled(shouldEnable);
-                    saveWatermark(shouldEnable, watermarkText);
+                  const newWmMode = shouldEnable ? (watermarkMode === 'none' ? 'forced' : watermarkMode) : 'none';
+                  if (newWmMode !== watermarkMode) {
+                    setWatermarkMode(newWmMode);
+                    saveWatermark(newWmMode, watermarkForcedText);
                   }
                 }
               }}
@@ -392,47 +399,64 @@ export default function GalleryAccessPage() {
           </AdminCard>
 
           {/* Watermark */}
-          <AdminCard title={t('gal_watermark_section')}>
-            {modeLockedWatermark && (
-              <div className="alert alert-info d-flex align-items-center gap-2 py-2 mb-3" role="alert" style={{ fontSize: '0.82rem' }}>
-                <i className="fas fa-lock" />
-                {t('gal_mode_locked_hint')}
-              </div>
-            )}
-            <div className="form-check form-switch mb-3">
-              <input
-                className="form-check-input" type="checkbox" id="watermark-toggle"
-                checked={modeLockedWatermark ? modeWatermarkEnabled : watermarkEnabled}
-                disabled={modeLockedWatermark}
-                onChange={e => {
-                  const enabled = e.target.checked;
-                  setWatermarkEnabled(enabled);
-                  saveWatermark(enabled, watermarkText);
-                }}
-              />
-              <label className="form-check-label" htmlFor="watermark-toggle">
-                {t('gal_watermark_enable_label')}
-              </label>
-              <div className="text-muted mt-1" style={{ fontSize: '0.8rem' }}>{t('gal_watermark_enable_hint')}</div>
-            </div>
-            {(modeLockedWatermark ? modeWatermarkEnabled : watermarkEnabled) && (
-              <div>
-                <label className="form-label">{t('gal_watermark_text_label')}</label>
-                <input
-                  className="form-control"
-                  value={watermarkText}
-                  onChange={e => setWatermarkText(e.target.value)}
-                  onBlur={() => saveWatermark(
-                    modeLockedWatermark ? modeWatermarkEnabled : watermarkEnabled,
-                    watermarkText
+          {form.galleryMode !== 'archive' && (
+            <AdminCard title={t('gal_watermark_section')}>
+              {modeLockedWatermark && (
+                <div className="alert alert-info d-flex align-items-center gap-2 py-2 mb-3" role="alert" style={{ fontSize: '0.82rem' }}>
+                  <i className="fas fa-lock me-1" />
+                  {t('gal_mode_locked_hint')}
+                </div>
+              )}
+              {[
+                { value: 'none',         label: t('wm_mode_none')         || 'Aucun filigrane' },
+                { value: 'photographer', label: t('wm_mode_photographer') || 'Nom du photographe' },
+                { value: 'forced',       label: t('wm_mode_forced')       || 'Texte personnalisé' },
+              ].map(({ value, label }) => (
+                <div key={value} className="form-check mb-2">
+                  <input
+                    className="form-check-input"
+                    type="radio"
+                    id={`wm-mode-${value}`}
+                    name="watermarkMode"
+                    value={value}
+                    checked={watermarkMode === value}
+                    disabled={modeLockedWatermark && value === 'none'}
+                    onChange={() => {
+                      setWatermarkMode(value);
+                      saveWatermark(value, watermarkForcedText);
+                    }}
+                  />
+                  <label className="form-check-label" htmlFor={`wm-mode-${value}`}>
+                    {label}
+                    {value === 'photographer' && (
+                      <span className="text-muted ms-1" style={{ fontSize: '0.8rem' }}>
+                        — {t('wm_mode_photographer_hint') || 'par photo ; aucun filigrane si non attribué'}
+                      </span>
+                    )}
+                  </label>
+                  {modeLockedWatermark && value === 'none' && (
+                    <span className="text-muted ms-2" style={{ fontSize: '0.78rem' }}>
+                      ({t('gal_mode_requires_watermark') || 'mode galerie impose un filigrane'})
+                    </span>
                   )}
-                  placeholder={autoWatermarkText || '© Photographe'}
-                  style={{ maxWidth: 360 }}
-                />
-                <div className="form-text">{t('gal_watermark_text_hint')}</div>
-              </div>
-            )}
-          </AdminCard>
+                </div>
+              ))}
+              {watermarkMode === 'forced' && (
+                <div className="mt-3">
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={watermarkForcedText}
+                    onChange={e => setWatermarkForcedText(e.target.value)}
+                    onBlur={() => saveWatermark('forced', watermarkForcedText)}
+                    placeholder={autoWatermarkText || '© Studio Name'}
+                    style={{ maxWidth: 360 }}
+                  />
+                  <div className="form-text">{t('gal_watermark_text_hint')}</div>
+                </div>
+              )}
+            </AdminCard>
+          )}
 
           <AdminAlert message={error} />
         </div>
