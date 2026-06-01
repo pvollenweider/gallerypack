@@ -12,6 +12,7 @@ import { useT } from '../../../lib/I18nContext.jsx';
 import { useAuth } from '../../../lib/auth.jsx';
 import { UploadZone } from '../../../components/UploadZone.jsx';
 import { BuildLog } from '../../../components/BuildLog.jsx';
+import { AdminLightbox } from '../../../components/AdminLightbox.jsx';
 import { AdminPage, AdminCard, AdminButton, AdminAlert, AdminToast, AdminBadge } from '../../../components/ui/index.js';
 import {
   DndContext,
@@ -50,6 +51,7 @@ function SortablePhotoCard({
   onDelete,
   onSetCover,
   onEditDescription,
+  onOpenLightbox,
 }) {
   const {
     attributes,
@@ -69,6 +71,7 @@ function SortablePhotoCard({
         if (e.target.closest('button')) return;
         onToggleSelect(e);
       }}
+      onContextMenu={e => { e.preventDefault(); onOpenLightbox(); }}
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
@@ -241,6 +244,9 @@ export default function GalleryPhotosPage() {
   // Multi-select + drag state
   const [selected,     setSelected]     = useState(new Set()); // Set<photo.id>
   const [activeDragId, setActiveDragId] = useState(null);      // file of card being dragged
+
+  // Lightbox
+  const [lightboxIndex, setLightboxIndex] = useState(null);
 
   // AI description panel
   const [selectedPhotoDesc,  setSelectedPhotoDesc]  = useState(null);
@@ -937,7 +943,7 @@ export default function GalleryPhotosPage() {
                       className="photo-grid-auto"
                       style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${thumbSize === 'lg' ? '240px' : '130px'}, 1fr))`, gap: '0.5rem', padding: '1rem' }}
                     >
-                      {filteredPhotos.map(p => (
+                      {filteredPhotos.map((p, idx) => (
                         <SortablePhotoCard
                           key={p.file}
                           photo={p}
@@ -961,6 +967,7 @@ export default function GalleryPhotosPage() {
                           onDelete={() => handleDelete(p.file)}
                           onSetCover={() => { if (gallery?.coverPhoto !== p.file) setCover(p.file); }}
                           onEditDescription={() => openPhotoDesc(p)}
+                          onOpenLightbox={() => setLightboxIndex(idx)}
                         />
                       ))}
                     </div>
@@ -1022,6 +1029,16 @@ export default function GalleryPhotosPage() {
             </div>
           )}
         </>
+      )}
+      {lightboxIndex !== null && (
+        <AdminLightbox
+          photos={filteredPhotos}
+          initialIndex={lightboxIndex}
+          selected={selected}
+          onToggleSelect={id => setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; })}
+          onClose={() => setLightboxIndex(null)}
+          photographers={photographers}
+        />
       )}
     </AdminPage>
   );
