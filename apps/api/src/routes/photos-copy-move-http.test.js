@@ -123,10 +123,11 @@ function buildApp(deps) {
           ? (typeof photo.exif === 'string' ? photo.exif : JSON.stringify(photo.exif))
           : null;
         insertedPhotos.push({
-          gallery_id: destGallery.id,
-          filename:   destName,
-          original_name: photo.original_name,
-          exif:       exifVal,
+          gallery_id:     destGallery.id,
+          filename:       destName,
+          original_name:  photo.original_name,
+          exif:           exifVal,
+          ai_description: photo.ai_description || null,
         });
 
         updatedPhotos.push({ table: 'galleries', id: destGallery.id, needs_rebuild: 1 });
@@ -267,8 +268,8 @@ function makeGalleries() {
 
 function makePhotos() {
   return new Map([
-    ['photo-1', { id: 'photo-1', gallery_id: 'gal-src', filename: 'img001.jpg', original_name: 'img001.jpg', exif: null, photographer_id: null, content_hash: null, size_bytes: 1024 }],
-    ['photo-2', { id: 'photo-2', gallery_id: 'gal-src', filename: 'img002.jpg', original_name: 'img002.jpg', exif: null, photographer_id: null, content_hash: null, size_bytes: 2048 }],
+    ['photo-1', { id: 'photo-1', gallery_id: 'gal-src', filename: 'img001.jpg', original_name: 'img001.jpg', exif: null, photographer_id: null, content_hash: null, size_bytes: 1024, ai_description: 'test desc' }],
+    ['photo-2', { id: 'photo-2', gallery_id: 'gal-src', filename: 'img002.jpg', original_name: 'img002.jpg', exif: null, photographer_id: null, content_hash: null, size_bytes: 2048, ai_description: 'test desc' }],
   ]);
 }
 
@@ -349,6 +350,7 @@ describe('POST /galleries/:id/photos/copy', () => {
       });
       assert.equal(insertedPhotos.length, 1);
       assert.equal(insertedPhotos[0].gallery_id, 'gal-dst');
+      assert.equal(insertedPhotos[0].ai_description, 'test desc');
     });
 
     test('copyFileSync was called for each copied photo', async () => {

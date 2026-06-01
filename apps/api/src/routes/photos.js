@@ -961,7 +961,7 @@ router.post('/:id/photos/copy', async (req, res) => {
 
   const placeholders = photoIds.map(() => '?').join(',');
   const [photoRows] = await query(
-    `SELECT id, filename, original_name, exif, photographer_id, content_hash, size_bytes
+    `SELECT id, filename, original_name, exif, photographer_id, content_hash, size_bytes, ai_description
      FROM photos WHERE gallery_id = ? AND id IN (${placeholders})`,
     [srcGallery.id, ...photoIds]
   );
@@ -992,11 +992,11 @@ router.post('/:id/photos/copy', async (req, res) => {
       const exifVal = photo.exif ? (typeof photo.exif === 'string' ? photo.exif : JSON.stringify(photo.exif)) : null;
       await query(
         `INSERT INTO photos
-           (id, gallery_id, filename, original_name, exif, photographer_id, content_hash, size_bytes, sort_order, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM photos AS _p WHERE _p.gallery_id = ?), 'validated')`,
+           (id, gallery_id, filename, original_name, exif, photographer_id, content_hash, size_bytes, ai_description, sort_order, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM photos AS _p WHERE _p.gallery_id = ?), 'validated')`,
         [newId, destGallery.id, destName, photo.original_name, exifVal,
          photo.photographer_id || null, photo.content_hash || null, photo.size_bytes || null,
-         destGallery.id]
+         photo.ai_description || null, destGallery.id]
       );
 
       copied++;
