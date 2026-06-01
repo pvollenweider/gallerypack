@@ -909,12 +909,12 @@ router.post('/:id/ai-descriptions/bulk', async (req, res) => {
 // TOCTOU note: there is a race between existsSync and the actual write — a
 // concurrent request could claim the same resolved filename before this one
 // writes it. This is acceptable for this use case (low-frequency manual moves).
-export function resolveDestFilename(dir, filename) {
+export function resolveDestFilename(dir, filename, existsFn = (p) => fs.existsSync(p)) {
   const ext  = path.extname(filename);
   const base = path.basename(filename, ext);
   let candidate = filename;
   let n = 0;
-  while (fs.existsSync(path.join(dir, candidate))) {
+  while (existsFn(path.join(dir, candidate))) {
     n++;
     candidate = n === 1 ? `${base}_copy${ext}` : `${base}_copy${n}${ext}`;
   }

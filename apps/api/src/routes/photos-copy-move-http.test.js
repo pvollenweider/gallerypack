@@ -21,6 +21,7 @@ import http from 'node:http';
 import path from 'node:path';
 import { createServer } from 'node:http';
 import { can } from '../authorization/index.js';
+import { resolveDestFilename } from './photos.js';
 
 // ── Minimal Express-compatible micro-router ───────────────────────────────────
 // We avoid importing Express here so that the test file remains completely
@@ -57,19 +58,6 @@ function buildApp(deps) {
     updatedPhotos    = [],
     auditCalls       = [],
   } = deps;
-
-  // helper mirrors photos.js
-  function resolveDestFilename(dir, filename) {
-    const ext  = path.extname(filename);
-    const base = path.basename(filename, ext);
-    let candidate = filename;
-    let n = 0;
-    while (fakeFs.existsSync(path.join(dir, candidate))) {
-      n++;
-      candidate = n === 1 ? `${base}_copy${ext}` : `${base}_copy${n}${ext}`;
-    }
-    return candidate;
-  }
 
   function getGalleryRole(userId, galleryId) {
     return galleryRoles.get(`${userId}:${galleryId}`) || null;
@@ -113,6 +101,7 @@ function buildApp(deps) {
       .map(id => photos.get(id))
       .filter(p => p && p.gallery_id === srcGallery.id);
     const foundIds = new Set(photoRows.map(p => p.id));
+    const photoMap = new Map(photoRows.map(p => [p.id, p]));
 
     let copied = 0;
     const failed = [];
@@ -122,10 +111,10 @@ function buildApp(deps) {
         failed.push({ photoId, reason: 'Photo not found in source gallery' });
         continue;
       }
-      const photo = photoRows.find(p => p.id === photoId);
+      const photo = photoMap.get(photoId);
       try {
         const srcFile  = path.join(srcDir, path.basename(photo.filename));
-        const destName = resolveDestFilename(destDir, photo.filename);
+        const destName = resolveDestFilename(destDir, photo.filename, (p) => fakeFs.existsSync(p));
         const destFile = path.join(destDir, destName);
 
         fakeFs.copyFileSync(srcFile, destFile);
@@ -193,6 +182,7 @@ function buildApp(deps) {
       .map(id => photos.get(id))
       .filter(p => p && p.gallery_id === srcGallery.id);
     const foundIds = new Set(photoRows.map(p => p.id));
+    const photoMap = new Map(photoRows.map(p => [p.id, p]));
 
     let moved = 0;
     const failed = [];
@@ -202,10 +192,10 @@ function buildApp(deps) {
         failed.push({ photoId, reason: 'Photo not found in source gallery' });
         continue;
       }
-      const photo = photoRows.find(p => p.id === photoId);
+      const photo = photoMap.get(photoId);
       try {
         const srcFile  = path.join(srcDir, path.basename(photo.filename));
-        const destName = resolveDestFilename(destDir, photo.filename);
+        const destName = resolveDestFilename(destDir, photo.filename, (p) => fakeFs.existsSync(p));
         const destFile = path.join(destDir, destName);
 
         try {
