@@ -19,6 +19,41 @@
 export const GALLERY_MODES = ['portfolio', 'client_preview', 'client_delivery', 'archive'];
 
 /**
+ * Normalize a raw watermark config object (from config_json.watermark) into
+ * a stable { mode, text } shape, handling both the old boolean `enabled` field
+ * and the new `mode` string field.
+ *
+ * Old shape: { enabled: true,  text: 'X' }  → { mode: 'forced',       text: 'X' }
+ * Old shape: { enabled: false }              → { mode: 'none',         text: '' }
+ * New shape: { mode: 'forced', text: 'X' }   → { mode: 'forced',       text: 'X' }
+ * New shape: { mode: 'photographer' }         → { mode: 'photographer', text: '' }
+ * Missing / null                              → { mode: 'none',         text: '' }
+ *
+ * @param {object} gallery - DB row or serialized gallery object.
+ * @returns {{ mode: 'none'|'forced'|'photographer', text: string }}
+ */
+export function resolveWatermarkConfig(gallery) {
+  let cfg = {};
+  try {
+    cfg = JSON.parse(gallery.config_json || '{}');
+  } catch {}
+  const wm = cfg.watermark;
+  if (!wm) return { mode: 'none', text: '' };
+
+  // New shape: has an explicit `mode` string
+  if (typeof wm.mode === 'string') {
+    const mode = ['forced', 'photographer', 'none'].includes(wm.mode) ? wm.mode : 'none';
+    return { mode, text: typeof wm.text === 'string' ? wm.text : '' };
+  }
+
+  // Old shape: boolean `enabled` field
+  if (wm.enabled === true) {
+    return { mode: 'forced', text: typeof wm.text === 'string' ? wm.text : '' };
+  }
+  return { mode: 'none', text: '' };
+}
+
+/**
  * Resolve the effective policy for a gallery row (DB row or camelCase object).
  * Accepts both snake_case DB rows and camelCase serialized objects.
  *
@@ -39,6 +74,8 @@ export function resolveGalleryPolicy(gallery) {
         allowDownloadOriginal: false,
         downloadMode:         'none',
         watermarkEnabled:     true,
+        watermarkMode:        'forced',
+        watermarkText:        '',
         logAccess:            false,
         logDownload:          false,
         publicListed:         true,
@@ -54,6 +91,8 @@ export function resolveGalleryPolicy(gallery) {
         allowDownloadOriginal: false,
         downloadMode:         'display',
         watermarkEnabled:     true,
+        watermarkMode:        'forced',
+        watermarkText:        '',
         logAccess:            true,
         logDownload:          false,
         publicListed:         false,
@@ -69,6 +108,8 @@ export function resolveGalleryPolicy(gallery) {
         allowDownloadOriginal: false,
         downloadMode:         'display',
         watermarkEnabled:     true,
+        watermarkMode:        'forced',
+        watermarkText:        '',
         logAccess:            true,
         logDownload:          true,
         publicListed:         false,
@@ -84,6 +125,8 @@ export function resolveGalleryPolicy(gallery) {
         allowDownloadOriginal: true,
         downloadMode:         'original',
         watermarkEnabled:     false,
+        watermarkMode:        'none',
+        watermarkText:        '',
         logAccess:            true,
         logDownload:          true,
         publicListed:         false,
@@ -96,11 +139,7 @@ export function resolveGalleryPolicy(gallery) {
       const dlOriginal = gallery.allow_download_original ?? gallery.allowDownloadOriginal;
       const dlMode     = gallery.download_mode ?? gallery.downloadMode ?? 'display';
       const access     = gallery.access ?? 'public';
-      let watermark = false;
-      try {
-        const cfg = JSON.parse(gallery.config_json || '{}');
-        watermark = cfg.watermark?.enabled ?? false;
-      } catch {}
+      const wmCfg = resolveWatermarkConfig(gallery);
       return {
         mode:                 null,
         access,
@@ -109,7 +148,9 @@ export function resolveGalleryPolicy(gallery) {
         allowDownloadGallery: !!dlGallery,
         allowDownloadOriginal: !!dlOriginal,
         downloadMode:         dlMode,
-        watermarkEnabled:     watermark,
+        watermarkEnabled:     wmCfg.mode !== 'none',
+        watermarkMode:        wmCfg.mode,
+        watermarkText:        wmCfg.text,
         logAccess:            false,
         logDownload:          false,
         publicListed:         access === 'public',

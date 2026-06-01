@@ -11,7 +11,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-const { resolveGalleryPolicy, validateModeConstraints, applyModeDefaults, GALLERY_MODES } =
+const { resolveGalleryPolicy, resolveWatermarkConfig, validateModeConstraints, applyModeDefaults, GALLERY_MODES } =
   await import('../src/services/galleryPolicy.js');
 
 // ── resolveGalleryPolicy — mode: portfolio ─────────────────────────────────────
@@ -131,6 +131,122 @@ describe('resolveGalleryPolicy — legacy null mode', () => {
   test('private legacy gallery is not publicListed', () => {
     const policy = resolveGalleryPolicy({ gallery_mode: null, access: 'private' });
     assert.equal(policy.publicListed, false);
+  });
+});
+
+// ── resolveWatermarkConfig ────────────────────────────────────────────────────
+describe('resolveWatermarkConfig — backward compatibility', () => {
+  test('old shape enabled=true → mode forced', () => {
+    const wm = resolveWatermarkConfig({ config_json: JSON.stringify({ watermark: { enabled: true, text: 'MyStudio' } }) });
+    assert.equal(wm.mode, 'forced');
+    assert.equal(wm.text, 'MyStudio');
+  });
+
+  test('old shape enabled=true without text → mode forced, text empty', () => {
+    const wm = resolveWatermarkConfig({ config_json: JSON.stringify({ watermark: { enabled: true } }) });
+    assert.equal(wm.mode, 'forced');
+    assert.equal(wm.text, '');
+  });
+
+  test('old shape enabled=false → mode none', () => {
+    const wm = resolveWatermarkConfig({ config_json: JSON.stringify({ watermark: { enabled: false } }) });
+    assert.equal(wm.mode, 'none');
+    assert.equal(wm.text, '');
+  });
+
+  test('new shape mode=forced → mode forced', () => {
+    const wm = resolveWatermarkConfig({ config_json: JSON.stringify({ watermark: { mode: 'forced', text: '© Pol' } }) });
+    assert.equal(wm.mode, 'forced');
+    assert.equal(wm.text, '© Pol');
+  });
+
+  test('new shape mode=photographer → mode photographer', () => {
+    const wm = resolveWatermarkConfig({ config_json: JSON.stringify({ watermark: { mode: 'photographer' } }) });
+    assert.equal(wm.mode, 'photographer');
+    assert.equal(wm.text, '');
+  });
+
+  test('new shape mode=none → mode none', () => {
+    const wm = resolveWatermarkConfig({ config_json: JSON.stringify({ watermark: { mode: 'none' } }) });
+    assert.equal(wm.mode, 'none');
+    assert.equal(wm.text, '');
+  });
+
+  test('missing watermark key → mode none', () => {
+    const wm = resolveWatermarkConfig({ config_json: '{}' });
+    assert.equal(wm.mode, 'none');
+    assert.equal(wm.text, '');
+  });
+
+  test('null/missing config_json → mode none', () => {
+    const wm = resolveWatermarkConfig({});
+    assert.equal(wm.mode, 'none');
+    assert.equal(wm.text, '');
+  });
+
+  test('malformed config_json → mode none', () => {
+    const wm = resolveWatermarkConfig({ config_json: 'not json' });
+    assert.equal(wm.mode, 'none');
+    assert.equal(wm.text, '');
+  });
+
+  test('unknown mode string → normalised to none', () => {
+    const wm = resolveWatermarkConfig({ config_json: JSON.stringify({ watermark: { mode: 'alien' } }) });
+    assert.equal(wm.mode, 'none');
+  });
+});
+
+// ── resolveGalleryPolicy — watermarkMode / watermarkText fields ───────────────
+describe('resolveGalleryPolicy — watermarkMode and watermarkText', () => {
+  test('portfolio returns watermarkMode=forced', () => {
+    const p = resolveGalleryPolicy({ gallery_mode: 'portfolio' });
+    assert.equal(p.watermarkMode, 'forced');
+    assert.equal(p.watermarkText, '');
+  });
+
+  test('client_preview returns watermarkMode=forced', () => {
+    const p = resolveGalleryPolicy({ gallery_mode: 'client_preview' });
+    assert.equal(p.watermarkMode, 'forced');
+  });
+
+  test('client_delivery returns watermarkMode=forced', () => {
+    const p = resolveGalleryPolicy({ gallery_mode: 'client_delivery' });
+    assert.equal(p.watermarkMode, 'forced');
+  });
+
+  test('archive returns watermarkMode=none', () => {
+    const p = resolveGalleryPolicy({ gallery_mode: 'archive' });
+    assert.equal(p.watermarkMode, 'none');
+    assert.equal(p.watermarkEnabled, false);
+  });
+
+  test('legacy forced watermark → watermarkEnabled=true, watermarkMode=forced', () => {
+    const p = resolveGalleryPolicy({
+      gallery_mode: null,
+      access: 'public',
+      config_json: JSON.stringify({ watermark: { enabled: true, text: 'Studio X' } }),
+    });
+    assert.equal(p.watermarkEnabled, true);
+    assert.equal(p.watermarkMode, 'forced');
+    assert.equal(p.watermarkText, 'Studio X');
+  });
+
+  test('legacy no watermark → watermarkEnabled=false, watermarkMode=none', () => {
+    const p = resolveGalleryPolicy({ gallery_mode: null, access: 'public', config_json: '{}' });
+    assert.equal(p.watermarkEnabled, false);
+    assert.equal(p.watermarkMode, 'none');
+    assert.equal(p.watermarkText, '');
+  });
+
+  test('new photographer mode → watermarkEnabled=true, watermarkMode=photographer', () => {
+    const p = resolveGalleryPolicy({
+      gallery_mode: null,
+      access: 'public',
+      config_json: JSON.stringify({ watermark: { mode: 'photographer' } }),
+    });
+    assert.equal(p.watermarkEnabled, true);
+    assert.equal(p.watermarkMode, 'photographer');
+    assert.equal(p.watermarkText, '');
   });
 });
 

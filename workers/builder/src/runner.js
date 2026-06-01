@@ -19,7 +19,7 @@ import { buildGallery }                                        from '../../../pa
 import { downloadVendors, downloadFonts }                      from '../../../packages/engine/src/network.js';
 import { SRC_ROOT, DIST_ROOT, BUILD_CFG_PATH }               from '../../../packages/engine/src/fs.js';
 import { createStorage }                                       from '../../../packages/shared/src/storage/index.js';
-import { resolveGalleryPolicy }                                from '../../../apps/api/src/services/galleryPolicy.js';
+import { resolveGalleryPolicy, resolveWatermarkConfig }        from '../../../apps/api/src/services/galleryPolicy.js';
 import fs from 'fs';
 
 // Storage adapter — used for reading/writing build artifacts
@@ -66,21 +66,26 @@ function galleryToProjectConfig(g) {
     const cfg = JSON.parse(g.config_json || '{}');
     proj.pwaThemeColor = cfg.pwaThemeColor ?? g.project_pwa_theme_color_default ?? '#000000';
     proj.pwaBgColor    = cfg.pwaBgColor    ?? g.project_pwa_bg_color_default    ?? '#000000';
-    if (policy.watermarkEnabled) {
+    const wmCfg = resolveWatermarkConfig(g);
+    if (wmCfg.mode === 'forced') {
       // Watermark text: explicit config > primary photographer > guest photographer
       // > photo-level photographer > gallery author. No title fallback — no name = no watermark.
       const photographerName = g.primary_photographer_name
         || g.guest_photographer_name
         || g.photo_photographer_name
         || null;
-      const wmText = cfg.watermark?.text
+      const wmText = wmCfg.text
         || (photographerName ? `© ${photographerName}` : null)
         || (g.author         ? `© ${g.author}`         : null)
         || null;
       if (wmText) {
-        proj.watermark = { enabled: true, text: wmText };
+        proj.watermark = { enabled: true, mode: 'forced', text: wmText };
       }
+    } else if (wmCfg.mode === 'photographer') {
+      // Per-photo watermark — text is resolved from each photo's photographer at build time
+      proj.watermark = { enabled: true, mode: 'photographer', text: '' };
     }
+    // mode === 'none': no proj.watermark set
   } catch {}
   return proj;
 }
@@ -133,18 +138,22 @@ export async function runJob(jobId) {
 
     // Log watermark resolution for diagnostics
     {
-      const cfg2  = (() => { try { return JSON.parse(gallery.config_json || '{}'); } catch { return {}; } })();
-      const wmOn  = resolveGalleryPolicy(gallery).watermarkEnabled;
-      if (wmOn) {
-        const src = cfg2.watermark?.text       ? 'explicit text'
-          : gallery.primary_photographer_name  ? `primary_photographer (${gallery.primary_photographer_name})`
-          : gallery.guest_photographer_name    ? `guest_photographer (${gallery.guest_photographer_name})`
-          : gallery.photo_photographer_name    ? `photo_photographer (${gallery.photo_photographer_name})`
-          : gallery.author                     ? `author (${gallery.author})`
-          : 'NONE — watermark will be skipped';
-        await appendEvent(jobId, 'log', `[watermark] enabled, text source: ${src}`);
+      const policy = resolveGalleryPolicy(gallery);
+      if (policy.watermarkEnabled) {
+        if (policy.watermarkMode === 'photographer') {
+          await appendEvent(jobId, 'log', `[watermark] mode=photographer — per-photo © credit`);
+        } else {
+          const wmCfg2 = resolveWatermarkConfig(gallery);
+          const src = wmCfg2.text                          ? 'explicit text'
+            : gallery.primary_photographer_name            ? `primary_photographer (${gallery.primary_photographer_name})`
+            : gallery.guest_photographer_name              ? `guest_photographer (${gallery.guest_photographer_name})`
+            : gallery.photo_photographer_name              ? `photo_photographer (${gallery.photo_photographer_name})`
+            : gallery.author                               ? `author (${gallery.author})`
+            : 'NONE — watermark will be skipped';
+          await appendEvent(jobId, 'log', `[watermark] mode=forced, text source: ${src}`);
+        }
       } else {
-        await appendEvent(jobId, 'log', `[watermark] disabled (mode=${gallery.gallery_mode ?? 'null'}, config_json=${cfg2.watermark?.enabled ?? false})`);
+        await appendEvent(jobId, 'log', `[watermark] disabled (mode=${gallery.gallery_mode ?? 'null'}, watermarkMode=${policy.watermarkMode})`);
       }
     }
 

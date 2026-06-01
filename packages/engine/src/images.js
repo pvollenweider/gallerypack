@@ -232,7 +232,18 @@ export async function convertOne(photo, cfg, idx, cachedIsDark = null, paths, ca
   }
 
   // ── full ──────────────────────────────────────────────────────────────────
-  const wmEnabled = !!(cfg.project?.watermark?.enabled && cfg.project?.watermark?.text);
+  // Resolve per-photo watermark text based on mode:
+  //   'forced'       — use the gallery-level watermark text (same for all photos)
+  //   'photographer' — use '© {photo.credit}' if the photo has a credited photographer
+  //   'none' / unset — no watermark
+  const wmMode = cfg.project?.watermark?.mode ?? (cfg.project?.watermark?.enabled ? 'forced' : 'none');
+  let wmText = null;
+  if (wmMode === 'forced') {
+    wmText = cfg.project?.watermark?.text || null;
+  } else if (wmMode === 'photographer') {
+    wmText = photo.credit ? `© ${photo.credit}` : null;
+  }
+  const wmEnabled = !!wmText;
   // When watermark is on, always regenerate the full so the mark is applied fresh.
   if (!FORCE && !wmEnabled && fs.existsSync(fullOut)) {
     ok(`full  (cached)`);
@@ -253,7 +264,7 @@ export async function convertOne(photo, cfg, idx, cachedIsDark = null, paths, ca
     if (wmEnabled) {
       const fontPath = await ensureWatermarkFont();
       const meta     = await sharp(fullOut).metadata();
-      const wmBuf    = buildWatermarkSvg(meta.width, meta.height, cfg.project.watermark.text, fontPath);
+      const wmBuf    = buildWatermarkSvg(meta.width, meta.height, wmText, fontPath);
       const tmp      = fullOut + '.wm.tmp';
       await sharp(fullOut)
         .composite([{ input: wmBuf, blend: 'over' }])
