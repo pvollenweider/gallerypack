@@ -495,7 +495,7 @@ export default function GalleryPhotosPage() {
       if (result.failed?.length) setToast(`${msg} (${result.failed.length} failed)`);
       else setToast(msg);
       clearSelection();
-      refreshPhotos();
+      refreshPhotos().catch(e => setToast(e.message));
     } catch (e) { setToast(e.message); }
     finally { setBulkActionRunning(false); }
   }
@@ -509,7 +509,7 @@ export default function GalleryPhotosPage() {
       if (result.failed?.length) setToast(`${msg} (${result.failed.length} failed)`);
       else setToast(msg);
       clearSelection();
-      refreshPhotos();
+      refreshPhotos().catch(e => setToast(e.message));
     } catch (e) { setToast(e.message); }
     finally { setBulkActionRunning(false); }
   }

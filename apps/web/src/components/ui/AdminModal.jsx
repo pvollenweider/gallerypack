@@ -17,9 +17,10 @@ import { useEffect, useRef } from 'react';
  * @param {string}    title
  * @param {ReactNode} [footer]     - Footer content (buttons). Defaults to a single Close button.
  * @param {'sm'|'md'|'lg'|'xl'} [size='md']
+ * @param {number}    [zIndex]     - Override z-index (backdrop gets zIndex-5, dialog gets zIndex)
  * @param {ReactNode} children
  */
-export default function AdminModal({ open, onClose, title, footer, size = 'md', children }) {
+export default function AdminModal({ open, onClose, title, footer, size = 'md', zIndex, children }) {
   const dialogRef = useRef(null);
 
   // Keep Bootstrap modal visibility in sync with `open` prop
@@ -44,9 +45,9 @@ export default function AdminModal({ open, onClose, title, footer, size = 'md', 
   return (
     <>
       {/* Backdrop */}
-      <div className="modal-backdrop fade show" onClick={onClose} />
+      <div className="modal-backdrop fade show" onClick={onClose} style={zIndex != null ? { zIndex: zIndex - 5 } : undefined} />
       {/* Dialog */}
-      <div ref={dialogRef} className="modal fade show" style={{ display: 'block' }} tabIndex={-1} role="dialog">
+      <div ref={dialogRef} className="modal fade show" style={{ display: 'block', ...(zIndex != null ? { zIndex } : {}) }} tabIndex={-1} role="dialog">
         <div className={`modal-dialog${sizeClass}`} role="document">
           <div className="modal-content">
             <div className="modal-header">

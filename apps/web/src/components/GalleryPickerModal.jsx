@@ -61,7 +61,7 @@ export default function GalleryPickerModal({ title, orgId, currentGalleryId, onS
   const totalCount = filtered.reduce((sum, p) => sum + p.galleries.length, 0);
 
   return (
-    <AdminModal open onClose={onClose} title={title} size="md" footer={false}>
+    <AdminModal open onClose={onClose} title={title} size="md" footer={false} zIndex={1070}>
       <div style={{ marginBottom: '0.75rem' }}>
         <input
           type="search"
@@ -111,7 +111,7 @@ export default function GalleryPickerModal({ title, orgId, currentGalleryId, onS
                   type="button"
                   className="btn btn-light w-100 text-start"
                   style={{ fontSize: '0.85rem', padding: '0.4rem 0.75rem', borderRadius: 4, marginBottom: 2 }}
-                  onClick={() => { onSelect(g.id, g.title); onClose(); }}
+                  onClick={() => { onSelect(g.id, g.title); }}
                 >
                   <i className="fas fa-images me-2 text-muted" style={{ fontSize: '0.75rem' }} />
                   {g.title || g.slug}
