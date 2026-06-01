@@ -69,26 +69,30 @@ export function AdminLightbox({
       onClick={onClose}
     >
       {/* Selection badge — top-left */}
-      <div
+      <button
         style={{
           position: 'absolute',
           top: 16,
           left: 16,
           zIndex: 10,
-          width: 28,
-          height: 28,
-          borderRadius: '50%',
-          background: isSelected ? '#3b82f6' : 'rgba(255,255,255,0.35)',
-          border: `2px solid ${isSelected ? '#3b82f6' : 'rgba(255,255,255,0.6)'}`,
+          background: isSelected ? '#3b82f6' : 'rgba(0,0,0,0.55)',
+          border: `2px solid ${isSelected ? '#93c5fd' : 'rgba(255,255,255,0.4)'}`,
+          color: '#fff',
+          borderRadius: 20,
+          padding: '5px 14px',
+          cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
+          gap: 6,
+          fontSize: '0.82rem',
+          fontWeight: 500,
+          lineHeight: 1,
         }}
         onClick={e => { e.stopPropagation(); onToggleSelect(photo.id); }}
       >
-        {isSelected && <i className="fas fa-check" style={{ fontSize: '0.65rem', color: '#fff' }} />}
-      </div>
+        <i className={`fas fa-${isSelected ? 'check-circle' : 'circle'}`} style={{ fontSize: '0.8rem' }} />
+        {isSelected ? 'Sélectionnée' : 'Sélectionner'}
+      </button>
 
       {/* Close button — top-right */}
       <button
@@ -225,6 +229,14 @@ export function AdminLightbox({
               {photo.exif.width} × {photo.exif.height}
             </div>
           )}
+          <div style={{ color: '#4b5563', fontSize: '0.7rem', marginTop: '0.5rem' }}>
+            <kbd style={{ background: '#1f2937', color: '#9ca3af', padding: '1px 5px', borderRadius: 3, fontSize: '0.68rem' }}>Space</kbd>
+            {' '}sélectionner{'  ·  '}
+            <kbd style={{ background: '#1f2937', color: '#9ca3af', padding: '1px 5px', borderRadius: 3, fontSize: '0.68rem' }}>←→</kbd>
+            {' '}naviguer{'  ·  '}
+            <kbd style={{ background: '#1f2937', color: '#9ca3af', padding: '1px 5px', borderRadius: 3, fontSize: '0.68rem' }}>Esc</kbd>
+            {' '}fermer
+          </div>
         </div>
       </div>
     </div>

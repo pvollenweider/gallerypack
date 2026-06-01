@@ -108,8 +108,8 @@ router.get('/:id/photos/:filename/preview', async (req, res) => {
     const { default: sharp } = await import('sharp');
     const buf = await sharp(filePath, { failOn: 'none', sequentialRead: true })
       .rotate()
-      .resize(800, 800, { fit: 'inside', withoutEnlargement: true })
-      .jpeg({ quality: 75 })
+      .resize(1600, 1600, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 82 })
       .toBuffer();
     res.set('Content-Type', 'image/jpeg');
     res.set('Cache-Control', 'private, max-age=3600');

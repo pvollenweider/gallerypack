@@ -78,6 +78,7 @@ function SortablePhotoCard({
         onOpenLightbox();
       }}
       onContextMenu={e => { e.preventDefault(); onOpenLightbox(); }}
+      title="Clic — sélectionner · Double-clic — aperçu plein écran"
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
@@ -235,6 +236,19 @@ export default function GalleryPhotosPage() {
   const [photographers, setPhotographers] = useState([]);
   const [assigning,     setAssigning]     = useState(false);
   const [filterPhotographerId, setFilterPhotographerId] = useState(null);
+
+  // Maintenance dropdown
+  const [showMaintMenu, setShowMaintMenu] = useState(false);
+  const maintMenuRef = useRef(null);
+
+  useEffect(() => {
+    if (!showMaintMenu) return;
+    function handleClickOutside(e) {
+      if (maintMenuRef.current && !maintMenuRef.current.contains(e.target)) setShowMaintMenu(false);
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showMaintMenu]);
 
   // Thumbnail size toggle
   const [thumbSize, setThumbSize] = useState('sm'); // 'sm' | 'lg'
@@ -682,60 +696,48 @@ export default function GalleryPhotosPage() {
           >
             {t('gal_publish_title')}
           </AdminButton>
-          <AdminButton
-            variant="outline-secondary"
-            size="sm"
-            icon="fas fa-redo"
-            disabled={building || loading}
-            onClick={() => build(true)}
-            title={t('gal_publish_force')}
-          />
-          <AdminButton
-            variant="outline-secondary"
-            size="sm"
-            icon="fas fa-folder-open"
-            loading={reconciling}
-            loadingLabel="…"
-            disabled={loading}
-            onClick={reconcile}
-            title={t('gal_reconcile_title')}
-          />
-          <AdminButton
-            variant="outline-secondary"
-            size="sm"
-            icon="fas fa-images"
-            loading={reanalyzing}
-            loadingLabel="…"
-            disabled={loading}
-            onClick={() => reanalyze(false)}
-            title={t('gal_reanalyze_title')}
-          />
-          <AdminButton
-            variant="outline-secondary"
-            size="sm"
-            icon="fas fa-sync-alt"
-            disabled={reanalyzing || loading}
-            onClick={() => reanalyze(true)}
-            title={t('gal_reanalyze_force')}
-          />
-          <AdminButton
-            variant="outline-secondary"
-            size="sm"
-            icon={bulkDescRunning ? 'fas fa-spinner fa-spin' : 'fas fa-magic'}
-            loading={bulkDescRunning}
-            loadingLabel="…"
-            disabled={loading || bulkDescRunning}
-            onClick={() => handleGenerateAll(false)}
-            title="Generate AI descriptions for photos without one"
-          />
-          <AdminButton
-            variant="outline-secondary"
-            size="sm"
-            icon="fas fa-redo"
-            disabled={loading || bulkDescRunning}
-            onClick={() => handleGenerateAll(true)}
-            title="Regenerate AI descriptions for ALL photos (force)"
-          />
+          {/* Maintenance dropdown */}
+          <div ref={maintMenuRef} style={{ position: 'relative' }}>
+            <button
+              className="btn btn-outline-secondary btn-sm"
+              title={t('gal_maintenance') || 'Maintenance'}
+              onClick={() => setShowMaintMenu(v => !v)}
+            >
+              <i className="fas fa-wrench" />
+            </button>
+            {showMaintMenu && (
+              <div style={{
+                position: 'absolute', top: '100%', right: 0, marginTop: 4,
+                background: '#fff', border: '1px solid #dee2e6', borderRadius: 6,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.12)', zIndex: 200,
+                minWidth: 220, padding: '4px 0',
+              }}>
+                {[
+                  { icon: 'fas fa-redo',        label: t('gal_publish_force'),   action: () => build(true),              disabled: building || loading },
+                  { icon: 'fas fa-folder-open', label: t('gal_reconcile_title'), action: reconcile,                      disabled: loading, loading: reconciling },
+                  { icon: 'fas fa-images',      label: t('gal_reanalyze_title'), action: () => reanalyze(false),         disabled: loading, loading: reanalyzing },
+                  { icon: 'fas fa-sync-alt',    label: t('gal_reanalyze_force'), action: () => reanalyze(true),          disabled: reanalyzing || loading },
+                  null,
+                  { icon: 'fas fa-magic',       label: t('gal_ai_desc_bulk') || 'Generate AI descriptions', action: () => handleGenerateAll(false), disabled: loading || bulkDescRunning, loading: bulkDescRunning },
+                  { icon: 'fas fa-redo',        label: t('gal_ai_desc_bulk_force') || 'Regenerate all AI descriptions',  action: () => handleGenerateAll(true),  disabled: loading || bulkDescRunning },
+                ].map((item, i) => item === null
+                  ? <div key={i} style={{ borderTop: '1px solid #f1f1f1', margin: '4px 0' }} />
+                  : (
+                    <button
+                      key={i}
+                      className="dropdown-item d-flex align-items-center gap-2"
+                      style={{ fontSize: '0.82rem', padding: '6px 14px' }}
+                      disabled={item.disabled}
+                      onClick={() => { item.action(); setShowMaintMenu(false); }}
+                    >
+                      <i className={item.loading ? 'fas fa-spinner fa-spin' : item.icon} style={{ width: 14, textAlign: 'center' }} />
+                      {item.label}
+                    </button>
+                  )
+                )}
+              </div>
+            )}
+          </div>
         </div>
       }
     >
