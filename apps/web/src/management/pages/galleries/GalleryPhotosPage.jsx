@@ -41,6 +41,7 @@ function SortablePhotoCard({
   isDraggedInGroup,
   photographers,
   thumbSize,
+  aspectMode,
   canEdit,
   deleting,
   settingCover,
@@ -97,13 +98,19 @@ function SortablePhotoCard({
         <img
           src={thumbSize === 'lg' ? (photo.thumbnail?.md ?? photo.thumbnail?.sm) : photo.thumbnail?.sm}
           alt={photo.file}
-          style={{ width: '100%', aspectRatio: '1/1', objectFit: 'cover', display: 'block' }}
+          style={aspectMode === 'natural'
+            ? { width: '100%', aspectRatio: photo.exif?.width && photo.exif?.height ? `${photo.exif.width}/${photo.exif.height}` : '1/1', objectFit: 'contain', background: '#f3f4f6', display: 'block' }
+            : { width: '100%', aspectRatio: '1/1', objectFit: 'cover', display: 'block' }
+          }
           loading="lazy"
           decoding="async"
           draggable={false}
         />
       ) : (
-        <div style={{ width: '100%', aspectRatio: '1/1', background: 'linear-gradient(135deg,#e5e7eb,#d1d5db)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={aspectMode === 'natural'
+          ? { width: '100%', aspectRatio: photo.exif?.width && photo.exif?.height ? `${photo.exif.width}/${photo.exif.height}` : '1/1', background: 'linear-gradient(135deg,#e5e7eb,#d1d5db)', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+          : { width: '100%', aspectRatio: '1/1', background: 'linear-gradient(135deg,#e5e7eb,#d1d5db)', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+        }>
           <i className="fas fa-image" style={{ fontSize: '1.5rem', color: '#9ca3af' }} />
         </div>
       )}
@@ -225,6 +232,11 @@ export default function GalleryPhotosPage() {
 
   // Full-width layout toggle (persisted)
   const [fullWidth, setFullWidth] = useState(() => localStorage.getItem('photoPageFullWidth') === '1');
+
+  // Aspect-ratio mode toggle (persisted)
+  const [aspectMode, setAspectMode] = useState(
+    () => localStorage.getItem('photoAspectMode') || 'square'
+  );
 
   // Multi-select + drag state
   const [selected,     setSelected]     = useState(new Set()); // Set<photo.id>
@@ -588,6 +600,17 @@ export default function GalleryPhotosPage() {
             }}
           />
           <AdminButton
+            variant={aspectMode === 'natural' ? 'secondary' : 'outline-secondary'}
+            size="sm"
+            icon={aspectMode === 'square' ? 'fas fa-crop-alt' : 'fas fa-image'}
+            title={aspectMode === 'square' ? 'Show natural proportions' : 'Show square thumbnails'}
+            onClick={() => {
+              const next = aspectMode === 'square' ? 'natural' : 'square';
+              setAspectMode(next);
+              localStorage.setItem('photoAspectMode', next);
+            }}
+          />
+          <AdminButton
             variant="outline-secondary"
             size="sm"
             icon={`fas fa-sort-alpha-${sortAsc ? 'down' : 'up'}`}
@@ -904,6 +927,12 @@ export default function GalleryPhotosPage() {
                     items={filteredPhotos.map(p => p.file)}
                     strategy={rectSortingStrategy}
                   >
+                    {aspectMode === 'natural' && (
+                      <div style={{ padding: '0.4rem 1rem 0', fontSize: '0.75rem', color: '#6b7280', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <i className="fas fa-info-circle" />
+                        Reordering disabled in natural view
+                      </div>
+                    )}
                     <div
                       className="photo-grid-auto"
                       style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${thumbSize === 'lg' ? '240px' : '130px'}, 1fr))`, gap: '0.5rem', padding: '1rem' }}
@@ -912,7 +941,7 @@ export default function GalleryPhotosPage() {
                         <SortablePhotoCard
                           key={p.file}
                           photo={p}
-                          disabled={filterPhotographerId !== null}
+                          disabled={filterPhotographerId !== null || aspectMode === 'natural'}
                           isSelected={selected.has(p.id)}
                           isCover={gallery?.coverPhoto === p.file}
                           isDraggedInGroup={
@@ -923,6 +952,7 @@ export default function GalleryPhotosPage() {
                           }
                           photographers={photographers}
                           thumbSize={thumbSize}
+                          aspectMode={aspectMode}
                           canEdit={canEdit}
                           deleting={deleting}
                           settingCover={settingCover}
