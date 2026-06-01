@@ -1109,6 +1109,7 @@ export default function GalleryPhotosPage() {
           onToggleSelect={id => setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; })}
           onClose={() => setLightboxIndex(null)}
           photographers={photographers}
+          galleryId={galleryId}
         />
       )}
     </AdminPage>

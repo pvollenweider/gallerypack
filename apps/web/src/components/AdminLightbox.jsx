@@ -14,6 +14,7 @@ export function AdminLightbox({
   onToggleSelect,
   onClose,
   photographers,
+  galleryId,
 }) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex ?? 0);
 
@@ -47,7 +48,9 @@ export function AdminLightbox({
   if (!photo) return null;
 
   const isSelected = selected.has(photo.id);
-  const imgSrc = photo.thumbnail?.md ?? photo.thumbnail?.sm;
+  const imgSrc = galleryId && photo.file
+  ? `/api/galleries/${galleryId}/photos/${encodeURIComponent(photo.file)}/preview`
+  : (photo.thumbnail?.md ?? photo.thumbnail?.sm);
   const photographerName = photo.photographer_id
     ? (photographers.find(pg => pg.id === photo.photographer_id)?.name ?? null)
     : null;
