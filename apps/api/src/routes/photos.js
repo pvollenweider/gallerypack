@@ -903,4 +903,207 @@ router.post('/:id/ai-descriptions/bulk', async (req, res) => {
   })();
 });
 
+// ── Helper: resolve a non-colliding destination filename ─────────────────────
+// If `{dir}/{filename}` already exists, returns `{basename}_copy.{ext}`,
+// then `{basename}_copy2.{ext}`, `{basename}_copy3.{ext}`, …
+function resolveDestFilename(dir, filename) {
+  const ext  = path.extname(filename);
+  const base = path.basename(filename, ext);
+  let candidate = filename;
+  let n = 0;
+  while (fs.existsSync(path.join(dir, candidate))) {
+    n++;
+    candidate = n === 1 ? `${base}_copy${ext}` : `${base}_copy${n}${ext}`;
+  }
+  return candidate;
+}
+
+// ── Helper: fetch gallery by ID with optional org constraint ─────────────────
+async function getGalleryById(id, organizationId, isSuperadmin) {
+  const [rows] = isSuperadmin
+    ? await query('SELECT * FROM galleries WHERE id = ?', [id])
+    : await query('SELECT * FROM galleries WHERE id = ? AND organization_id = ?', [id, organizationId]);
+  return rows[0] || null;
+}
+
+// POST /api/galleries/:id/photos/copy
+// Body: { photoIds: string[], targetGalleryId: string }
+router.post('/:id/photos/copy', async (req, res) => {
+  const srcGallery = await ensureGalleryBelongsToOrg(req, res);
+  if (!srcGallery) return;
+
+  const srcGalleryRole = await getGalleryRole(req.userId, srcGallery.id);
+  if (!can(req.user, 'edit', 'gallery', { gallery: srcGallery, studioRole: req.studioRole, galleryRole: srcGalleryRole })) {
+    return res.status(403).json({ error: 'Forbidden: insufficient permissions on source gallery' });
+  }
+
+  const { photoIds, targetGalleryId } = req.body || {};
+  if (!Array.isArray(photoIds) || photoIds.length === 0) {
+    return res.status(400).json({ error: 'photoIds must be a non-empty array' });
+  }
+  if (!targetGalleryId) {
+    return res.status(400).json({ error: 'targetGalleryId is required' });
+  }
+
+  const isSuperadmin = req.platformRole === 'superadmin';
+  const destGallery  = await getGalleryById(targetGalleryId, req.organizationId, isSuperadmin);
+  if (!destGallery) {
+    return res.status(404).json({ error: 'Target gallery not found' });
+  }
+
+  const destGalleryRole = await getGalleryRole(req.userId, destGallery.id);
+  if (!can(req.user, 'edit', 'gallery', { gallery: destGallery, studioRole: req.studioRole, galleryRole: destGalleryRole })) {
+    return res.status(403).json({ error: 'Forbidden: insufficient permissions on target gallery' });
+  }
+
+  const placeholders = photoIds.map(() => '?').join(',');
+  const [photoRows] = await query(
+    `SELECT id, filename, original_name, exif, photographer_id, content_hash, size_bytes
+     FROM photos WHERE gallery_id = ? AND id IN (${placeholders})`,
+    [srcGallery.id, ...photoIds]
+  );
+
+  const srcDir  = photosDir(srcGallery.slug);
+  const destDir = photosDir(destGallery.slug);
+  fs.mkdirSync(destDir, { recursive: true });
+
+  const foundIds = new Set(photoRows.map(p => p.id));
+  let copied = 0;
+  const failed = [];
+
+  for (const photoId of photoIds) {
+    if (!foundIds.has(photoId)) {
+      failed.push({ photoId, reason: 'Photo not found in source gallery' });
+      continue;
+    }
+    const photo = photoRows.find(p => p.id === photoId);
+    try {
+      const srcFile  = path.join(srcDir, path.basename(photo.filename));
+      const destName = resolveDestFilename(destDir, photo.filename);
+      const destFile = path.join(destDir, destName);
+
+      fs.copyFileSync(srcFile, destFile);
+
+      const newId = randomUUID();
+      const exifVal = photo.exif ? (typeof photo.exif === 'string' ? photo.exif : JSON.stringify(photo.exif)) : null;
+      await query(
+        `INSERT INTO photos
+           (id, gallery_id, filename, original_name, exif, photographer_id, content_hash, size_bytes, sort_order, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 'validated')`,
+        [newId, destGallery.id, destName, photo.original_name, exifVal,
+         photo.photographer_id || null, photo.content_hash || null, photo.size_bytes || null]
+      );
+
+      await query(
+        'UPDATE galleries SET needs_rebuild = 1, updated_at = ? WHERE id = ?',
+        [Date.now(), destGallery.id]
+      );
+
+      copied++;
+    } catch (err) {
+      failed.push({ photoId, reason: err.message });
+    }
+  }
+
+  if (copied > 0) {
+    try { await audit(req.organizationId, req.userId, 'photo.copy', 'gallery', srcGallery.id, { targetGalleryId, count: copied }); } catch {}
+  }
+
+  res.json({ moved: copied, failed });
+});
+
+// POST /api/galleries/:id/photos/move
+// Body: { photoIds: string[], targetGalleryId: string }
+router.post('/:id/photos/move', async (req, res) => {
+  const srcGallery = await ensureGalleryBelongsToOrg(req, res);
+  if (!srcGallery) return;
+
+  const srcGalleryRole = await getGalleryRole(req.userId, srcGallery.id);
+  if (!can(req.user, 'edit', 'gallery', { gallery: srcGallery, studioRole: req.studioRole, galleryRole: srcGalleryRole })) {
+    return res.status(403).json({ error: 'Forbidden: insufficient permissions on source gallery' });
+  }
+
+  const { photoIds, targetGalleryId } = req.body || {};
+  if (!Array.isArray(photoIds) || photoIds.length === 0) {
+    return res.status(400).json({ error: 'photoIds must be a non-empty array' });
+  }
+  if (!targetGalleryId) {
+    return res.status(400).json({ error: 'targetGalleryId is required' });
+  }
+
+  const isSuperadmin = req.platformRole === 'superadmin';
+  const destGallery  = await getGalleryById(targetGalleryId, req.organizationId, isSuperadmin);
+  if (!destGallery) {
+    return res.status(404).json({ error: 'Target gallery not found' });
+  }
+
+  const destGalleryRole = await getGalleryRole(req.userId, destGallery.id);
+  if (!can(req.user, 'edit', 'gallery', { gallery: destGallery, studioRole: req.studioRole, galleryRole: destGalleryRole })) {
+    return res.status(403).json({ error: 'Forbidden: insufficient permissions on target gallery' });
+  }
+
+  const placeholders = photoIds.map(() => '?').join(',');
+  const [photoRows] = await query(
+    `SELECT id, filename FROM photos WHERE gallery_id = ? AND id IN (${placeholders})`,
+    [srcGallery.id, ...photoIds]
+  );
+
+  const srcDir  = photosDir(srcGallery.slug);
+  const destDir = photosDir(destGallery.slug);
+  fs.mkdirSync(destDir, { recursive: true });
+
+  const foundIds = new Set(photoRows.map(p => p.id));
+  let moved = 0;
+  const failed = [];
+
+  for (const photoId of photoIds) {
+    if (!foundIds.has(photoId)) {
+      failed.push({ photoId, reason: 'Photo not found in source gallery' });
+      continue;
+    }
+    const photo = photoRows.find(p => p.id === photoId);
+    try {
+      const srcFile  = path.join(srcDir, path.basename(photo.filename));
+      const destName = resolveDestFilename(destDir, photo.filename);
+      const destFile = path.join(destDir, destName);
+
+      // Try atomic rename first; fall back to copy+delete for cross-device moves
+      try {
+        fs.renameSync(srcFile, destFile);
+      } catch (renameErr) {
+        if (renameErr.code === 'EXDEV') {
+          fs.copyFileSync(srcFile, destFile);
+          fs.unlinkSync(srcFile);
+        } else {
+          throw renameErr;
+        }
+      }
+
+      await query(
+        'UPDATE photos SET gallery_id = ?, filename = ?, sort_order = 0 WHERE id = ?',
+        [destGallery.id, destName, photo.id]
+      );
+
+      await query(
+        'UPDATE galleries SET needs_rebuild = 1, updated_at = ? WHERE id = ?',
+        [Date.now(), destGallery.id]
+      );
+
+      moved++;
+    } catch (err) {
+      failed.push({ photoId, reason: err.message });
+    }
+  }
+
+  if (moved > 0) {
+    await query(
+      'UPDATE galleries SET needs_rebuild = 1, updated_at = ? WHERE id = ?',
+      [Date.now(), srcGallery.id]
+    );
+    try { await audit(req.organizationId, req.userId, 'photo.move', 'gallery', srcGallery.id, { targetGalleryId, count: moved }); } catch {}
+  }
+
+  res.json({ moved, failed });
+});
+
 export default router;
