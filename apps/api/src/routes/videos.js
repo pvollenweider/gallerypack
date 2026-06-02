@@ -295,9 +295,9 @@ router.patch('/:id/videos/:videoId', async (req, res) => {
   }
 
   if (transcode_mode !== undefined) {
-    const allowed = new Set(['auto', 'force_abr']);
+    const allowed = new Set(['auto', 'force_abr', 'creator_1080p', 'creator_720p']);
     if (!allowed.has(transcode_mode)) {
-      return res.status(400).json({ error: "transcode_mode must be 'auto' or 'force_abr'" });
+      return res.status(400).json({ error: "transcode_mode must be 'auto', 'force_abr', 'creator_1080p' or 'creator_720p'" });
     }
     updates.push('transcode_mode = ?');
     params.push(transcode_mode);
