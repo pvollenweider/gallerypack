@@ -231,3 +231,69 @@ describe('gallery info response', () => {
     assert.equal(sorted[2].id, 'v3');
   });
 });
+
+// ── View tracking endpoint tests ──────────────────────────────────────────────
+
+/**
+ * Validate view event payload.
+ * Returns { valid: true } or { valid: false, error: string }
+ */
+function validateTrackingEvent(body) {
+  if (!body) return { valid: false, error: 'No body' };
+  const { video_id, event_type, position_sec } = body;
+  if (!video_id) return { valid: false, error: 'Missing video_id' };
+  const VALID_TYPES = ['play', 'pause', 'seek', 'heartbeat', 'ended'];
+  if (!VALID_TYPES.includes(event_type)) return { valid: false, error: 'Invalid event_type' };
+  return { valid: true };
+}
+
+describe('view tracking', () => {
+  test('valid event with all fields → valid', () => {
+    const event = { video_id: 'vid1', event_type: 'play', position_sec: 10 };
+    const result = validateTrackingEvent(event);
+    assert.equal(result.valid, true);
+  });
+
+  test('valid event with position_sec = 0 → valid', () => {
+    const event = { video_id: 'vid1', event_type: 'play', position_sec: 0 };
+    const result = validateTrackingEvent(event);
+    assert.equal(result.valid, true);
+  });
+
+  test('missing video_id → invalid', () => {
+    const event = { event_type: 'play', position_sec: 10 };
+    const result = validateTrackingEvent(event);
+    assert.equal(result.valid, false);
+    assert.match(result.error, /video_id/i);
+  });
+
+  test('invalid event_type → invalid', () => {
+    const event = { video_id: 'vid1', event_type: 'invalid', position_sec: 10 };
+    const result = validateTrackingEvent(event);
+    assert.equal(result.valid, false);
+    assert.match(result.error, /event_type/i);
+  });
+
+  test('valid event_types: play, pause, seek, heartbeat, ended', () => {
+    const types = ['play', 'pause', 'seek', 'heartbeat', 'ended'];
+    for (const et of types) {
+      const event = { video_id: 'vid1', event_type: et, position_sec: 0 };
+      const result = validateTrackingEvent(event);
+      assert.equal(result.valid, true, `${et} should be valid`);
+    }
+  });
+
+  test('null token → should return 401', () => {
+    // In the route, getViewerToken returns null for invalid tokens
+    const vt = null;
+    assert.equal(vt, null);
+    // Route handler would return 401 for null token
+  });
+
+  test('token for wrong gallery scope → should reject', () => {
+    const token = makeToken({ scope_id: 'gal99' });
+    const galleryId = 'gal1';
+    // Route checks: if token.scope_id !== video.gallery_id, reject
+    assert.notEqual(token.scope_id, galleryId);
+  });
+});

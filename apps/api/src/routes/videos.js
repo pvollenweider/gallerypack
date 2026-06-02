@@ -176,6 +176,44 @@ router.post('/:id/videos', (req, res, next) => {
   }
 });
 
+// ── GET /:id/videos/stats — admin stats (per-video + per-token) ───────────────
+router.get('/:id/videos/stats', async (req, res) => {
+  const gallery = await ensureGalleryBelongsToOrg(req, res);
+  if (!gallery) return;
+
+  const galleryRole = await getGalleryRole(req.userId, gallery.id);
+  if (!can(req.user, 'read', 'gallery', { gallery, studioRole: req.studioRole, galleryRole })) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  const [videoStats] = await query(`
+    SELECT v.id, v.title, v.slug, v.duration_sec,
+      COUNT(CASE WHEN e.event_type = 'play' THEN 1 END) AS total_plays,
+      COALESCE(MAX(e.position_sec), 0) AS max_position_reached
+    FROM videos v
+    LEFT JOIN video_view_events e ON e.video_id = v.id
+    WHERE v.gallery_id = ?
+    GROUP BY v.id ORDER BY v.sort_order ASC
+  `, [gallery.id]);
+
+  const [tokenStats] = await query(`
+    SELECT vt.id AS token_id, vt.label,
+      COUNT(CASE WHEN e.event_type = 'play' THEN 1 END) AS session_count,
+      COALESCE(MAX(e.position_sec), 0) AS max_position_reached,
+      MAX(e.created_at) AS last_view_at
+    FROM viewer_tokens vt
+    LEFT JOIN video_view_events e ON e.token_id = vt.id
+    WHERE vt.scope_type = 'gallery' AND vt.scope_id = ? AND vt.revoked_at IS NULL
+    GROUP BY vt.id ORDER BY last_view_at IS NULL, last_view_at DESC
+  `, [gallery.id]);
+
+  res.json({
+    videos: videoStats,
+    tokens: tokenStats,
+    disclaimer: "Estimation basée sur les liens d'accès, non nominative."
+  });
+});
+
 // ── GET /:id/videos — list videos ─────────────────────────────────────────────
 router.get('/:id/videos', async (req, res) => {
   const gallery = await ensureGalleryBelongsToOrg(req, res);

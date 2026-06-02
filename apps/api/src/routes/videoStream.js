@@ -9,6 +9,7 @@
 import { Router } from 'express';
 import path       from 'path';
 import fs         from 'fs';
+import { createHash } from 'crypto';
 import { getViewerToken, touchViewerToken } from '../db/helpers.js';
 import { query } from '../db/database.js';
 
@@ -92,9 +93,9 @@ router.get('/:token/gallery', async (req, res) => {
   const gallery = galRows[0];
   if (!gallery) return res.status(404).json({ error: 'Gallery not found' });
 
-  // Fetch videos (strip internal paths)
+  // Fetch videos (strip internal paths, expose only hls_entry basename)
   const [videoRows] = await query(
-    "SELECT id, title, slug, duration_sec, status FROM videos WHERE gallery_id = ? AND status = 'ready' ORDER BY sort_order ASC",
+    "SELECT id, title, slug, duration_sec, status, hls_path FROM videos WHERE gallery_id = ? AND status = 'ready' ORDER BY sort_order ASC",
     [galleryId]
   );
 
@@ -103,8 +104,43 @@ router.get('/:token/gallery', async (req, res) => {
 
   res.json({
     gallery: { id: gallery.id, title: gallery.title },
-    videos: videoRows,
+    videos: videoRows.map(({ hls_path, ...v }) => ({
+      ...v,
+      hls_entry: path.basename(hls_path || 'index.m3u8'),
+    })),
   });
+});
+
+// ── Route 3: Track view events ────────────────────────────────────────────────
+// POST /api/v/:token/track
+router.post('/:token/track', async (req, res) => {
+  try {
+    const vt = await getViewerToken(req.params.token);
+    if (!vt) return res.status(401).json({ error: 'Invalid token' });
+
+    const { video_id, event_type, position_sec } = req.body || {};
+    const VALID = ['play', 'pause', 'seek', 'heartbeat', 'ended'];
+    if (!video_id || !VALID.includes(event_type)) {
+      return res.status(400).json({ error: 'Invalid event' });
+    }
+
+    const [vrows] = await query(
+      'SELECT id FROM videos WHERE id = ? AND gallery_id = ?', [video_id, vt.scope_id]
+    );
+    if (!vrows[0]) return res.status(404).json({ error: 'Video not found' });
+
+    const ua = req.headers['user-agent'] || '';
+    const uaHash = createHash('md5').update(ua).digest('hex').slice(0, 16);
+
+    await query(
+      'INSERT INTO video_view_events (video_id, token_id, event_type, position_sec, ua_hash, created_at) VALUES (?, ?, ?, ?, ?, NOW())',
+      [video_id, vt.id, event_type, parseInt(position_sec) || 0, uaHash]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[track]', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 export default router;
