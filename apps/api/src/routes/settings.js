@@ -59,37 +59,33 @@ router.get('/', async (req, res) => {
 
 // PATCH /api/settings
 router.patch('/', async (req, res) => {
-  const {
-    siteTitle, defaultAuthor, defaultAuthorEmail,
-    defaultLocale, defaultAccess,
-    defaultDownloadMode,
-    defaultAllowDownloadImage, defaultAllowDownloadGallery, defaultPrivate,
-    defaultPwaThemeColor, defaultPwaBgColor,
-    smtpHost, smtpPort, smtpUser, smtpPass, smtpFrom, smtpSecure,
-    baseUrl, hostname,
-  } = req.body || {};
+  const body = req.body || {};
+  const has = k => k in body;
 
-  const updates = {
-    site_title:                     siteTitle                    ?? null,
-    default_author:                 defaultAuthor                ?? null,
-    default_author_email:           defaultAuthorEmail           ?? null,
-    default_locale:                 defaultLocale                ?? 'fr',
-    default_access:                 defaultAccess                ?? 'public',
-    default_download_mode:          ['none','display','original'].includes(defaultDownloadMode) ? defaultDownloadMode : 'display',
-    default_allow_download_image:   defaultAllowDownloadImage    !== false ? 1 : 0,
-    default_allow_download_gallery: defaultAllowDownloadGallery  === true  ? 1 : 0,
-    default_private:                defaultPrivate               === true  ? 1 : 0,
-    default_pwa_theme_color:        defaultPwaThemeColor         || '#000000',
-    default_pwa_bg_color:           defaultPwaBgColor            || '#000000',
-    smtp_host:                      smtpHost                     ?? null,
-    smtp_port:                      smtpPort                     ?? 587,
-    smtp_user:                      smtpUser                     ?? null,
-    smtp_from:                      smtpFrom                     ?? null,
-    smtp_secure:                    smtpSecure                   === true  ? 1 : 0,
-    base_url:                       baseUrl                      ?? null,
-  };
-  // Only update password if a new one was explicitly provided
-  if (smtpPass && smtpPass.trim()) updates.smtp_pass = smtpPass.trim();
+  // Only include fields explicitly present in the request body.
+  // This prevents one settings page from clobbering fields it knows nothing about
+  // (e.g. saving SMTP from SmtpPage must not reset branding, and vice-versa).
+  const updates = {};
+  if (has('siteTitle'))                updates.site_title                     = body.siteTitle                    ?? null;
+  if (has('defaultAuthor'))            updates.default_author                 = body.defaultAuthor                ?? null;
+  if (has('defaultAuthorEmail'))       updates.default_author_email           = body.defaultAuthorEmail           ?? null;
+  if (has('defaultLocale'))            updates.default_locale                 = body.defaultLocale                ?? 'fr';
+  if (has('defaultAccess'))            updates.default_access                 = body.defaultAccess                ?? 'public';
+  if (has('defaultDownloadMode'))      updates.default_download_mode          = ['none','display','original'].includes(body.defaultDownloadMode) ? body.defaultDownloadMode : 'display';
+  if (has('defaultAllowDownloadImage'))  updates.default_allow_download_image   = body.defaultAllowDownloadImage  !== false ? 1 : 0;
+  if (has('defaultAllowDownloadGallery'))updates.default_allow_download_gallery = body.defaultAllowDownloadGallery === true  ? 1 : 0;
+  if (has('defaultPrivate'))           updates.default_private                = body.defaultPrivate               === true  ? 1 : 0;
+  if (has('defaultPwaThemeColor'))     updates.default_pwa_theme_color        = body.defaultPwaThemeColor         || '#000000';
+  if (has('defaultPwaBgColor'))        updates.default_pwa_bg_color           = body.defaultPwaBgColor            || '#000000';
+  if (has('smtpHost'))                 updates.smtp_host                      = body.smtpHost                     ?? null;
+  if (has('smtpPort'))                 updates.smtp_port                      = body.smtpPort                     ?? 587;
+  if (has('smtpUser'))                 updates.smtp_user                      = body.smtpUser                     ?? null;
+  if (has('smtpFrom'))                 updates.smtp_from                      = body.smtpFrom                     ?? null;
+  if (has('smtpSecure'))               updates.smtp_secure                    = body.smtpSecure                   === true  ? 1 : 0;
+  if (has('baseUrl'))                  updates.base_url                       = body.baseUrl                      ?? null;
+  if (body.smtpPass?.trim())           updates.smtp_pass                      = body.smtpPass.trim();
+
+  const { hostname } = body;
 
   await upsertSettings(req.organizationId, updates);
 
