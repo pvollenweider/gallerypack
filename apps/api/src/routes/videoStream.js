@@ -20,54 +20,65 @@ const VIDEO_STORAGE_PATH = process.env.VIDEO_STORAGE_PATH || 'storage/videos';
 // ── Route 1: Token-protected HLS file serving ─────────────────────────────────
 // GET /api/v/:token/galleries/:galleryId/videos/:videoSlug/stream/*filepath
 router.get('/:token/galleries/:galleryId/videos/:videoSlug/stream/*filepath', async (req, res) => {
-  const { token: rawToken, galleryId, videoSlug } = req.params;
-  const filepath = req.params.filepath; // Express wildcard capture
+  try {
+    const { token: rawToken, galleryId, videoSlug } = req.params;
+    const filepath = req.params.filepath;
 
-  // 1. Validate token
-  const token = await getViewerToken(rawToken);
-  if (!token) return res.status(403).json({ error: 'Invalid or expired token' });
+    // 1. Validate token
+    const token = await getViewerToken(rawToken);
+    if (!token) return res.status(403).json({ error: 'Invalid or expired token' });
 
-  // 2. Check token scope
-  if (!(token.scope_type === 'gallery' && token.scope_id === galleryId)) {
-    return res.status(403).json({ error: 'Token not valid for this gallery' });
+    // 2. Check token scope
+    if (!(token.scope_type === 'gallery' && token.scope_id === galleryId)) {
+      return res.status(403).json({ error: 'Token not valid for this gallery' });
+    }
+
+    // 3. Lookup video
+    const [rows] = await query(
+      "SELECT * FROM videos WHERE gallery_id = ? AND slug = ? AND status = 'ready'",
+      [galleryId, videoSlug]
+    );
+    const video = rows[0];
+    if (!video) return res.status(404).json({ error: 'Video not found' });
+
+    // 4. Resolve and sanitize file path
+    const hlsDir       = path.resolve(VIDEO_STORAGE_PATH, galleryId, video.id + '_hls');
+    const resolvedPath = path.resolve(hlsDir, filepath);
+    const rel = path.relative(hlsDir, resolvedPath);
+    if (rel.startsWith('..') || path.isAbsolute(rel)) {
+      return res.status(403).json({ error: 'Path traversal not allowed' });
+    }
+
+    // 5. Check file existence
+    if (!fs.existsSync(resolvedPath)) {
+      console.error('[stream] file not found:', resolvedPath);
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    // 6. Set Content-Type + Cache-Control
+    const ext = path.extname(resolvedPath).toLowerCase();
+    if (ext === '.m3u8') {
+      res.set('Content-Type', 'application/vnd.apple.mpegurl');
+      res.set('Cache-Control', 'no-cache');
+    } else if (ext === '.ts') {
+      res.set('Content-Type', 'video/MP2T');
+      res.set('Cache-Control', 'public, max-age=3600');
+    }
+
+    // 7. Touch token (fire and forget)
+    touchViewerToken(token.id).catch(() => {});
+
+    // 8. Send file with explicit root to satisfy Express 5
+    res.sendFile(path.basename(resolvedPath), { root: path.dirname(resolvedPath) }, (err) => {
+      if (err && !res.headersSent) {
+        console.error('[stream] sendFile error:', err.message, resolvedPath);
+        res.status(500).json({ error: 'Stream error' });
+      }
+    });
+  } catch (err) {
+    console.error('[stream] handler error:', err.message);
+    if (!res.headersSent) res.status(500).json({ error: 'Internal server error' });
   }
-
-  // 3. Lookup video
-  const [rows] = await query(
-    "SELECT * FROM videos WHERE gallery_id = ? AND slug = ? AND status = 'ready'",
-    [galleryId, videoSlug]
-  );
-  const video = rows[0];
-  if (!video) return res.status(404).json({ error: 'Video not found' });
-
-  // 4. Resolve and sanitize file path
-  const hlsDir      = path.resolve(process.cwd(), VIDEO_STORAGE_PATH, galleryId, video.id + '_hls');
-  const resolvedPath = path.resolve(hlsDir, filepath);
-  const rel = path.relative(hlsDir, resolvedPath);
-  if (rel.startsWith('..') || path.isAbsolute(rel)) {
-    return res.status(403).json({ error: 'Path traversal not allowed' });
-  }
-
-  // 5. Check file existence
-  if (!fs.existsSync(resolvedPath)) {
-    return res.status(404).json({ error: 'File not found' });
-  }
-
-  // 6. Set Content-Type
-  const ext = path.extname(resolvedPath).toLowerCase();
-  if (ext === '.m3u8') {
-    res.set('Content-Type', 'application/vnd.apple.mpegurl');
-    res.set('Cache-Control', 'no-cache');
-  } else if (ext === '.ts') {
-    res.set('Content-Type', 'video/MP2T');
-    res.set('Cache-Control', 'public, max-age=3600');
-  }
-
-  // 7. Touch token (fire and forget)
-  touchViewerToken(token.id).catch(() => {});
-
-  // 8. Send file
-  res.sendFile(resolvedPath);
 });
 
 // ── Route 2: Gallery info for the watch page ──────────────────────────────────
