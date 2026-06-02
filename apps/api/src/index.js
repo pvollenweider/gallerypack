@@ -35,6 +35,7 @@ import authRoutes        from './routes/auth.js';
 import galleriesRoutes   from './routes/galleries.js';
 import accessRoutes      from './routes/access.js';
 import photosRoutes      from './routes/photos.js';
+import videoRoutes       from './routes/videos.js';
 import jobsRoutes        from './routes/jobs.js';
 import invitesRoutes     from './routes/invites.js';
 import invitationsRouter from './routes/invitations.js';
@@ -209,6 +210,7 @@ app.use('/api/auth',                authRoutes);
 app.use('/api/galleries',           galleriesRoutes);
 app.use('/api/galleries',           accessRoutes);
 app.use('/api/galleries',           authUploadRateLimit, photosRoutes);
+app.use('/api/galleries',           videoRoutes);
 app.use('/api/tus',                 authUploadRateLimit, uploadChecksum, uploadThrottle, tusRoutes);
 app.use('/api/galleries',           jobsRoutes);
 app.use('/api/jobs',                jobsRoutes); // for /api/jobs/:jobId and /api/jobs/:jobId/stream
