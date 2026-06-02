@@ -34,6 +34,7 @@ const GalleryAccessPage     = lazy(() => import('./management/pages/galleries/Ga
 const OrganizationGeneralPage = lazy(() => import('./management/pages/organizations/OrganizationGeneralPage.jsx'));
 const OrganizationTeamPage  = lazy(() => import('./management/pages/organizations/OrganizationTeamPage.jsx'));
 const ProjectGeneralPage    = lazy(() => import('./management/pages/projects/ProjectGeneralPage.jsx'));
+const GalleryVideosPage     = lazy(() => import('./management/pages/galleries/GalleryVideosPage.jsx'));
 
 // Inspector
 import InspectorLayout     from './inspector/InspectorLayout.jsx';
@@ -161,6 +162,7 @@ export default function App() {
       <Route path="/admin/organizations/:orgId/projects/:projectId/galleries/:galleryId/access"      element={<W><SuspenseRoute><GalleryAccessPage /></SuspenseRoute></W>} />
       <Route path="/admin/organizations/:orgId/projects/:projectId/galleries/:galleryId/jobs"        element={<W><GalleryJobsPage /></W>} />
       <Route path="/admin/organizations/:orgId/projects/:projectId/galleries/:galleryId/statistics"  element={<W><SuspenseRoute><GalleryInsightsPage /></SuspenseRoute></W>} />
+      <Route path="/admin/organizations/:orgId/projects/:projectId/galleries/:galleryId/videos"     element={<W><SuspenseRoute><GalleryVideosPage /></SuspenseRoute></W>} />
       <Route path="/admin/organizations/:orgId/projects/:projectId/galleries/:galleryId/publish"     element={<GalleryPhotosRedirect />} />
       <Route path="/admin/organizations/:orgId/projects/:projectId/galleries/:galleryId/general"     element={<GallerySettingsRedirect />} />
       <Route path="/admin/organizations/:orgId/projects/:projectId/galleries/:galleryId/downloads"   element={<GalleryAccessRedirect />} />

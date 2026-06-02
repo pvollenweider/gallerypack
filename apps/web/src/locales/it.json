@@ -948,4 +948,7 @@
   "wm_mode_photographer_hint": "per foto — nessuna filigrana se non attribuita",
   "wm_mode_forced": "Testo personalizzato",
   "gal_mode_requires_watermark": "la modalità galleria richiede filigrana"
+  "gal_type_label": "Tipo",
+  "gal_type_photo": "Foto",
+  "gal_type_video": "Video",
 }

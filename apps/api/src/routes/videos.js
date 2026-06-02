@@ -380,4 +380,21 @@ router.post('/:id/videos/:videoId/retranscode', async (req, res) => {
   res.json(publicVideo(updated));
 });
 
+// ── GET /:id/access-requests — list enrollment requests ──────────────────────
+router.get('/:id/access-requests', async (req, res) => {
+  const gallery = await ensureGalleryBelongsToOrg(req, res);
+  if (!gallery) return;
+
+  const galleryRole = await getGalleryRole(req.userId, gallery.id);
+  if (!can(req.user, 'read', 'gallery', { gallery, studioRole: req.studioRole, galleryRole })) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  const [rows] = await query(
+    'SELECT id, email, status, created_at, confirmed_at FROM access_requests WHERE gallery_id = ? ORDER BY created_at DESC',
+    [gallery.id]
+  );
+  res.json(rows);
+});
+
 export default router;
