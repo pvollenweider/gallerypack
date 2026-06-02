@@ -234,7 +234,25 @@ export async function transcode(video) {
   // ── Step 5: spawn FFmpeg (with hard timeout) ───────────────────────────────
   await spawnFfmpeg(ffmpegArgs, TIMEOUT_MS);
 
-  // ── Step 6: update DB ──────────────────────────────────────────────────────
+  // ── Step 6: extract cover thumbnail (best-effort, don't fail transcode) ────
+  const coverPath = `${VIDEO_STORAGE_PATH}/${video.gallery_id}/cover_${video.id}.jpg`;
+  try {
+    // Only generate if no cover exists for this gallery yet
+    const { existsSync } = await import('fs');
+    const galleryCover = `${VIDEO_STORAGE_PATH}/${video.gallery_id}/cover.jpg`;
+    if (!existsSync(galleryCover)) {
+      await spawnFfmpegWith(FFMPEG_PATH, [
+        '-ss', '5', '-i', inputPath,
+        '-frames:v', '1', '-vf', 'scale=640:-1',
+        '-q:v', '3', coverPath,
+      ], 30_000); // 30s timeout for thumbnail
+      // Rename to canonical gallery cover
+      const { renameSync } = await import('fs');
+      renameSync(coverPath, galleryCover);
+    }
+  } catch (_) { /* thumbnail failure must not abort the transcode */ }
+
+  // ── Step 7: update DB ──────────────────────────────────────────────────────
   await query(
     "UPDATE videos SET status='ready', hls_path=?, duration_sec=?, source_codec=?, updated_at=NOW() WHERE id=?",
     [hlsPath, durationSec, `${videoCodec}/${audioCodec}`, video.id],

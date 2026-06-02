@@ -416,4 +416,57 @@ router.delete('/:id/access-requests/:requestId', async (req, res) => {
   res.json({ ok: true });
 });
 
+// ── GET /:id/video-cover — serve gallery cover thumbnail (no auth, public thumbnail) ──
+router.get('/:id/video-cover', async (req, res) => {
+  // Verify gallery exists for this org (ensureGalleryBelongsToOrg requires auth;
+  // cover thumbnails are intentionally public so we use a lighter check)
+  const [rows] = await query('SELECT id FROM galleries WHERE id = ?', [req.params.id]);
+  if (!rows[0]) return res.status(404).end();
+  const coverPath = path.resolve(VIDEO_STORAGE_PATH, req.params.id, 'cover.jpg');
+  if (!fs.existsSync(coverPath)) return res.status(404).end();
+  res.set('Content-Type', 'image/jpeg');
+  res.set('Cache-Control', 'public, max-age=86400');
+  res.sendFile(path.basename(coverPath), { root: path.dirname(coverPath) });
+});
+
+// ── POST /:id/video-cover — upload custom cover thumbnail ────────────────────
+const coverUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, _file, cb) => {
+      const dir = path.resolve(VIDEO_STORAGE_PATH, req.params.id);
+      fs.mkdirSync(dir, { recursive: true });
+      cb(null, dir);
+    },
+    filename: (_req, _file, cb) => cb(null, 'cover_upload_tmp.jpg'),
+  }),
+  fileFilter: (_req, file, cb) => {
+    const ok = ['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype);
+    cb(ok ? null : new Error('Image JPEG/PNG/WebP only'), ok);
+  },
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
+
+router.post('/:id/video-cover', coverUpload.single('cover'), async (req, res) => {
+  const gallery = await ensureGalleryBelongsToOrg(req, res);
+  if (!gallery) return;
+  const galleryRole = await getGalleryRole(req.userId, gallery.id);
+  if (!can(req.user, 'edit', 'gallery', { gallery, studioRole: req.studioRole, galleryRole })) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  const tmpPath   = req.file.path;
+  const coverPath = path.resolve(VIDEO_STORAGE_PATH, gallery.id, 'cover.jpg');
+  try {
+    // Use Sharp to resize to max 640px wide and convert to JPEG
+    const { default: sharp } = await import('sharp');
+    await sharp(tmpPath).resize(640, null, { withoutEnlargement: true }).jpeg({ quality: 85 }).toFile(coverPath);
+    fs.unlinkSync(tmpPath);
+    res.json({ ok: true });
+  } catch (err) {
+    try { fs.unlinkSync(tmpPath); } catch {}
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

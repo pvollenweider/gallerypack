@@ -112,6 +112,7 @@ export function renderWatchPage(token, gallery, videos, errorMsg) {
   <meta name="robots" content="noindex, nofollow">
   <title>${esc(gallery.title)}</title>
   <link rel="stylesheet" href="https://vjs.zencdn.net/8.21.1/video-js.css">
+  <link rel="stylesheet" href="https://unpkg.com/videojs-hls-quality-selector@2.0.1/dist/videojs-hls-quality-selector.min.css">
   <style>
     /* ── Reset / base ──────────────────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -273,6 +274,8 @@ ${sidebarItems}
 </div>
 
 <script src="https://vjs.zencdn.net/8.21.1/video.min.js"></script>
+  <script src="https://unpkg.com/videojs-contrib-quality-levels@4.0.0/dist/videojs-contrib-quality-levels.min.js"></script>
+  <script src="https://unpkg.com/videojs-hls-quality-selector@2.0.1/dist/videojs-hls-quality-selector.min.js"></script>
 <script>
 (function () {
   'use strict';
@@ -367,10 +370,21 @@ ${sidebarItems}
     },
   });
 
+  // Enable quality selector when ABR (master.m3u8) — graceful if plugin absent
+  if (typeof player.hlsQualitySelector === 'function') {
+    player.hlsQualitySelector({ displayCurrentQuality: true });
+  }
+
   function loadVideo(slug, hlsEntry, videoId, title) {
     currentVideoId = videoId;
     var url = '/api/v/' + TOKEN + '/galleries/' + GALLERY_ID + '/videos/' + slug + '/stream/' + hlsEntry;
     player.src({ src: url, type: 'application/x-mpegURL' });
+    // Re-apply quality selector after source change
+    player.ready(function() {
+      if (typeof player.hlsQualitySelector === 'function') {
+        player.hlsQualitySelector({ displayCurrentQuality: true });
+      }
+    });
     player.play().catch(function () {});
   }
 

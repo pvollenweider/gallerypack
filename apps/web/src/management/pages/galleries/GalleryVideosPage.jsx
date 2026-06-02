@@ -352,13 +352,29 @@ export default function GalleryVideosPage() {
           </div>
 
           {/* Upload button */}
-          <div className="mb-3">
+          <div className="mb-3 d-flex gap-2 align-items-center flex-wrap">
             <input
               ref={fileInputRef}
               type="file"
               accept=".mp4,.mov,.mkv"
               style={{ display: 'none' }}
               onChange={handleFileChange}
+            />
+            {/* Cover override */}
+            <input
+              type="file" accept="image/jpeg,image/png,image/webp"
+              style={{ display: 'none' }}
+              id="cover-upload-input"
+              onChange={async e => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const fd = new FormData();
+                fd.append('cover', file);
+                try {
+                  await fetch(`/api/galleries/${galleryId}/video-cover`, { method: 'POST', body: fd, credentials: 'include' });
+                } catch {}
+                e.target.value = '';
+              }}
             />
             <AdminButton
               icon="fas fa-upload"
@@ -368,6 +384,14 @@ export default function GalleryVideosPage() {
               disabled={uploading}
             >
               {t('gal_upload_video') || 'Ajouter une vidéo'}
+            </AdminButton>
+            <AdminButton
+              variant="outline-secondary"
+              icon="fas fa-image"
+              onClick={() => document.getElementById('cover-upload-input').click()}
+              title="Remplacer la vignette de couverture (JPEG/PNG, 640px)"
+            >
+              Vignette
             </AdminButton>
 
             {uploadProgress !== null && (

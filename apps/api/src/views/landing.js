@@ -288,7 +288,7 @@ export function renderProjectListing(projectSlug, projectName, galleries, siteTi
         const thumb   = g.coverName
           ? `<img src="${isVideo ? '' : ''}${g.slug}/img/grid/${g.coverName}.webp" class="card-img" alt="" loading="lazy" onerror="this.style.display='none'">`
           : isVideo
-            ? `<div class="card-img-placeholder" style="font-size:2rem">&#127916;</div>`
+            ? `<img src="/api/galleries/${g.id}/video-cover" class="card-img" alt="" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'card-img-placeholder\\' style=\\'font-size:2rem\\'>&#127916;</div>'">`
             : `<div class="card-img-placeholder">&#128247;</div>`;
         const dateStr    = fmtDateCard(g.dateRange, g.date);
         const photoLabel = isVideo
