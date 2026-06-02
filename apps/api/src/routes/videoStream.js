@@ -22,7 +22,10 @@ const VIDEO_STORAGE_PATH = process.env.VIDEO_STORAGE_PATH || 'storage/videos';
 router.get('/:token/galleries/:galleryId/videos/:videoSlug/stream/*filepath', async (req, res) => {
   try {
     const { token: rawToken, galleryId, videoSlug } = req.params;
-    const filepath = req.params.filepath;
+    // Express 5: wildcard param may be an array
+    const filepath = Array.isArray(req.params.filepath)
+      ? req.params.filepath.join('/')
+      : (req.params.filepath || '');
 
     // 1. Validate token
     const token = await getViewerToken(rawToken);
