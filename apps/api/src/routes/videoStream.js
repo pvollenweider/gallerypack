@@ -27,13 +27,20 @@ router.get('/:token/galleries/:galleryId/videos/:videoSlug/stream/*filepath', as
       ? req.params.filepath.join('/')
       : (req.params.filepath || '');
 
-    // 1. Validate token
+    // 1. Validate token OR allow public gallery access
     const token = await getViewerToken(rawToken);
-    if (!token) return res.status(403).json({ error: 'Invalid or expired token' });
-
-    // 2. Check token scope
-    if (!(token.scope_type === 'gallery' && token.scope_id === galleryId)) {
-      return res.status(403).json({ error: 'Token not valid for this gallery' });
+    if (token) {
+      // Token found — verify scope
+      if (!(token.scope_type === 'gallery' && token.scope_id === galleryId)) {
+        return res.status(403).json({ error: 'Token not valid for this gallery' });
+      }
+    } else {
+      // No token — check if gallery is public
+      const [pubRows] = await query(
+        "SELECT id FROM galleries WHERE id = ? AND type = 'video' AND access = 'public' LIMIT 1",
+        [galleryId]
+      );
+      if (!pubRows[0]) return res.status(403).json({ error: 'Invalid or expired token' });
     }
 
     // 3. Lookup video

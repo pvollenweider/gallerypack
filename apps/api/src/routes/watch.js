@@ -16,28 +16,37 @@ const router = Router();
 
 const INVALID_HTML = () => renderWatchPage('', null, [], "Ce lien n'est plus valide.");
 
-// GET /watch/:token
-router.get('/:token', async (req, res) => {
+// GET /watch/:ref  — ref is either a viewer token or a public gallery slug/id
+router.get('/:ref', async (req, res) => {
   try {
-    const { token } = req.params;
+    const { ref } = req.params;
+    let galleryId, watchRef;
 
-    // 1. Validate token
-    const vt = await getViewerToken(token);
-    if (!vt || vt.scope_type !== 'gallery') {
-      return res.type('html').send(INVALID_HTML());
+    // 1. Try viewer token first
+    const vt = await getViewerToken(ref);
+    if (vt && vt.scope_type === 'gallery') {
+      galleryId = vt.scope_id;
+      watchRef  = ref; // raw token for HLS URLs
+    } else {
+      // 2. Fallback: public video gallery by slug or id
+      const [galRows] = await query(
+        "SELECT id FROM galleries WHERE (slug = ? OR id = ?) AND type = 'video' AND access = 'public' LIMIT 1",
+        [ref, ref]
+      );
+      if (!galRows[0]) return res.type('html').send(INVALID_HTML());
+      galleryId = galRows[0].id;
+      watchRef  = ref; // gallery slug used in HLS URLs for public galleries
     }
 
-    // 2. Fetch gallery (must be of type 'video')
-    const [galRows] = await query(
+    // 3. Fetch gallery
+    const [galInfoRows] = await query(
       "SELECT id, title FROM galleries WHERE id = ? AND type = 'video'",
-      [vt.scope_id]
+      [galleryId]
     );
-    const gallery = galRows[0];
-    if (!gallery) {
-      return res.type('html').send(INVALID_HTML());
-    }
+    const gallery = galInfoRows[0];
+    if (!gallery) return res.type('html').send(INVALID_HTML());
 
-    // 3. Fetch ready videos — expose hls_entry (basename only)
+    // 4. Fetch ready videos
     const [videoRows] = await query(
       "SELECT id, title, slug, duration_sec, hls_path FROM videos WHERE gallery_id = ? AND status = 'ready' ORDER BY sort_order ASC",
       [gallery.id]
@@ -47,9 +56,8 @@ router.get('/:token', async (req, res) => {
       hls_entry: path.basename(hls_path || 'index.m3u8'),
     }));
 
-    // 4. Render and send
     res.set('Cache-Control', 'no-store');
-    return res.type('html').send(renderWatchPage(token, gallery, videos));
+    return res.type('html').send(renderWatchPage(watchRef, gallery, videos));
   } catch (err) {
     req.log?.error({ err }, 'watch route error');
     return res.type('html').send(INVALID_HTML());

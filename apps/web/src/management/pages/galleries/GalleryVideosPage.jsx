@@ -121,6 +121,13 @@ export default function GalleryVideosPage() {
   const { orgId, projectId, galleryId } = useParams();
   const [tab, setTab] = useState('videos');
 
+  // ── Gallery metadata ──────────────────────────────────────────────────────
+  const [gallery,     setGallery]     = useState(null);
+
+  useEffect(() => {
+    api.getGallery(galleryId).then(setGallery).catch(() => {});
+  }, [galleryId]);
+
   // ── Videos tab state ──────────────────────────────────────────────────────
   const [videos,      setVideos]      = useState([]);
   const [loadingVids, setLoadingVids] = useState(true);
@@ -431,7 +438,25 @@ export default function GalleryVideosPage() {
         <div>
           <AdminAlert message={tokenErr} />
 
-          {/* Enrollment link */}
+          {/* Public watch link (for public galleries) */}
+          {gallery?.access === 'public' && (
+            <AdminCard title="Lien public" className="mb-3">
+              <div className="d-flex align-items-center gap-2 flex-wrap">
+                <code style={{ wordBreak: 'break-all', flex: '1 1 auto' }}>
+                  {`${window.location.origin}/watch/${gallery.slug}`}
+                </code>
+                <AdminButton
+                  variant="outline-secondary" size="sm" icon="fas fa-copy"
+                  onClick={() => navigator.clipboard.writeText(`${window.location.origin}/watch/${gallery.slug}`)}
+                >
+                  {t('copy') || 'Copier'}
+                </AdminButton>
+              </div>
+            </AdminCard>
+          )}
+
+          {/* Enrollment link (private galleries) */}
+          {gallery?.access !== 'public' && (
           <AdminCard title={t('gal_enroll_link') || 'Lien d\'inscription'} className="mb-3">
             <div className="d-flex align-items-center gap-2 flex-wrap">
               <code style={{ wordBreak: 'break-all', flex: '1 1 auto' }}>{enrollLink}</code>
@@ -445,6 +470,7 @@ export default function GalleryVideosPage() {
               </AdminButton>
             </div>
           </AdminCard>
+          )}
 
           {/* Manual token creation */}
           <AdminCard title={t('gal_create_token') || 'Créer un lien d\'accès'} className="mb-3">

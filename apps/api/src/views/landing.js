@@ -283,12 +283,17 @@ export function renderProjectListing(projectSlug, projectName, galleries, siteTi
   const cards = galleries.length === 0
     ? `<p class="empty">Aucune galerie publiée pour l'instant.</p>`
     : galleries.map(g => {
-        const href  = `${g.slug}/`;
-        const thumb = g.coverName
-          ? `<img src="${g.slug}/img/grid/${g.coverName}.webp" class="card-img" alt="" loading="lazy" onerror="this.style.display='none'">`
-          : `<div class="card-img-placeholder">&#128247;</div>`;
+        const isVideo = g.type === 'video';
+        const href    = isVideo ? (g.watchUrl || `/watch/${g.slug}`) : `${g.slug}/`;
+        const thumb   = g.coverName
+          ? `<img src="${isVideo ? '' : ''}${g.slug}/img/grid/${g.coverName}.webp" class="card-img" alt="" loading="lazy" onerror="this.style.display='none'">`
+          : isVideo
+            ? `<div class="card-img-placeholder" style="font-size:2rem">&#127916;</div>`
+            : `<div class="card-img-placeholder">&#128247;</div>`;
         const dateStr    = fmtDateCard(g.dateRange, g.date);
-        const photoLabel = g.photoCount === 1 ? '1 photo' : `${g.photoCount || 0} photos`;
+        const photoLabel = isVideo
+          ? `<span style="font-size:0.75rem;opacity:0.7">&#127916; Vidéo</span>`
+          : (g.photoCount === 1 ? '1 photo' : `${g.photoCount || 0} photos`);
         const pgLine   = g.photographers?.length > 0
           ? `<p class="card-row">${ICON_CAMERA} ${g.photographers.map(n => esc(n)).join('<span class="row-sep">·</span>')}</p>`
           : '';

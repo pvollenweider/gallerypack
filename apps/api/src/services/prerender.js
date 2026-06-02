@@ -112,10 +112,11 @@ export async function prerenderProject(projectSlug) {
 
   const [galRows] = await query(
     `SELECT g.id, g.slug, g.title, g.date, g.location, g.description, g.cover_photo,
-            g.primary_photographer_id, u.name AS primary_photographer_name
+            g.type, g.primary_photographer_id, u.name AS primary_photographer_name
      FROM galleries g
      LEFT JOIN users u ON u.id = g.primary_photographer_id
-     WHERE g.project_id = ? AND g.access = 'public' AND g.build_status = 'done'
+     WHERE g.project_id = ? AND g.access = 'public'
+       AND (g.build_status = 'done' OR g.type = 'video')
      ORDER BY g.sort_order ASC, g.date DESC, g.created_at DESC`,
     [project.id]
   );
@@ -137,13 +138,26 @@ export async function prerenderProject(projectSlug) {
   }
 
   const galleries = await Promise.all(galRows.map(async g => {
+    if (g.type === 'video') {
+      // Video gallery — no build output, link to /watch/:slug
+      const photographers = pgMap[g.id]?.length
+        ? pgMap[g.id]
+        : (g.primary_photographer_name ? [g.primary_photographer_name] : []);
+      return {
+        slug: g.slug, title: g.title, date: g.date, location: g.location,
+        description: g.description || null,
+        photographers,
+        coverName: null, photoCount: null, dateRange: null,
+        type: 'video',
+        watchUrl: `/watch/${g.slug}`,
+      };
+    }
     const distSlug = `${projectSlug}/${g.slug}`;
     const [coverName, photoCount, dateRange] = await Promise.all([
       getCoverName(g, distSlug),
       getPublicPhotoCount(g.slug),
       getPublicDateRange(distSlug),
     ]);
-    // Fall back to primary_photographer_id if no per-photo attribution exists
     const photographers = pgMap[g.id]?.length
       ? pgMap[g.id]
       : (g.primary_photographer_name ? [g.primary_photographer_name] : []);
@@ -152,6 +166,7 @@ export async function prerenderProject(projectSlug) {
       description: g.description || null,
       photographers,
       coverName, photoCount, dateRange,
+      type: 'photo',
     };
   }));
 
