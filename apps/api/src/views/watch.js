@@ -312,6 +312,11 @@ ${sidebarItems}
   var Button = videojs.getComponent('Button');
 
   class SeekBack10 extends Button {
+    constructor(player, options) {
+      super(player, options);
+      this.el().innerHTML = '<span style="font-size:1.1em;line-height:1">⏪</span>';
+      this.el().title = 'Reculer 10s';
+    }
     handleClick() {
       this.player_.currentTime(Math.max(0, this.player_.currentTime() - 10));
     }
@@ -320,6 +325,11 @@ ${sidebarItems}
   SeekBack10.prototype.controlText_ = 'Reculer 10s';
 
   class SeekFwd10 extends Button {
+    constructor(player, options) {
+      super(player, options);
+      this.el().innerHTML = '<span style="font-size:1.1em;line-height:1">⏩</span>';
+      this.el().title = 'Avancer 10s';
+    }
     handleClick() {
       this.player_.currentTime(this.player_.currentTime() + 10);
     }
