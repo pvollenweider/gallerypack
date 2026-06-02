@@ -259,12 +259,20 @@ router.patch('/:id/members/:userId', async (req, res) => {
   }
 
   const { userId } = req.params;
-  const { name, bio, isPhotographer } = req.body || {};
+  const { name, bio, isPhotographer, email } = req.body || {};
   const sets = [];
   const vals = [];
-  if (name          !== undefined) { sets.push('name = ?');            vals.push(name ?? ''); }
-  if (bio           !== undefined) { sets.push('bio = ?');             vals.push(bio ?? null); }
+  if (name           !== undefined) { sets.push('name = ?');            vals.push(name ?? ''); }
+  if (bio            !== undefined) { sets.push('bio = ?');             vals.push(bio ?? null); }
   if (isPhotographer !== undefined) { sets.push('is_photographer = ?'); vals.push(isPhotographer ? 1 : 0); }
+  if (email          !== undefined) {
+    const trimmed = (email || '').trim().toLowerCase();
+    if (!trimmed) return res.status(400).json({ error: 'Email cannot be empty' });
+    const [existing] = await query('SELECT id FROM users WHERE email = ? AND id != ?', [trimmed, userId]);
+    if (existing.length > 0) return res.status(409).json({ error: 'Email already in use by another account' });
+    sets.push('email = ?');
+    vals.push(trimmed);
+  }
   if (!sets.length) return res.status(400).json({ error: 'Nothing to update' });
 
   sets.push('updated_at = ?');

@@ -119,7 +119,7 @@ export default function OrganizationTeamPage() {
 
   function startEdit(m) {
     setEditing(m);
-    setEditForm({ name: m.name || '', bio: m.bio || '', isPhotographer: !!m.is_photographer || m.role === 'photographer', role: m.role });
+    setEditForm({ name: m.name || '', email: m.email || '', bio: m.bio || '', isPhotographer: !!m.is_photographer || m.role === 'photographer', role: m.role });
     setEditMsg(''); setEditErr('');
   }
 
@@ -133,8 +133,9 @@ export default function OrganizationTeamPage() {
     try {
       // Update profile fields
       await api.updateOrgMember(orgId, editing.id, {
-        name: editForm.name,
-        bio:  editForm.bio || null,
+        name:           editForm.name,
+        email:          editForm.email,
+        bio:            editForm.bio || null,
         isPhotographer: editForm.isPhotographer,
       });
       // Update role if changed
@@ -230,6 +231,16 @@ export default function OrganizationTeamPage() {
                         value={editForm.name}
                         onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
                         placeholder={t('profile_name_placeholder')}
+                        className="mb-0"
+                      />
+                    </div>
+                    <div className="col-sm-6 mb-3">
+                      <AdminInput
+                        label={t('login_email')}
+                        type="email"
+                        value={editForm.email}
+                        onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
+                        placeholder="email@example.com"
                         className="mb-0"
                       />
                     </div>
