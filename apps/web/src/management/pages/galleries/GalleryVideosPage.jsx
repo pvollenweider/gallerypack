@@ -89,7 +89,7 @@ function SortableVideoRow({ video, onDelete, onRetranscode, deleting, retriggeri
       </td>
       <td className="text-end">
         <div className="d-flex gap-1 justify-content-end">
-          {video.status === 'error' && (
+          {(video.status === 'error' || video.status === 'transcoding') && (
             <AdminButton
               variant="outline-warning"
               size="sm"

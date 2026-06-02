@@ -52,6 +52,13 @@ async function poll() {
 (async () => {
   try {
     await runMigrations();
+
+    // Reset any videos stuck in 'transcoding' — orphaned from a previous crash/restart
+    const [stuck] = await query("UPDATE videos SET status='pending', error_message=NULL WHERE status='transcoding'");
+    if (stuck.affectedRows > 0) {
+      console.log(`  ⚠  Reset ${stuck.affectedRows} orphaned transcoding job(s) to pending`);
+    }
+
     console.log('\n  ✓  GalleryPack video worker started\n');
 
     setInterval(poll, POLL_MS);
