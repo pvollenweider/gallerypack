@@ -36,6 +36,7 @@ import galleriesRoutes   from './routes/galleries.js';
 import accessRoutes      from './routes/access.js';
 import photosRoutes      from './routes/photos.js';
 import videoRoutes       from './routes/videos.js';
+import videoStreamRoutes from './routes/videoStream.js';
 import jobsRoutes        from './routes/jobs.js';
 import invitesRoutes     from './routes/invites.js';
 import invitationsRouter from './routes/invitations.js';
@@ -206,6 +207,8 @@ app.use('/api/public',              publicRoutes);
 app.use('/api/settings',            settingsRoutes);
 app.use('/api/auth',                authRoutes);
 
+
+app.use('/api/v', videoStreamRoutes);  // no auth middleware — token is in URL
 
 app.use('/api/galleries',           galleriesRoutes);
 app.use('/api/galleries',           accessRoutes);
