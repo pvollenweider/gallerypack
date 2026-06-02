@@ -228,6 +228,7 @@ export const api = {
 
   // Video management
   listVideos:       (galleryId)           => req('GET',    `/galleries/${galleryId}/videos`),
+  updateVideo:      (galleryId, videoId, data) => req('PATCH',  `/galleries/${galleryId}/videos/${videoId}`, data),
   deleteVideo:      (galleryId, videoId)  => req('DELETE', `/galleries/${galleryId}/videos/${videoId}`),
   retranscodeVideo: (galleryId, videoId)  => req('POST',   `/galleries/${galleryId}/videos/${videoId}/retranscode`),
   reorderVideos:    (galleryId, order)    => req('PATCH',  `/galleries/${galleryId}/videos/reorder`, { order }),

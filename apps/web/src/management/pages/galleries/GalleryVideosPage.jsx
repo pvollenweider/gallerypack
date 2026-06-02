@@ -46,7 +46,7 @@ function formatDate(ts) {
 }
 
 // ── Sortable video row ────────────────────────────────────────────────────────
-function SortableVideoRow({ video, onDelete, onRetranscode, deleting, retriggering, t }) {
+function SortableVideoRow({ video, onDelete, onRetranscode, onChangeMode, deleting, retriggering, t }) {
   const {
     attributes,
     listeners,
@@ -98,15 +98,29 @@ function SortableVideoRow({ video, onDelete, onRetranscode, deleting, retriggeri
       <td className="text-muted" style={{ fontSize: '0.85rem' }}>
         {formatDuration(video.duration_sec)}
       </td>
+      <td>
+        <select
+          className="form-select form-select-sm"
+          style={{ fontSize: '0.75rem', minWidth: '130px' }}
+          value={video.transcode_mode || 'auto'}
+          disabled={video.status === 'transcoding'}
+          onChange={e => onChangeMode(video.id, e.target.value)}
+        >
+          <option value="auto">Auto (remux)</option>
+          <option value="creator_720p">Creator 720p</option>
+          <option value="creator_1080p">Creator 1080p ★</option>
+          <option value="force_abr">ABR 3 qualités</option>
+        </select>
+      </td>
       <td className="text-end">
         <div className="d-flex gap-1 justify-content-end">
-          {(video.status === 'error' || video.status === 'transcoding') && (
+          {video.status !== 'transcoding' && (
             <AdminButton
               variant="outline-warning"
               size="sm"
               loading={retriggering === video.id}
               onClick={() => onRetranscode(video.id)}
-              title="Retranscode"
+              title="Retraiter"
             >
               <i className="fas fa-redo" />
             </AdminButton>
@@ -210,6 +224,13 @@ export default function GalleryVideosPage() {
     } finally {
       setDeleting(null);
     }
+  }
+
+  async function handleChangeMode(videoId, mode) {
+    try {
+      await api.updateVideo(galleryId, videoId, { transcode_mode: mode });
+      setVideos(prev => prev.map(v => v.id === videoId ? { ...v, transcode_mode: mode } : v));
+    } catch (err) { setToast(err.message); }
   }
 
   async function handleRetranscode(videoId) {
@@ -457,6 +478,7 @@ export default function GalleryVideosPage() {
                             video={video}
                             onDelete={handleDelete}
                             onRetranscode={handleRetranscode}
+              onChangeMode={handleChangeMode}
                             deleting={deleting}
                             retriggering={retriggering}
                             t={t}

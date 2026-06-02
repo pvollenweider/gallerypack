@@ -181,6 +181,49 @@ export function buildSingleEncodeArgs(inputPath, hlsDir) {
 }
 
 /**
+ * Build FFmpeg args for Creator 1080p streaming mode.
+ * Equivalent to HandBrake "Creator 1080p60" — CRF 20 + maxrate cap for
+ * predictable segment sizes. Produces single-quality HLS (index.m3u8).
+ * maxrate 6000k → segment ≤ ~5 MB at 6s — smooth streaming without buffering.
+ */
+export function buildCreator1080pArgs(inputPath, hlsDir) {
+  return [
+    '-i', inputPath,
+    '-c:v', 'libx264', '-crf', '20', '-preset', 'medium',
+    '-maxrate', '6000k', '-bufsize', '12000k',
+    '-vf', 'scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2',
+    '-pix_fmt', 'yuv420p',
+    '-c:a', 'aac', '-b:a', '256k', '-ac', '2',
+    '-f', 'hls',
+    '-hls_time', SEGMENT_SEC,
+    '-hls_playlist_type', 'vod',
+    '-hls_segment_filename', `${hlsDir}/seg%03d.ts`,
+    `${hlsDir}/index.m3u8`,
+  ];
+}
+
+/**
+ * Build FFmpeg args for Creator 720p streaming mode.
+ * Equivalent to HandBrake "Creator 720p60" — CRF 19 + maxrate cap.
+ * maxrate 3500k → segment ≤ ~3 MB at 6s — optimal for reliable streaming.
+ */
+export function buildCreator720pArgs(inputPath, hlsDir) {
+  return [
+    '-i', inputPath,
+    '-c:v', 'libx264', '-crf', '19', '-preset', 'medium',
+    '-maxrate', '3500k', '-bufsize', '7000k',
+    '-vf', 'scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2',
+    '-pix_fmt', 'yuv420p',
+    '-c:a', 'aac', '-b:a', '192k', '-ac', '2',
+    '-f', 'hls',
+    '-hls_time', SEGMENT_SEC,
+    '-hls_playlist_type', 'vod',
+    '-hls_segment_filename', `${hlsDir}/seg%03d.ts`,
+    `${hlsDir}/index.m3u8`,
+  ];
+}
+
+/**
  * Build FFmpeg args for multi-bitrate ABR (1080p / 720p / 480p) with a master playlist.
  */
 export function buildAbrArgs(inputPath, hlsDir) {
@@ -250,8 +293,14 @@ export async function transcode(video) {
   if (video.transcode_mode === 'force_abr') {
     ffmpegArgs = buildAbrArgs(inputPath, hlsDir);
     hlsPath    = `${hlsDir}/master.m3u8`;
+  } else if (video.transcode_mode === 'creator_1080p') {
+    ffmpegArgs = buildCreator1080pArgs(inputPath, hlsDir);
+    hlsPath    = `${hlsDir}/index.m3u8`;
+  } else if (video.transcode_mode === 'creator_720p') {
+    ffmpegArgs = buildCreator720pArgs(inputPath, hlsDir);
+    hlsPath    = `${hlsDir}/index.m3u8`;
   } else {
-    // 'auto' (or any unrecognised mode): remux if already H.264/AAC, else re-encode
+    // 'auto' (default): remux if already H.264/AAC, else single re-encode
     if (isH264Aac) {
       ffmpegArgs = buildRemuxArgs(inputPath, hlsDir);
     } else {
