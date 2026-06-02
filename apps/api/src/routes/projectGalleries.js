@@ -127,6 +127,7 @@ function rowToGallery(row, { dateRange = null, studio = null, project = null } =
     primaryPhotographerId: row.primary_photographer_id ?? null,
     watermark:            (() => { try { return JSON.parse(row.config_json || '{}').watermark ?? null; } catch { return null; } })(),
     mode:                 row.gallery_mode ?? null,
+    type:                 row.type || 'photo',
     policy:               resolveGalleryPolicy(row),
     firstPhoto:           row.cover_photo || getFirstPhoto(row.slug),
     dateRange,
