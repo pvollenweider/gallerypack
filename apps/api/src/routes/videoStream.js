@@ -19,9 +19,9 @@ const VIDEO_STORAGE_PATH = process.env.VIDEO_STORAGE_PATH || 'storage/videos';
 
 // ── Route 1: Token-protected HLS file serving ─────────────────────────────────
 // GET /api/v/:token/galleries/:galleryId/videos/:videoSlug/stream/*filepath
-router.get('/:token/galleries/:galleryId/videos/:videoSlug/stream/*', async (req, res) => {
+router.get('/:token/galleries/:galleryId/videos/:videoSlug/stream/*filepath', async (req, res) => {
   const { token: rawToken, galleryId, videoSlug } = req.params;
-  const filepath = req.params[0]; // Express wildcard capture
+  const filepath = req.params.filepath; // Express wildcard capture
 
   // 1. Validate token
   const token = await getViewerToken(rawToken);
