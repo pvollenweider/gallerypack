@@ -203,7 +203,7 @@ router.get('/:id/videos/stats', async (req, res) => {
     FROM viewer_tokens vt
     LEFT JOIN video_view_events e ON e.token_id = vt.id
     WHERE vt.scope_type = 'gallery' AND vt.scope_id = ? AND vt.revoked_at IS NULL
-    GROUP BY vt.id ORDER BY last_view_at IS NULL, last_view_at DESC
+    GROUP BY vt.id ORDER BY MAX(e.created_at) IS NULL, MAX(e.created_at) DESC
   `, [gallery.id]);
 
   res.json({
