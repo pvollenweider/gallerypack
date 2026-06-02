@@ -77,6 +77,17 @@ function SortableVideoRow({ video, onDelete, onRetranscode, deleting, retriggeri
         <AdminBadge color={STATUS_COLOR[video.status] || 'secondary'}>
           {video.status}
         </AdminBadge>
+        {video.status === 'transcoding' && video.transcode_progress > 0 && (
+          <div style={{ marginTop: '4px', minWidth: '140px' }}>
+            <div className="progress" style={{ height: '4px' }}>
+              <div className="progress-bar bg-primary" style={{ width: `${Math.round(video.transcode_progress * 100)}%` }} />
+            </div>
+            <div className="text-muted" style={{ fontSize: '0.7rem', marginTop: '2px' }}>
+              {Math.round(video.transcode_progress * 100)}%
+              {video.transcode_eta_sec > 0 && ` · ~${Math.ceil(video.transcode_eta_sec / 60)} min restante${video.transcode_eta_sec > 120 ? 's' : ''}`}
+            </div>
+          </div>
+        )}
         {video.error_message && (
           <div className="text-danger" style={{ fontSize: '0.75rem', maxWidth: '200px' }}
             title={video.error_message}>

@@ -78,14 +78,43 @@ export async function probe(inputPath) {
  * @param {number}   timeoutMs
  * @returns {Promise<void>}
  */
-export function spawnFfmpegWith(binary, args, timeoutMs) {
+/** Parse FFmpeg progress line → { encodedSec, speed } or null */
+function parseProgress(line) {
+  const timeMatch  = line.match(/time=(\d+):(\d+):(\d+\.\d+)/);
+  const speedMatch = line.match(/speed=\s*([\d.]+)x/);
+  if (!timeMatch) return null;
+  const encodedSec = parseInt(timeMatch[1]) * 3600 + parseInt(timeMatch[2]) * 60 + parseFloat(timeMatch[3]);
+  const speed      = speedMatch ? parseFloat(speedMatch[1]) : 1;
+  return { encodedSec, speed };
+}
+
+export function spawnFfmpegWith(binary, args, timeoutMs, { durationSec, onProgress } = {}) {
   return new Promise((resolve, reject) => {
     const proc = spawn(binary, args, {
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 
-    let stderr = '';
-    proc.stderr.on('data', d => { stderr += d.toString(); });
+    let stderr  = '';
+    let lastReport = 0;
+
+    proc.stderr.on('data', d => {
+      const chunk = d.toString();
+      stderr += chunk;
+
+      // Throttle progress updates to once per 3s
+      if (onProgress && durationSec && Date.now() - lastReport > 3000) {
+        for (const line of chunk.split('\r').reverse()) {
+          const p = parseProgress(line);
+          if (p && p.encodedSec > 0) {
+            const progress = Math.min(p.encodedSec / durationSec, 0.99);
+            const etaSec   = p.speed > 0 ? Math.round((durationSec - p.encodedSec) / p.speed) : null;
+            onProgress(progress, etaSec);
+            lastReport = Date.now();
+            break;
+          }
+        }
+      }
+    });
 
     const timer = setTimeout(() => {
       proc.kill('SIGKILL');
@@ -114,8 +143,8 @@ export function spawnFfmpegWith(binary, args, timeoutMs) {
  * @param {number}   timeoutMs
  * @returns {Promise<void>}
  */
-export function spawnFfmpeg(args, timeoutMs) {
-  return spawnFfmpegWith(FFMPEG_PATH, args, timeoutMs);
+export function spawnFfmpeg(args, timeoutMs, opts = {}) {
+  return spawnFfmpegWith(FFMPEG_PATH, args, timeoutMs, opts);
 }
 
 // ─── Command builders ─────────────────────────────────────────────────────────
@@ -231,8 +260,16 @@ export async function transcode(video) {
     hlsPath = `${hlsDir}/index.m3u8`;
   }
 
-  // ── Step 5: spawn FFmpeg (with hard timeout) ───────────────────────────────
-  await spawnFfmpeg(ffmpegArgs, TIMEOUT_MS);
+  // ── Step 5: spawn FFmpeg (with hard timeout + progress reporting) ────────────
+  await spawnFfmpeg(ffmpegArgs, TIMEOUT_MS, {
+    durationSec,
+    onProgress: async (progress, etaSec) => {
+      await query(
+        'UPDATE videos SET transcode_progress = ?, transcode_eta_sec = ? WHERE id = ?',
+        [progress, etaSec, video.id]
+      ).catch(() => {});
+    },
+  });
 
   // ── Step 6: extract cover thumbnail (best-effort, don't fail transcode) ────
   const coverPath = `${VIDEO_STORAGE_PATH}/${video.gallery_id}/cover_${video.id}.jpg`;
@@ -254,7 +291,7 @@ export async function transcode(video) {
 
   // ── Step 7: update DB ──────────────────────────────────────────────────────
   await query(
-    "UPDATE videos SET status='ready', hls_path=?, duration_sec=?, source_codec=?, updated_at=NOW() WHERE id=?",
+    "UPDATE videos SET status='ready', hls_path=?, duration_sec=?, source_codec=?, transcode_progress=1, transcode_eta_sec=0, updated_at=NOW() WHERE id=?",
     [hlsPath, durationSec, `${videoCodec}/${audioCodec}`, video.id],
   );
 }
