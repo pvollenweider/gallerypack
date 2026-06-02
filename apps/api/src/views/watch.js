@@ -308,25 +308,27 @@ ${sidebarItems}
     } catch (e) {}
   }
 
-  /* ── ±10 s button component ────────────────────────────────────────────── */
-  function makeSeekButton(direction, label, className) {
-    var Button = videojs.getComponent('Button');
-    var SeekBtn = videojs.extend(Button, {
-      constructor: function (player, options) {
-        Button.call(this, player, options);
-        this.addClass(className);
-        this.controlText(label);
-      },
-      handleClick: function () {
-        var t = this.player_.currentTime();
-        this.player_.currentTime(Math.max(0, t + direction * 10));
-      },
-    });
-    return SeekBtn;
-  }
+  /* ── ±10 s button component (Video.js 8 — ES6 class, no videojs.extend) ── */
+  var Button = videojs.getComponent('Button');
 
-  videojs.registerComponent('SeekBack10', makeSeekButton(-1, 'Reculer 10s', 'vjs-seek-back-10'));
-  videojs.registerComponent('SeekFwd10',  makeSeekButton(+1, 'Avancer 10s',  'vjs-seek-fwd-10'));
+  class SeekBack10 extends Button {
+    handleClick() {
+      this.player_.currentTime(Math.max(0, this.player_.currentTime() - 10));
+    }
+    buildCSSClass() { return 'vjs-seek-back-10 ' + super.buildCSSClass(); }
+  }
+  SeekBack10.prototype.controlText_ = 'Reculer 10s';
+
+  class SeekFwd10 extends Button {
+    handleClick() {
+      this.player_.currentTime(this.player_.currentTime() + 10);
+    }
+    buildCSSClass() { return 'vjs-seek-fwd-10 ' + super.buildCSSClass(); }
+  }
+  SeekFwd10.prototype.controlText_ = 'Avancer 10s';
+
+  videojs.registerComponent('SeekBack10', SeekBack10);
+  videojs.registerComponent('SeekFwd10',  SeekFwd10);
 
   /* ── Player init ───────────────────────────────────────────────────────── */
   var player = videojs('main-video', {
