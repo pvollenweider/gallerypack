@@ -947,8 +947,8 @@
   "wm_mode_photographer": "Fotografens namn",
   "wm_mode_photographer_hint": "per foto — inget vattenstämpel om ej tilldelad",
   "wm_mode_forced": "Anpassad text",
-  "gal_mode_requires_watermark": "galleriläge kräver vattenstämpel"
+  "gal_mode_requires_watermark": "galleriläge kräver vattenstämpel",
   "gal_type_label": "Typ",
   "gal_type_photo": "Foto",
-  "gal_type_video": "Video",
+  "gal_type_video": "Video"
 }

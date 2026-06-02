@@ -947,8 +947,8 @@
   "wm_mode_photographer": "사진작가 이름",
   "wm_mode_photographer_hint": "사진별 — 미할당 시 워터마크 없음",
   "wm_mode_forced": "사용자 정의 텍스트",
-  "gal_mode_requires_watermark": "갤러리 모드에 워터마크가 필요합니다"
+  "gal_mode_requires_watermark": "갤러리 모드에 워터마크가 필요합니다",
   "gal_type_label": "유형",
   "gal_type_photo": "사진",
-  "gal_type_video": "동영상",
+  "gal_type_video": "동영상"
 }
