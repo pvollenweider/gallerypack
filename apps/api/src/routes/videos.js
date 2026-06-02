@@ -395,4 +395,25 @@ router.get('/:id/access-requests', async (req, res) => {
   res.json(rows);
 });
 
+// ── DELETE /:id/access-requests/:requestId ────────────────────────────────────
+router.delete('/:id/access-requests/:requestId', async (req, res) => {
+  const gallery = await ensureGalleryBelongsToOrg(req, res);
+  if (!gallery) return;
+  const galleryRole = await getGalleryRole(req.userId, gallery.id);
+  if (!can(req.user, 'edit', 'gallery', { gallery, studioRole: req.studioRole, galleryRole })) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  const [rows] = await query(
+    'SELECT id, token_id FROM access_requests WHERE id = ? AND gallery_id = ?',
+    [req.params.requestId, gallery.id]
+  );
+  if (!rows[0]) return res.status(404).json({ error: 'Not found' });
+  // Revoke associated viewer token if any
+  if (rows[0].token_id) {
+    await query('UPDATE viewer_tokens SET revoked_at = NOW() WHERE id = ?', [rows[0].token_id]);
+  }
+  await query('DELETE FROM access_requests WHERE id = ?', [req.params.requestId]);
+  res.json({ ok: true });
+});
+
 export default router;

@@ -258,7 +258,8 @@ export const api = {
   },
 
   // Access requests (enrollment)
-  listAccessRequests: (galleryId) => req('GET', `/galleries/${galleryId}/access-requests`),
+  listAccessRequests:   (galleryId)            => req('GET',    `/galleries/${galleryId}/access-requests`),
+  deleteAccessRequest: (galleryId, requestId)  => req('DELETE', `/galleries/${galleryId}/access-requests/${requestId}`),
 
   // Bulk photo copy / move (issue #465)
   copyPhotos: (galleryId, photoIds, targetGalleryId) =>

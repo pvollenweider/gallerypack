@@ -517,6 +517,7 @@ export default function GalleryVideosPage() {
                       <th>Statut</th>
                       <th>{t('created_at') || 'Demandé le'}</th>
                       <th>{t('gal_confirmed_at') || 'Confirmé le'}</th>
+                      <th></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -526,6 +527,16 @@ export default function GalleryVideosPage() {
                         <td><AdminBadge color={r.status === 'confirmed' ? 'success' : 'warning'}>{r.status}</AdminBadge></td>
                         <td className="text-muted" style={{ fontSize: '0.85rem' }}>{formatDate(r.created_at)}</td>
                         <td className="text-muted" style={{ fontSize: '0.85rem' }}>{r.confirmed_at ? formatDate(r.confirmed_at) : '—'}</td>
+                        <td>
+                          <AdminButton
+                            variant="outline-danger" size="sm"
+                            onClick={async () => {
+                              if (!window.confirm(`Supprimer la demande de ${r.email} ?`)) return;
+                              await api.deleteAccessRequest(galleryId, r.id);
+                              setAccessReqs(prev => prev.filter(x => x.id !== r.id));
+                            }}
+                          >{t('delete') || 'Supprimer'}</AdminButton>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
