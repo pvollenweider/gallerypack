@@ -245,6 +245,7 @@ export default function GalleryVideosPage() {
   const [tokenErr,     setTokenErr]     = useState('');
   const [newLabel,     setNewLabel]     = useState('');
   const [creatingToken,setCreatingToken]= useState(false);
+  const [freshLink,    setFreshLink]    = useState(null);
   const [revokingId,   setRevokingId]   = useState(null);
   const [accessReqs,   setAccessReqs]   = useState([]);
   const [loadingReqs,  setLoadingReqs]  = useState(false);
@@ -283,6 +284,9 @@ export default function GalleryVideosPage() {
     try {
       const tok = await api.createViewerToken(galleryId, { label: newLabel.trim() });
       setTokens(prev => [tok, ...prev]);
+      if (tok.token) {
+        setFreshLink({ url: `${window.location.origin}/watch/${tok.token}`, label: newLabel.trim() });
+      }
       setNewLabel('');
     } catch (err) {
       setTokenErr(err.message);
@@ -505,6 +509,25 @@ export default function GalleryVideosPage() {
               </AdminButton>
             </div>
           </AdminCard>
+          )}
+
+          {/* Fresh link — shown once right after creation */}
+          {freshLink && (
+            <div className="alert alert-success d-flex align-items-start gap-3 mb-3">
+              <div className="flex-grow-1">
+                <div className="fw-semibold mb-1" style={{ fontSize: '0.88rem' }}>
+                  Lien créé pour « {freshLink.label} » — copiez-le maintenant, il ne sera plus affiché.
+                </div>
+                <code style={{ wordBreak: 'break-all', fontSize: '0.82rem' }}>{freshLink.url}</code>
+              </div>
+              <div className="d-flex gap-1 flex-shrink-0">
+                <AdminButton size="sm" icon="fas fa-copy"
+                  onClick={() => navigator.clipboard.writeText(freshLink.url)}>
+                  {t('copy') || 'Copier'}
+                </AdminButton>
+                <button className="btn-close" onClick={() => setFreshLink(null)} />
+              </div>
+            </div>
           )}
 
           {/* Manual token creation */}
