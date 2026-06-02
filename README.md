@@ -11,13 +11,15 @@ GalleryPack is a SaaS platform for professional photographers to build and deliv
 - **Static gallery generation** -- photos are resized to optimized WebP, bundled into standalone HTML/CSS/JS sites
 - **Multi-tenant** -- run a single installation for multiple organizations, each with its own domain or subdomain
 - **Resumable uploads** -- tus-based chunked uploads with duplicate detection and conflict resolution
-- **Watermarking** -- configurable text watermark on full-size images using Sharp SVG compositing
+- **Watermarking** -- per-photographer or custom text watermark on full-size images; mode configurable per gallery (none / photographer name / forced text)
 - **Role-based access control** -- four-level permission model (platform, organization, project, gallery)
 - **Private galleries** -- password-protected or token-based access with revocable viewer tokens
 - **Internationalization** -- admin UI available in 18 locales
 - **S3 or local storage** -- works with AWS S3, Cloudflare R2, MinIO, or the local filesystem
 - **Real-time build progress** -- SSE-streamed build logs with live progress bar
+- **AI photo descriptions** -- Claude Vision generates alt text and lightbox captions per photo; bulk generation; AI-extracted geolocation with Nominatim geocoding
 - **Photo insights** -- focal-length distribution, camera stats, and AI-generated lens insights
+- **Advanced photo management** -- admin lightbox (double-click preview), natural aspect-ratio grid, bulk copy/move photos between galleries, full-width layout toggle
 - **Invitation system** -- invite photographers by email with optional gallery assignment and copyable links
 
 ---

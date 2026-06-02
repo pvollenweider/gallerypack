@@ -79,6 +79,7 @@ Copy `.env.example` to `.env` on the server and fill in the values marked requir
 | `S3_ENDPOINT` | — | S3-compatible endpoint URL |
 | `S3_ACCESS_KEY_ID` | — | S3 access key ID |
 | `S3_SECRET_ACCESS_KEY` | — | S3 secret access key |
+| `ANTHROPIC_API_KEY` | — | Anthropic API key — enables AI photo descriptions (Claude Vision). Optional; feature disabled if absent. |
 
 ---
 

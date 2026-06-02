@@ -71,12 +71,14 @@ All other variables have sensible defaults. See `.env.example` for the full list
 
 There is no standalone native dev server that wires up MariaDB and Redis. Use Docker for the full stack.
 
-For quick iteration on the API or worker without rebuilding images, the root `package.json` exposes two direct-run scripts (assumes a database and Redis are already available):
+For quick iteration on the API or worker without rebuilding images, the root `package.json` exposes direct-run scripts (assumes a database and Redis are already available):
 
 ```bash
 npm run dev:api      # node apps/api/src/server.js
 npm run dev:worker   # node workers/builder/src/index.js
 ```
+
+Optional: set `ANTHROPIC_API_KEY` in `.env` to enable AI photo description generation during local development.
 
 Running the test suite:
 
