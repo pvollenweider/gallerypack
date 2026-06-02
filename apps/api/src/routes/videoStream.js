@@ -78,8 +78,11 @@ router.get('/:token/galleries/:galleryId/videos/:videoSlug/stream/*filepath', as
     // 7. Touch token (fire and forget)
     touchViewerToken(token.id).catch(() => {});
 
-    // 8. Send file with explicit root to satisfy Express 5
-    res.sendFile(path.basename(resolvedPath), { root: path.dirname(resolvedPath) }, (err) => {
+    // 8. Send file with Range support (critical for seeking in large segments)
+    res.sendFile(path.basename(resolvedPath), {
+      root:         path.dirname(resolvedPath),
+      acceptRanges: true,
+    }, (err) => {
       if (err && !res.headersSent) {
         console.error('[stream] sendFile error:', err.message, resolvedPath);
         res.status(500).json({ error: 'Stream error' });
