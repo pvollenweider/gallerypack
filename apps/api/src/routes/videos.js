@@ -157,14 +157,13 @@ router.post('/:id/videos', (req, res, next) => {
       [gallery.id]
     );
 
-    const now = Date.now();
     await query(
       `INSERT INTO videos
          (id, gallery_id, title, slug, original_path, hls_path, transcode_mode, source_codec,
           status, error_message, duration_sec, sort_order, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, NULL, 'auto', NULL, 'pending', NULL, NULL, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, NULL, 'auto', NULL, 'pending', NULL, NULL, ?, NOW(), NOW())`,
       [videoId, gallery.id, rawTitle || path.basename(req.file.originalname, ext), slug,
-       finalPath, maxRow.next_order, now, now]
+       finalPath, maxRow.next_order]
     );
 
     const [[video]] = await query('SELECT * FROM videos WHERE id = ?', [videoId]);
@@ -248,14 +247,13 @@ router.patch('/:id/videos/reorder', async (req, res) => {
   }
 
   // Batch update: UPDATE videos SET sort_order = CASE id WHEN ? THEN 0 WHEN ? THEN 1 ... END
-  const now = Date.now();
   const cases = order.map(() => 'WHEN ? THEN ?').join(' ');
   const caseVals = order.flatMap((id, i) => [id, i]);
   const inPlaceholders = order.map(() => '?').join(', ');
 
   await query(
-    `UPDATE videos SET sort_order = CASE id ${cases} END, updated_at = ? WHERE gallery_id = ? AND id IN (${inPlaceholders})`,
-    [...caseVals, now, gallery.id, ...order]
+    `UPDATE videos SET sort_order = CASE id ${cases} END, updated_at = NOW() WHERE gallery_id = ? AND id IN (${inPlaceholders})`,
+    [...caseVals, gallery.id, ...order]
   );
 
   res.json({ ok: true });
@@ -309,8 +307,8 @@ router.patch('/:id/videos/:videoId', async (req, res) => {
     return res.status(400).json({ error: 'No valid fields to update' });
   }
 
-  updates.push('updated_at = ?');
-  params.push(Date.now(), req.params.videoId, gallery.id);
+  updates.push('updated_at = NOW()');
+  params.push(req.params.videoId, gallery.id);
 
   await query(`UPDATE videos SET ${updates.join(', ')} WHERE id = ? AND gallery_id = ?`, params);
 
@@ -372,8 +370,8 @@ router.post('/:id/videos/:videoId/retranscode', async (req, res) => {
   if (!video) return res.status(404).json({ error: 'Video not found' });
 
   await query(
-    "UPDATE videos SET status = 'pending', error_message = NULL, hls_path = NULL, updated_at = ? WHERE id = ? AND gallery_id = ?",
-    [Date.now(), video.id, gallery.id]
+    "UPDATE videos SET status = 'pending', error_message = NULL, hls_path = NULL, updated_at = NOW() WHERE id = ? AND gallery_id = ?",
+    [video.id, gallery.id]
   );
 
   const [[updated]] = await query('SELECT * FROM videos WHERE id = ? AND gallery_id = ?', [video.id, gallery.id]);
