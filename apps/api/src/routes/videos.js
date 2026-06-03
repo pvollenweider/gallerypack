@@ -17,10 +17,9 @@ import { requireAuth } from '../middleware/auth.js';
 import { can }         from '../authorization/index.js';
 import { prerenderProject } from '../services/prerender.js';
 
-const router = Router();
-
-// ── GET /:id/video-cover — public, no auth (thumbnail for public listings) ───
-router.get('/:id/video-cover', async (req, res) => {
+// ── Public router (no auth) — mounted separately at /api/video-covers ───────
+export const publicVideoRouter = Router();
+publicVideoRouter.get('/:id', async (req, res) => {
   const [rows] = await query('SELECT id FROM galleries WHERE id = ?', [req.params.id]);
   if (!rows[0]) return res.status(404).end();
   const coverPath = path.resolve(VIDEO_STORAGE_PATH, req.params.id, 'cover.jpg');
@@ -30,6 +29,7 @@ router.get('/:id/video-cover', async (req, res) => {
   res.sendFile(path.basename(coverPath), { root: path.dirname(coverPath) });
 });
 
+const router = Router();
 router.use(requireAuth);
 
 const VIDEO_STORAGE_PATH = process.env.VIDEO_STORAGE_PATH || 'storage/videos';

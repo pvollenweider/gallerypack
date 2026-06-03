@@ -35,7 +35,7 @@ import authRoutes        from './routes/auth.js';
 import galleriesRoutes   from './routes/galleries.js';
 import accessRoutes      from './routes/access.js';
 import photosRoutes      from './routes/photos.js';
-import videoRoutes       from './routes/videos.js';
+import videoRoutes, { publicVideoRouter } from './routes/videos.js';
 import videoStreamRoutes from './routes/videoStream.js';
 import jobsRoutes        from './routes/jobs.js';
 import invitesRoutes     from './routes/invites.js';
@@ -212,6 +212,7 @@ app.use('/api/auth',                authRoutes);
 
 
 app.use('/api/v', videoStreamRoutes);  // no auth middleware — token is in URL
+app.use('/api/video-covers', publicVideoRouter); // public video gallery covers
 app.use('/watch',  watchRoutes);        // public video viewer page
 app.use('/',       enrollRoutes);       // /enroll/:ref, /enroll/confirm/:token (HTML)
 app.use('/api',    enrollRoutes);       // /api/enroll/:ref (JSON POST)

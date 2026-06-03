@@ -415,7 +415,7 @@ export default function GalleryVideosPage() {
                 const fd = new FormData();
                 fd.append('cover', file);
                 try {
-                  await fetch(`/api/galleries/${galleryId}/video-cover`, { method: 'POST', body: fd, credentials: 'include' });
+                  await fetch(`/api/video-covers/${galleryId}`, { method: 'POST', body: fd, credentials: 'include' });
                 } catch {}
                 e.target.value = '';
               }}
@@ -431,7 +431,7 @@ export default function GalleryVideosPage() {
             </AdminButton>
             <div className="d-flex align-items-center gap-2">
               <img
-                src={`/api/galleries/${galleryId}/video-cover?t=${Date.now()}`}
+                src={`/api/video-covers/${galleryId}?t=${Date.now()}`}
                 alt="Cover"
                 style={{ width: 48, height: 27, objectFit: 'cover', borderRadius: 3, background: '#dee2e6', flexShrink: 0 }}
                 onError={e => { e.target.style.display='none'; }}
