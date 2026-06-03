@@ -156,11 +156,23 @@ router.post('/enroll/:galleryRef', async (req, res) => {
 
     if (existing) {
       if (existing.status === 'confirmed') {
-        // They already have access — tell them to check their email
-        return res.status(200).json({
-          ok: true,
-          message: "Vous avez déjà confirmé votre accès. Vérifiez votre boîte e-mail pour retrouver votre lien personnel.",
-        });
+        // Re-send watch link to their email
+        if (existing.token_id) {
+          const [vtRows] = await query('SELECT token_hash FROM viewer_tokens WHERE id = ? AND revoked_at IS NULL LIMIT 1', [existing.token_id]);
+          if (vtRows[0]) {
+            // We only have the hash, not the raw token — generate a new token and update
+            const rawToken  = (await import('crypto')).randomBytes(32).toString('hex');
+            const { createHash } = await import('crypto');
+            const tokenHash = createHash('sha256').update(rawToken).digest('hex');
+            await query('UPDATE viewer_tokens SET token_hash = ? WHERE id = ?', [tokenHash, existing.token_id]);
+            const watchUrl = `${BASE_URL}/watch/${rawToken}`;
+            const subject  = `Votre lien d'accès — ${gallery.title}`;
+            const text     = `Voici votre lien d'accès personnel :\n${watchUrl}\n\nCe lien vous est personnel. Merci de ne pas le partager.`;
+            const html     = `<p>Voici votre lien d'accès personnel :</p><p><a href="${watchUrl}">${watchUrl}</a></p><p>Ce lien vous est personnel. Merci de ne pas le partager.</p>`;
+            sendEmail({ organizationId: gallery.organization_id, to: rawEmail, subject, html, text, template: 'watch-link-resend' });
+          }
+        }
+        return res.status(200).json({ ok: true, message: "Votre lien d'accès vous a été renvoyé par email." });
       }
 
       // status === 'pending' — re-send confirmation (idempotent)
