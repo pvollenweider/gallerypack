@@ -64,7 +64,7 @@ export default function ProjectGalleriesPage() {
 
   // Create form
   const [showCreate, setShowCreate] = useState(false);
-  const [newG,       setNewG]       = useState({ title: '', slug: '', description: '' });
+  const [newG,       setNewG]       = useState({ title: '', slug: '', description: '', type: 'photo' });
   const [slugEdited, setSlugEdited] = useState(false);
   const [creating,   setCreating]   = useState(false);
   const [createErr,  setCreateErr]  = useState('');
@@ -104,7 +104,7 @@ export default function ProjectGalleriesPage() {
   }
 
   function resetForm() {
-    setNewG({ title: '', slug: '', description: '' });
+    setNewG({ title: '', slug: '', description: '', type: 'photo' });
     setSlugEdited(false);
     setCreateErr('');
   }
@@ -121,7 +121,11 @@ export default function ProjectGalleriesPage() {
       const gallery = await api.createProjectGallery(projectId, newG);
       resetForm();
       setShowCreate(false);
-      navigate(`/admin/organizations/${orgId}/projects/${projectId}/galleries/${gallery.id}/photos`);
+      if (gallery.type === 'video') {
+        navigate(`/admin/organizations/${orgId}/projects/${projectId}/galleries/${gallery.id}/videos`);
+      } else {
+        navigate(`/admin/organizations/${orgId}/projects/${projectId}/galleries/${gallery.id}/photos`);
+      }
     } catch (err) {
       setCreateErr(err.message);
     } finally {
@@ -209,6 +213,23 @@ export default function ProjectGalleriesPage() {
       {showCreate && (
         <AdminCard title={t('proj_new_gallery_btn')} className="mb-3">
           <form onSubmit={create}>
+            <div className="mb-3">
+              <label className="form-label">{t('gal_type_label') || 'Type'}</label>
+              <div className="d-flex gap-3">
+                {['photo', 'video'].map(type => (
+                  <div key={type} className="form-check">
+                    <input className="form-check-input" type="radio" id={`type-${type}`}
+                      name="galleryType" value={type}
+                      checked={newG.type === type}
+                      onChange={() => setNewG(f => ({ ...f, type }))} />
+                    <label className="form-check-label" htmlFor={`type-${type}`}>
+                      <i className={`fas fa-${type === 'photo' ? 'images' : 'film'} me-1`} />
+                      {type === 'photo' ? (t('gal_type_photo') || 'Photo') : (t('gal_type_video') || 'Video')}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
             <div className="row">
               <div className="col-sm-5 mb-3">
                 <AdminInput
@@ -312,7 +333,15 @@ export default function ProjectGalleriesPage() {
                       </button>
                     </td>
                     <td>
-                      <Link to={`/admin/organizations/${orgId}/projects/${projectId}/galleries/${g.id}/photos`} className="fw-semibold text-body">{g.title || g.slug}</Link>
+                      <Link to={g.type === 'video'
+                        ? `/admin/organizations/${orgId}/projects/${projectId}/galleries/${g.id}/videos`
+                        : `/admin/organizations/${orgId}/projects/${projectId}/galleries/${g.id}/photos`}
+                        className="fw-semibold text-body">{g.title || g.slug}</Link>
+                      {g.type === 'video' && (
+                        <span className="badge bg-info text-dark ms-1" style={{ fontSize: '0.65rem' }}>
+                          <i className="fas fa-film me-1" />Video
+                        </span>
+                      )}
                       <div><code className="text-muted" style={{ fontSize: '0.72rem' }}>{g.slug}</code></div>
                     </td>
                     <td className="d-none d-sm-table-cell">
@@ -334,7 +363,7 @@ export default function ProjectGalleriesPage() {
                       <div className="d-flex gap-1 justify-content-end">
                         {g.access === 'public' && g.buildStatus === 'done' && (g.distName || g.slug) && (
                           <a
-                            href={`/${g.distName || g.slug}/`}
+                            href={g.type === 'video' ? `/watch/${g.slug}` : `/${g.distName || g.slug}/`}
                             target="_blank"
                             rel="noreferrer"
                             className="btn btn-sm btn-outline-success"
@@ -357,7 +386,10 @@ export default function ProjectGalleriesPage() {
                             <i className={`fas ${ACCESS_ICON.password}`} />
                           </span>
                         )}
-                        <Link to={`/admin/organizations/${orgId}/projects/${projectId}/galleries/${g.id}/photos`} className="btn btn-sm btn-outline-secondary">
+                        <Link to={g.type === 'video'
+                          ? `/admin/organizations/${orgId}/projects/${projectId}/galleries/${g.id}/videos`
+                          : `/admin/organizations/${orgId}/projects/${projectId}/galleries/${g.id}/photos`}
+                          className="btn btn-sm btn-outline-secondary">
                           {t('gal_overview_manage')} <i className="fas fa-chevron-right ms-1" />
                         </Link>
                       </div>

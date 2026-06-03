@@ -74,6 +74,7 @@ export default function ScopeSidebar({ scope, params = {}, isMobileDrawer = fals
   const [orgName,     setOrgName]     = useState('…');
   const [projectName, setProjectName] = useState('…');
   const [galleryName, setGalleryName] = useState('…');
+  const [galleryType, setGalleryType] = useState('photo');
 
   useEffect(() => {
     if (!params.orgId) return;
@@ -95,7 +96,7 @@ export default function ScopeSidebar({ scope, params = {}, isMobileDrawer = fals
     if (!params.galleryId) return;
     setGalleryName('…');
     api.getGallery(params.galleryId)
-      .then(g => setGalleryName(g.title || g.slug))
+      .then(g => { setGalleryName(g.title || g.slug); setGalleryType(g.type || 'photo'); })
       .catch(() => setGalleryName(params.galleryId.slice(0, 10)));
   }, [params.galleryId]);
 
@@ -184,11 +185,20 @@ export default function ScopeSidebar({ scope, params = {}, isMobileDrawer = fals
                     {hasGallery && galleryId && (
                       <>
                         <TreeLink to={projBase} label={t('nav_galleries')} depth={4} end onClick={click} />
-                        <TreeLink to={`${galBase}/photos`} label={galleryName} depth={5} bold onClick={click} />
-                        <TreeLink to={`${galBase}/settings`}   label={t('nav_settings')}   depth={6} onClick={click} />
-                        <TreeLink to={`${galBase}/access`}     label={t('nav_access')}     depth={6} onClick={click} />
-                        <TreeLink to={`${galBase}/jobs`}       label={t('tab_jobs')}       depth={6} onClick={click} />
-                        <TreeLink to={`${galBase}/statistics`} label={t('nav_statistics')} depth={6} onClick={click} />
+                        <TreeLink to={`${galBase}/${galleryType === 'video' ? 'videos' : 'photos'}`} label={galleryName} depth={5} bold onClick={click} />
+                        {galleryType === 'video' ? (
+                          <>
+                            <TreeLink to={`${galBase}/settings`}   label={t('nav_settings')}   depth={6} onClick={click} />
+                            <TreeLink to={`${galBase}/access`}     label={t('nav_access')}     depth={6} onClick={click} />
+                          </>
+                        ) : (
+                          <>
+                            <TreeLink to={`${galBase}/settings`}   label={t('nav_settings')}   depth={6} onClick={click} />
+                            <TreeLink to={`${galBase}/access`}     label={t('nav_access')}     depth={6} onClick={click} />
+                            <TreeLink to={`${galBase}/jobs`}       label={t('tab_jobs')}       depth={6} onClick={click} />
+                            <TreeLink to={`${galBase}/statistics`} label={t('nav_statistics')} depth={6} onClick={click} />
+                          </>
+                        )}
                       </>
                     )}
 

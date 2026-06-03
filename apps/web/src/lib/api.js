@@ -226,6 +226,42 @@ export const api = {
   getPlatformLicenseUsage: ()         => req('GET',    '/platform/license/usage'),
   installPlatformLicense: (licenseJson) => req('POST', '/platform/license', { licenseJson }),
 
+  // Video management
+  listVideos:       (galleryId)           => req('GET',    `/galleries/${galleryId}/videos`),
+  updateVideo:      (galleryId, videoId, data) => req('PATCH',  `/galleries/${galleryId}/videos/${videoId}`, data),
+  deleteVideo:      (galleryId, videoId)  => req('DELETE', `/galleries/${galleryId}/videos/${videoId}`),
+  retranscodeVideo: (galleryId, videoId)  => req('POST',   `/galleries/${galleryId}/videos/${videoId}/retranscode`),
+  reorderVideos:    (galleryId, order)    => req('PATCH',  `/galleries/${galleryId}/videos/reorder`, { order }),
+  getVideoStats:    (galleryId)           => req('GET',    `/galleries/${galleryId}/videos/stats`),
+
+  uploadVideoFile(galleryId, file, onProgress) {
+    return new Promise((resolve, reject) => {
+      const fd = new FormData();
+      fd.append('video', file);
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${BASE}/galleries/${galleryId}/videos`);
+      xhr.withCredentials = true;
+      if (onProgress) xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
+      xhr.onload = () => {
+        if (xhr.status < 300) {
+          resolve(JSON.parse(xhr.responseText));
+        } else {
+          let msg = xhr.responseText;
+          try { msg = JSON.parse(xhr.responseText)?.error || msg; } catch {}
+          const err = new Error(msg);
+          err.httpStatus = xhr.status;
+          reject(err);
+        }
+      };
+      xhr.onerror = () => reject(new Error('Upload failed'));
+      xhr.send(fd);
+    });
+  },
+
+  // Access requests (enrollment)
+  listAccessRequests:   (galleryId)            => req('GET',    `/galleries/${galleryId}/access-requests`),
+  deleteAccessRequest: (galleryId, requestId)  => req('DELETE', `/galleries/${galleryId}/access-requests/${requestId}`),
+
   // Bulk photo copy / move (issue #465)
   copyPhotos: (galleryId, photoIds, targetGalleryId) =>
     req('POST', `/galleries/${galleryId}/photos/copy`, { photoIds, targetGalleryId }),

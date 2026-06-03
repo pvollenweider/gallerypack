@@ -127,6 +127,7 @@ function rowToGallery(row, { dateRange = null, studio = null, project = null } =
     primaryPhotographerId: row.primary_photographer_id ?? null,
     watermark:            (() => { try { return JSON.parse(row.config_json || '{}').watermark ?? null; } catch { return null; } })(),
     mode:                 row.gallery_mode ?? null,
+    type:                 row.type || 'photo',
     policy:               resolveGalleryPolicy(row),
     firstPhoto:           row.cover_photo || getFirstPhoto(row.slug),
     dateRange,
@@ -223,7 +224,12 @@ router.post('/', async (req, res) => {
     standalone = req.project?.standalone_default ?? false,
     coverPhoto, slideshowInterval, copyright,
     galleryMode = null,
+    type = 'photo',
   } = req.body || {};
+
+  if (!['photo', 'video'].includes(type)) {
+    return res.status(400).json({ error: "type must be 'photo' or 'video'" });
+  }
 
   if (galleryMode !== null && !GALLERY_MODES.includes(galleryMode)) {
     return res.status(400).json({ error: `galleryMode must be one of: ${GALLERY_MODES.join(', ')}` });
@@ -259,8 +265,8 @@ router.post('/', async (req, res) => {
       (id, organization_id, project_id, slug, title, description, subtitle, author, author_email, date, location,
        locale, access, password_hash, standalone,
        download_mode, allow_download_image, allow_download_gallery, cover_photo,
-       slideshow_interval, copyright, gallery_mode, build_status, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+       slideshow_interval, copyright, gallery_mode, type, build_status, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `, [
     id, projectOrgId, req.project.id, slug, title ?? slug, description ?? null, subtitle ?? null,
     author ?? null, authorEmail ?? null, date ?? null, location ?? null,
@@ -268,7 +274,8 @@ router.post('/', async (req, res) => {
     downloadMode,
     allowDownloadImage ? 1 : 0, allowDownloadGallery ? 1 : 0,
     coverPhoto ?? null, slideshowInterval ?? null, copyright ?? null,
-    galleryMode ?? null,
+    galleryMode ?? null, type,
+    type === 'video' ? 'done' : 'pending', // video galleries don't go through photo build
     now, now,
   ]);
 

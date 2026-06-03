@@ -47,6 +47,7 @@ services:
       - ./data/public:/srv/gallerypack/public     # built galleries (engine writes, Caddy reads)
       - ./data/internal:/srv/gallerypack/internal # admin thumbnails, previews (backend only)
       - ./data/app:/app/data                      # persistent server data (license file, etc.)
+      - ./data/videos:/srv/gallerypack/videos     # video source files + HLS output
     environment:
       PORT:                "4000"
       NODE_ENV:            "production"
@@ -75,6 +76,8 @@ services:
       GALLERY_MAX_PHOTOS:  "${GALLERY_MAX_PHOTOS:-500}"
       THUMB_CONCURRENCY:   "${THUMB_CONCURRENCY:-4}"
       PRERENDER_CONCURRENCY: "${PRERENDER_CONCURRENCY:-2}"
+      VIDEO_STORAGE_PATH:  "/srv/gallerypack/videos"
+      VIDEO_MAX_UPLOAD_MB: "${VIDEO_MAX_UPLOAD_MB:-10000}"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:4000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
@@ -108,6 +111,39 @@ services:
       SMTP_USER:      "${SMTP_USER:-}"
       SMTP_PASS:      "${SMTP_PASS:-}"
       SMTP_FROM:      "${SMTP_FROM:-}"
+
+  video-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.video-worker
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    volumes:
+      - ./data/videos:/srv/gallerypack/videos   # video source files + HLS output
+    environment:
+      NODE_ENV:                    "production"
+      DB_HOST:                     "db"
+      DB_PORT:                     "3306"
+      DB_NAME:                     "${DB_NAME:-gallerypack}"
+      DB_USER:                     "${DB_USER:-gallerypack}"
+      DB_PASS:                     "${DB_PASS:?DB_PASS is required}"
+      VIDEO_STORAGE_PATH:          "/srv/gallerypack/videos"
+      VIDEO_MAX_UPLOAD_MB:         "${VIDEO_MAX_UPLOAD_MB:-10000}"
+      VIDEO_TRANSCODE_TIMEOUT_SEC: "${VIDEO_TRANSCODE_TIMEOUT_SEC:-10800}"
+      VIDEO_HLS_SEGMENT_SEC:       "${VIDEO_HLS_SEGMENT_SEC:-6}"
+      VIDEO_HLS_1080P_BITRATE:     "${VIDEO_HLS_1080P_BITRATE:-4000k}"
+      VIDEO_HLS_720P_BITRATE:      "${VIDEO_HLS_720P_BITRATE:-2000k}"
+      VIDEO_HLS_480P_BITRATE:      "${VIDEO_HLS_480P_BITRATE:-800k}"
+      VIDEO_HLS_AUDIO_BITRATE:     "${VIDEO_HLS_AUDIO_BITRATE:-128k}"
+      FFMPEG_PATH:                 "ffmpeg"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('fs').existsSync('/tmp/video-worker.alive') && (Date.now() - require('fs').statSync('/tmp/video-worker.alive').mtimeMs < 120000) ? process.exit(0) : process.exit(1)"]
+      interval: 60s
+      timeout: 10s
+      start_period: 15s
+      retries: 2
 
   proxy:
     image: caddy:2-alpine

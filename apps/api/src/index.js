@@ -35,12 +35,16 @@ import authRoutes        from './routes/auth.js';
 import galleriesRoutes   from './routes/galleries.js';
 import accessRoutes      from './routes/access.js';
 import photosRoutes      from './routes/photos.js';
+import videoRoutes, { publicVideoRouter } from './routes/videos.js';
+import videoStreamRoutes from './routes/videoStream.js';
 import jobsRoutes        from './routes/jobs.js';
 import invitesRoutes     from './routes/invites.js';
 import invitationsRouter from './routes/invitations.js';
 import scopedInvitesRouter from './routes/scopedInvites.js';
 import publicRoutes, { getPublicGalleries, getCoverName, getPublicPhotoCount, getPublicDateRange } from './routes/public.js';
 import { renderLanding, renderProjectIndex, renderProjectListing } from './views/landing.js';
+import watchRoutes  from './routes/watch.js';
+import enrollRoutes from './routes/enroll.js';
 import settingsRoutes  from './routes/settings.js';
 import organizationsLegacyRoutes from './routes/organizations-legacy.js';
 import projectsRoutes  from './routes/projects.js';
@@ -59,6 +63,7 @@ import { uploadThrottle }      from './middleware/uploadThrottle.js';
 import { uploadChecksum }      from './middleware/uploadChecksum.js';
 import { initQueues, closeQueues } from './services/queues.js';
 import { startCleanupCron }        from './jobs/cleanExpiredUploads.js';
+import { startAccessRequestCleanupCron } from './jobs/cleanExpiredAccessRequests.js';
 import { prerenderAll }            from './services/prerender.js';
 
 const __DIR        = path.dirname(fileURLToPath(import.meta.url));
@@ -206,9 +211,16 @@ app.use('/api/settings',            settingsRoutes);
 app.use('/api/auth',                authRoutes);
 
 
+app.use('/api/v', videoStreamRoutes);  // no auth middleware — token is in URL
+app.use('/api/video-covers', publicVideoRouter); // public video gallery covers
+app.use('/watch',  watchRoutes);        // public video viewer page
+app.use('/',       enrollRoutes);       // /enroll/:ref, /enroll/confirm/:token (HTML)
+app.use('/api',    enrollRoutes);       // /api/enroll/:ref (JSON POST)
+
 app.use('/api/galleries',           galleriesRoutes);
 app.use('/api/galleries',           accessRoutes);
 app.use('/api/galleries',           authUploadRateLimit, photosRoutes);
+app.use('/api/galleries',           videoRoutes);
 app.use('/api/tus',                 authUploadRateLimit, uploadChecksum, uploadThrottle, tusRoutes);
 app.use('/api/galleries',           jobsRoutes);
 app.use('/api/jobs',                jobsRoutes); // for /api/jobs/:jobId and /api/jobs/:jobId/stream
@@ -637,7 +649,8 @@ process.on('SIGTERM', async () => {
     await runMigrations();
     await bootstrap();
     await initQueues();       // BullMQ — graceful no-op if Redis unavailable
-    startCleanupCron();       // purge incomplete tus uploads hourly
+    startCleanupCron();               // purge incomplete tus uploads hourly
+    startAccessRequestCleanupCron(); // purge old access_requests daily
     prerenderAll();           // pre-generate static index.html for / and /{slug}/
     app.listen(PORT, () => {
       logger.info({ port: PORT }, 'GalleryPack API listening');
