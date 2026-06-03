@@ -266,7 +266,7 @@ router.post('/', async (req, res) => {
        locale, access, password_hash, standalone,
        download_mode, allow_download_image, allow_download_gallery, cover_photo,
        slideshow_interval, copyright, gallery_mode, type, build_status, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `, [
     id, projectOrgId, req.project.id, slug, title ?? slug, description ?? null, subtitle ?? null,
     author ?? null, authorEmail ?? null, date ?? null, location ?? null,
@@ -275,6 +275,7 @@ router.post('/', async (req, res) => {
     allowDownloadImage ? 1 : 0, allowDownloadGallery ? 1 : 0,
     coverPhoto ?? null, slideshowInterval ?? null, copyright ?? null,
     galleryMode ?? null, type,
+    type === 'video' ? 'done' : 'pending', // video galleries don't go through photo build
     now, now,
   ]);
 

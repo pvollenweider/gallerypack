@@ -121,6 +121,11 @@ export async function runJob(jobId) {
     await appendEvent(jobId, 'error', 'Gallery not found in database');
     return;
   }
+  if (gallery.type === 'video') {
+    await updateJobStatus(jobId, 'done');
+    await appendEvent(jobId, 'log', 'Skipped: video galleries do not use photo build pipeline');
+    return;
+  }
 
   const settings = await getSettings(job.studio_id);
 
