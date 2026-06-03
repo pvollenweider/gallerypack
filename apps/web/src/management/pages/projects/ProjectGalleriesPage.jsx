@@ -363,7 +363,7 @@ export default function ProjectGalleriesPage() {
                       <div className="d-flex gap-1 justify-content-end">
                         {g.access === 'public' && g.buildStatus === 'done' && (g.distName || g.slug) && (
                           <a
-                            href={`/${g.distName || g.slug}/`}
+                            href={g.type === 'video' ? `/watch/${g.slug}` : `/${g.distName || g.slug}/`}
                             target="_blank"
                             rel="noreferrer"
                             className="btn btn-sm btn-outline-success"
