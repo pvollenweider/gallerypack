@@ -270,6 +270,7 @@ ${sidebarItems}
              playsinline>
       </video>
     </div>
+    ${gallery.description ? `<div id="gallery-desc" style="padding:.75rem 1rem;color:#aaa;font-size:.85rem;border-top:1px solid #222;line-height:1.5">${esc(gallery.description)}</div>` : ''}
     <div id="reminder">Ce lien vous est personnel&nbsp;— merci de ne pas le partager.&ensp;·&ensp;This link is personal — please do not share it.</div>
   </div>
 </div>

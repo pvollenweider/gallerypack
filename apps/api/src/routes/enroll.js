@@ -90,7 +90,32 @@ router.get('/enroll/confirm/:confirmToken', async (req, res) => {
       [vtResult.id, request.id]
     );
 
-    // 6. Redirect to watch page
+    // 6. Send watch link email with cover thumbnail
+    try {
+      const [galRows] = await query('SELECT id, title, organization_id FROM galleries WHERE id = ? LIMIT 1', [request.gallery_id]);
+      const gal = galRows[0];
+      if (gal) {
+        const watchUrl   = `${BASE_URL}/watch/${rawToken}`;
+        const coverUrl   = `${BASE_URL}/api/video-covers/${gal.id}`;
+        const subject    = `Votre accès — ${gal.title}`;
+        const text       = `Votre lien d'accès personnel :\n${watchUrl}\n\nCe lien vous est personnel. Merci de ne pas le partager.`;
+        const html       = `<table width="100%" style="font-family:sans-serif;max-width:520px;margin:0 auto">
+  <tr><td style="padding:24px 0 12px;font-size:1.2rem;font-weight:600">${gal.title}</td></tr>
+  <tr><td>
+    <a href="${watchUrl}" style="display:block;text-decoration:none">
+      <img src="${coverUrl}" alt="${gal.title}" width="520" style="width:100%;max-width:520px;border-radius:6px;display:block" onerror="this.style.display='none'">
+    </a>
+  </td></tr>
+  <tr><td style="padding:16px 0">
+    <a href="${watchUrl}" style="display:inline-block;background:#111;color:#fff;padding:12px 28px;border-radius:6px;text-decoration:none;font-size:1rem">▶ Regarder</a>
+  </td></tr>
+  <tr><td style="font-size:0.8rem;color:#666">Ce lien vous est personnel. Merci de ne pas le partager.</td></tr>
+</table>`;
+        sendEmail({ organizationId: gal.organization_id, to: request.email, subject, html, text, template: 'watch-access' });
+      }
+    } catch (_) {}
+
+    // 7. Redirect to watch page
     return res.redirect(302, `/watch/${rawToken}`);
   } catch (err) {
     req.log?.error({ err }, 'enroll confirm error');

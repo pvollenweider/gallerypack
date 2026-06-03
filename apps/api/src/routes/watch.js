@@ -40,7 +40,7 @@ router.get('/:ref', async (req, res) => {
 
     // 3. Fetch gallery
     const [galInfoRows] = await query(
-      "SELECT id, title FROM galleries WHERE id = ? AND type = 'video'",
+      "SELECT id, title, description FROM galleries WHERE id = ? AND type = 'video'",
       [galleryId]
     );
     const gallery = galInfoRows[0];
