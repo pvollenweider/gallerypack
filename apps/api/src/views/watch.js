@@ -98,10 +98,11 @@ export function renderWatchPage(token, gallery, videos, errorMsg) {
 
   // Serialise videos list for the client-side JS
   const videosJson = JSON.stringify(videos.map(v => ({
-    id:       v.id,
-    title:    v.title,
-    slug:     v.slug,
-    hlsEntry: v.hls_entry,
+    id:        v.id,
+    title:     v.title,
+    slug:      v.slug,
+    hlsEntry:  v.hls_entry,
+    posterUrl: v.poster_url || null,
   })));
 
   return `<!DOCTYPE html>
@@ -375,9 +376,10 @@ ${sidebarItems}
     player.hlsQualitySelector({ displayCurrentQuality: true });
   }
 
-  function loadVideo(slug, hlsEntry, videoId, title) {
+  function loadVideo(slug, hlsEntry, videoId, title, posterUrl) {
     currentVideoId = videoId;
     var url = '/api/v/' + TOKEN + '/galleries/' + GALLERY_ID + '/videos/' + slug + '/stream/' + hlsEntry;
+    if (posterUrl) player.poster(posterUrl);
     player.src({ src: url, type: 'application/x-mpegURL' });
     // Re-apply quality selector after source change
     player.ready(function() {
@@ -391,7 +393,7 @@ ${sidebarItems}
   /* Load first video */
   if (VIDEOS.length > 0) {
     var first = VIDEOS[0];
-    loadVideo(first.slug, first.hlsEntry, first.id, first.title);
+    loadVideo(first.slug, first.hlsEntry, first.id, first.title, first.posterUrl);
   }
 
   /* ── Tracking events ───────────────────────────────────────────────────── */
@@ -426,7 +428,7 @@ ${sidebarItems}
         if (!v) return;
         items.forEach(function (i) { i.classList.remove('vl-item--active'); });
         el.classList.add('vl-item--active');
-        loadVideo(v.slug, v.hlsEntry, v.id, v.title);
+        loadVideo(v.slug, v.hlsEntry, v.id, v.title, v.posterUrl);
       });
     });
   }

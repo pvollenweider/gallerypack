@@ -323,18 +323,21 @@ export async function transcode(video) {
   // ── Step 6: extract cover thumbnail (best-effort, don't fail transcode) ────
   const coverPath = `${VIDEO_STORAGE_PATH}/${video.gallery_id}/cover_${video.id}.jpg`;
   try {
-    // Only generate if no cover exists for this gallery yet
-    const { existsSync } = await import('fs');
+    const { existsSync, renameSync } = await import('fs');
+
+    // Per-video poster (always generated)
+    const videoPoster = `${VIDEO_STORAGE_PATH}/${video.gallery_id}/poster_${video.id}.jpg`;
+    await spawnFfmpegWith(FFMPEG_PATH, [
+      '-ss', '5', '-i', inputPath,
+      '-frames:v', '1', '-vf', 'scale=640:-1',
+      '-q:v', '3', videoPoster,
+    ], 30_000);
+
+    // Gallery cover: use first video's poster if no cover yet
     const galleryCover = `${VIDEO_STORAGE_PATH}/${video.gallery_id}/cover.jpg`;
-    if (!existsSync(galleryCover)) {
-      await spawnFfmpegWith(FFMPEG_PATH, [
-        '-ss', '5', '-i', inputPath,
-        '-frames:v', '1', '-vf', 'scale=640:-1',
-        '-q:v', '3', coverPath,
-      ], 30_000); // 30s timeout for thumbnail
-      // Rename to canonical gallery cover
-      const { renameSync } = await import('fs');
-      renameSync(coverPath, galleryCover);
+    if (!existsSync(galleryCover) && existsSync(videoPoster)) {
+      const { copyFileSync } = await import('fs');
+      copyFileSync(videoPoster, galleryCover);
     }
   } catch (_) { /* thumbnail failure must not abort the transcode */ }
 

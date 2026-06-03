@@ -182,7 +182,8 @@ router.get('/:token/gallery', async (req, res) => {
     gallery: { id: gallery.id, title: gallery.title },
     videos: videoRows.map(({ hls_path, ...v }) => ({
       ...v,
-      hls_entry: path.basename(hls_path || 'index.m3u8'),
+      hls_entry:  path.basename(hls_path || 'index.m3u8'),
+      poster_url: `/api/v/${rawToken}/galleries/${galleryId}/videos/${v.slug}/poster`,
     })),
   });
 });
@@ -234,6 +235,25 @@ router.post('/:token/track', async (req, res) => {
     console.error('[track]', err.message);
     res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+// ── GET /api/v/:token/galleries/:galleryId/videos/:videoSlug/poster ──────────
+// Per-video poster image — served without strict auth (it's a thumbnail).
+router.get('/:token/galleries/:galleryId/videos/:videoSlug/poster', async (req, res) => {
+  const { galleryId, videoSlug } = req.params;
+
+  // Lookup video id
+  const [rows] = await query(
+    "SELECT id FROM videos WHERE gallery_id = ? AND slug = ?", [galleryId, videoSlug]
+  );
+  if (!rows[0]) return res.status(404).end();
+
+  const posterPath = path.resolve(VIDEO_STORAGE_PATH, galleryId, `poster_${rows[0].id}.jpg`);
+  if (!fs.existsSync(posterPath)) return res.status(404).end();
+
+  res.set('Content-Type', 'image/jpeg');
+  res.set('Cache-Control', 'public, max-age=86400');
+  res.sendFile(path.basename(posterPath), { root: path.dirname(posterPath) });
 });
 
 export default router;
