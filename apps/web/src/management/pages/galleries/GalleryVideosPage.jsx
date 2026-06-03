@@ -69,6 +69,14 @@ function SortableVideoRow({ video, onDelete, onRetranscode, onChangeMode, deleti
         {...attributes} {...listeners}>
         <i className="fas fa-grip-vertical" />
       </td>
+      <td style={{ width: '64px', padding: '4px' }}>
+        <img
+          src={`/api/galleries/${video.gallery_id}/videos/${video.id}/poster`}
+          alt=""
+          style={{ width: 64, height: 36, objectFit: 'cover', borderRadius: 3, background: '#1a1a1a', display: 'block' }}
+          onError={e => { e.target.style.display='none'; }}
+        />
+      </td>
       <td>
         <div className="fw-semibold">{video.title || video.slug}</div>
         <div><code className="text-muted" style={{ fontSize: '0.72rem' }}>{video.slug}</code></div>
@@ -421,14 +429,23 @@ export default function GalleryVideosPage() {
             >
               {t('gal_upload_video') || 'Ajouter une vidéo'}
             </AdminButton>
-            <AdminButton
-              variant="outline-secondary"
-              icon="fas fa-image"
-              onClick={() => document.getElementById('cover-upload-input').click()}
-              title="Remplacer la vignette de couverture (JPEG/PNG, 640px)"
-            >
-              Vignette
-            </AdminButton>
+            <div className="d-flex align-items-center gap-2">
+              <img
+                src={`/api/galleries/${galleryId}/video-cover?t=${Date.now()}`}
+                alt="Cover"
+                style={{ width: 48, height: 27, objectFit: 'cover', borderRadius: 3, background: '#dee2e6', flexShrink: 0 }}
+                onError={e => { e.target.style.display='none'; }}
+                id="cover-preview"
+              />
+              <AdminButton
+                variant="outline-secondary"
+                icon="fas fa-image"
+                onClick={() => document.getElementById('cover-upload-input').click()}
+                title="Remplacer la vignette de couverture (JPEG/PNG, 640px)"
+              >
+                Vignette
+              </AdminButton>
+            </div>
 
             {uploadProgress !== null && (
               <div className="mt-2">

@@ -417,6 +417,17 @@ router.delete('/:id/access-requests/:requestId', async (req, res) => {
   res.json({ ok: true });
 });
 
+// ── GET /:id/videos/:videoId/poster — serve per-video poster (authenticated) ─────────
+router.get('/:id/videos/:videoId/poster', async (req, res) => {
+  const gallery = await ensureGalleryBelongsToOrg(req, res);
+  if (!gallery) return;
+  const posterPath = path.resolve(VIDEO_STORAGE_PATH, gallery.id, `poster_${req.params.videoId}.jpg`);
+  if (!fs.existsSync(posterPath)) return res.status(404).end();
+  res.set('Content-Type', 'image/jpeg');
+  res.set('Cache-Control', 'public, max-age=3600');
+  res.sendFile(path.basename(posterPath), { root: path.dirname(posterPath) });
+});
+
 // ── GET /:id/video-cover — serve gallery cover thumbnail (no auth, public thumbnail) ──
 router.get('/:id/video-cover', async (req, res) => {
   // Verify gallery exists for this org (ensureGalleryBelongsToOrg requires auth;
