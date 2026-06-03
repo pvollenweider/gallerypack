@@ -191,8 +191,25 @@ router.get('/:token/gallery', async (req, res) => {
 // POST /api/v/:token/track
 router.post('/:token/track', async (req, res) => {
   try {
-    const vt = await getViewerToken(req.params.token);
-    if (!vt) return res.status(401).json({ error: 'Invalid token' });
+    const rawRef = req.params.token;
+    let tokenId  = null;
+    let galleryId;
+
+    // Try viewer token first
+    const vt = await getViewerToken(rawRef);
+    if (vt && vt.scope_type === 'gallery') {
+      tokenId   = vt.id;
+      galleryId = vt.scope_id;
+    } else {
+      // Fallback: public gallery by slug or id
+      const [pubRows] = await query(
+        "SELECT id FROM galleries WHERE (slug = ? OR id = ?) AND type = 'video' AND access = 'public' LIMIT 1",
+        [rawRef, rawRef]
+      );
+      if (!pubRows[0]) return res.status(401).json({ error: 'Invalid token' });
+      galleryId = pubRows[0].id;
+      // tokenId stays null — public view, no token attribution
+    }
 
     const { video_id, event_type, position_sec } = req.body || {};
     const VALID = ['play', 'pause', 'seek', 'heartbeat', 'ended'];
@@ -201,7 +218,7 @@ router.post('/:token/track', async (req, res) => {
     }
 
     const [vrows] = await query(
-      'SELECT id FROM videos WHERE id = ? AND gallery_id = ?', [video_id, vt.scope_id]
+      'SELECT id FROM videos WHERE id = ? AND gallery_id = ?', [video_id, galleryId]
     );
     if (!vrows[0]) return res.status(404).json({ error: 'Video not found' });
 
@@ -210,7 +227,7 @@ router.post('/:token/track', async (req, res) => {
 
     await query(
       'INSERT INTO video_view_events (video_id, token_id, event_type, position_sec, ua_hash, created_at) VALUES (?, ?, ?, ?, ?, NOW())',
-      [video_id, vt.id, event_type, parseInt(position_sec) || 0, uaHash]
+      [video_id, tokenId, event_type, parseInt(position_sec) || 0, uaHash]
     );
     res.json({ ok: true });
   } catch (err) {
