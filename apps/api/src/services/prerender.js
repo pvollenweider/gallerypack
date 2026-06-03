@@ -144,7 +144,7 @@ export async function prerenderProject(projectSlug) {
         ? pgMap[g.id]
         : (g.primary_photographer_name ? [g.primary_photographer_name] : []);
       return {
-        slug: g.slug, title: g.title, date: g.date, location: g.location,
+        id: g.id, slug: g.slug, title: g.title, date: g.date, location: g.location,
         description: g.description || null,
         photographers,
         coverName: null, photoCount: null, dateRange: null,
