@@ -124,6 +124,10 @@ export async function runJob(jobId) {
   if (gallery.type === 'video') {
     await updateJobStatus(jobId, 'done');
     await appendEvent(jobId, 'log', 'Skipped: video galleries do not use photo build pipeline');
+    // Still prerender project listing so video gallery card appears correctly
+    const pSlug = gallery.project_slug;
+    if (pSlug) prerenderProject(pSlug).catch(() => {});
+    else prerenderRoot().catch(() => {});
     return;
   }
 
