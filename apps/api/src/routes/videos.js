@@ -18,6 +18,18 @@ import { can }         from '../authorization/index.js';
 import { prerenderProject } from '../services/prerender.js';
 
 const router = Router();
+
+// ── GET /:id/video-cover — public, no auth (thumbnail for public listings) ───
+router.get('/:id/video-cover', async (req, res) => {
+  const [rows] = await query('SELECT id FROM galleries WHERE id = ?', [req.params.id]);
+  if (!rows[0]) return res.status(404).end();
+  const coverPath = path.resolve(VIDEO_STORAGE_PATH, req.params.id, 'cover.jpg');
+  if (!fs.existsSync(coverPath)) return res.status(404).end();
+  res.set('Content-Type', 'image/jpeg');
+  res.set('Cache-Control', 'public, max-age=86400');
+  res.sendFile(path.basename(coverPath), { root: path.dirname(coverPath) });
+});
+
 router.use(requireAuth);
 
 const VIDEO_STORAGE_PATH = process.env.VIDEO_STORAGE_PATH || 'storage/videos';
@@ -428,18 +440,6 @@ router.get('/:id/videos/:videoId/poster', async (req, res) => {
   res.sendFile(path.basename(posterPath), { root: path.dirname(posterPath) });
 });
 
-// ── GET /:id/video-cover — serve gallery cover thumbnail (no auth, public thumbnail) ──
-router.get('/:id/video-cover', async (req, res) => {
-  // Verify gallery exists for this org (ensureGalleryBelongsToOrg requires auth;
-  // cover thumbnails are intentionally public so we use a lighter check)
-  const [rows] = await query('SELECT id FROM galleries WHERE id = ?', [req.params.id]);
-  if (!rows[0]) return res.status(404).end();
-  const coverPath = path.resolve(VIDEO_STORAGE_PATH, req.params.id, 'cover.jpg');
-  if (!fs.existsSync(coverPath)) return res.status(404).end();
-  res.set('Content-Type', 'image/jpeg');
-  res.set('Cache-Control', 'public, max-age=86400');
-  res.sendFile(path.basename(coverPath), { root: path.dirname(coverPath) });
-});
 
 // ── POST /:id/video-cover — upload custom cover thumbnail ────────────────────
 const coverUpload = multer({
