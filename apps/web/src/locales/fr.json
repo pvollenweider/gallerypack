@@ -1187,5 +1187,8 @@
   "gal_stats_max_pos": "Position max",
   "gal_stats_last_view": "Dernière vue",
   "gal_video_disclaimer": "Vous êtes responsable de disposer des droits nécessaires avant de publier cette vidéo.",
-  "gal_stats_disclaimer": "Estimation basée sur les liens d'accès, non nominative."
+  "gal_stats_disclaimer": "Estimation basée sur les liens d'accès, non nominative.",
+  "gal_maintenance": "Maintenance",
+  "gal_ai_desc_bulk": "Générer les descriptions IA",
+  "gal_ai_desc_bulk_force": "Régénérer toutes les descriptions IA"
 }
