@@ -12,7 +12,8 @@ import { execFile }  from 'node:child_process';
 import { spawn }     from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { promisify } from 'node:util';
-import { query }     from '../../../apps/api/src/db/database.js';
+import { query }            from '../../../apps/api/src/db/database.js';
+import { prerenderProject } from '../../../apps/api/src/services/prerender.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -346,4 +347,15 @@ export async function transcode(video) {
     "UPDATE videos SET status='ready', hls_path=?, duration_sec=?, source_codec=?, transcode_progress=1, transcode_eta_sec=0, updated_at=NOW() WHERE id=?",
     [hlsPath, durationSec, `${videoCodec}/${audioCodec}`, video.id],
   );
+
+  // ── Step 8: prerender project listing to update video gallery card ─────────
+  try {
+    const [projRows] = await query(
+      'SELECT p.slug FROM galleries g JOIN projects p ON p.id = g.project_id WHERE g.id = ? LIMIT 1',
+      [video.gallery_id]
+    );
+    if (projRows[0]?.slug) {
+      prerenderProject(projRows[0].slug).catch(() => {});
+    }
+  } catch (_) { /* prerender failure must not mark the transcode as failed */ }
 }

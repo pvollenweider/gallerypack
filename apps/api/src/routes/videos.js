@@ -15,6 +15,7 @@ import { query }      from '../db/database.js';
 import { getGalleryRole, genId } from '../db/helpers.js';
 import { requireAuth } from '../middleware/auth.js';
 import { can }         from '../authorization/index.js';
+import { prerenderProject } from '../services/prerender.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -462,6 +463,9 @@ router.post('/:id/video-cover', coverUpload.single('cover'), async (req, res) =>
     const { default: sharp } = await import('sharp');
     await sharp(tmpPath).resize(640, null, { withoutEnlargement: true }).jpeg({ quality: 85 }).toFile(coverPath);
     fs.unlinkSync(tmpPath);
+    // Prerender project listing to update the video gallery card thumbnail
+    const [projRows] = await query('SELECT p.slug FROM galleries g JOIN projects p ON p.id = g.project_id WHERE g.id = ? LIMIT 1', [gallery.id]);
+    if (projRows[0]?.slug) prerenderProject(projRows[0].slug).catch(() => {});
     res.json({ ok: true });
   } catch (err) {
     try { fs.unlinkSync(tmpPath); } catch {}
