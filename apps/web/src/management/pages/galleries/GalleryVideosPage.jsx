@@ -415,7 +415,7 @@ export default function GalleryVideosPage() {
                 const fd = new FormData();
                 fd.append('cover', file);
                 try {
-                  await fetch(`/api/video-covers/${galleryId}`, { method: 'POST', body: fd, credentials: 'include' });
+                  await fetch(`/api/galleries/${galleryId}/video-cover`, { method: 'POST', body: fd, credentials: 'include' });
                 } catch {}
                 e.target.value = '';
               }}

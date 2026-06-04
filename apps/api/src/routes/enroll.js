@@ -191,9 +191,21 @@ router.post('/enroll/:galleryRef', async (req, res) => {
             const tokenHash = createHash('sha256').update(rawToken).digest('hex');
             await query('UPDATE viewer_tokens SET token_hash = ? WHERE id = ?', [tokenHash, existing.token_id]);
             const watchUrl = `${BASE_URL}/watch/${rawToken}`;
+            const coverUrl = `${BASE_URL}/api/video-covers/${gallery.id}`;
             const subject  = `Votre lien d'accès — ${gallery.title}`;
             const text     = `Voici votre lien d'accès personnel :\n${watchUrl}\n\nCe lien vous est personnel. Merci de ne pas le partager.`;
-            const html     = `<p>Voici votre lien d'accès personnel :</p><p><a href="${watchUrl}">${watchUrl}</a></p><p>Ce lien vous est personnel. Merci de ne pas le partager.</p>`;
+            const html     = `<table width="100%" style="font-family:sans-serif;max-width:520px;margin:0 auto">
+  <tr><td style="padding:24px 0 12px;font-size:1.2rem;font-weight:600">${gallery.title}</td></tr>
+  <tr><td>
+    <a href="${watchUrl}" style="display:block;text-decoration:none">
+      <img src="${coverUrl}" alt="${gallery.title}" width="520" style="width:100%;max-width:520px;border-radius:6px;display:block" onerror="this.style.display='none'">
+    </a>
+  </td></tr>
+  <tr><td style="padding:16px 0">
+    <a href="${watchUrl}" style="display:inline-block;background:#111;color:#fff;padding:12px 28px;border-radius:6px;text-decoration:none;font-size:1rem">▶ Regarder</a>
+  </td></tr>
+  <tr><td style="font-size:0.8rem;color:#666">Ce lien vous est personnel. Merci de ne pas le partager.</td></tr>
+</table>`;
             sendEmail({ organizationId: gallery.organization_id, to: rawEmail, subject, html, text, template: 'watch-link-resend' });
           }
         }
