@@ -17,7 +17,7 @@ spec:
         - name: ghcr-secret
       containers:
         - name: video-worker
-          image: ghcr.io/pvollenweider/gallerypack-video-worker:latest
+          image: ghcr.io/pvollenweider/gallerypack-video-worker:dev
           env:
             - name: NODE_ENV
               value: production

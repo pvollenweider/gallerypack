@@ -89,6 +89,10 @@ spec:
                   optional: true
             - name: STORAGE_ROOT
               value: /srv/gallerypack
+            - name: VIDEO_STORAGE_PATH
+              value: /srv/gallerypack/videos
+            - name: VIDEO_MAX_UPLOAD_MB
+              value: "10000"
           volumeMounts:
             - name: storage
               mountPath: /srv/gallerypack
