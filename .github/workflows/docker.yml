@@ -26,6 +26,8 @@ jobs:
             dockerfile: Dockerfile.api
           - name: worker
             dockerfile: Dockerfile.worker
+          - name: video-worker
+            dockerfile: Dockerfile.video-worker
 
     steps:
       - name: Checkout

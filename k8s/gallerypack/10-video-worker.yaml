@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: video-worker
+  namespace: gallerypack
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: video-worker
+  template:
+    metadata:
+      labels:
+        app: video-worker
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: video-worker
+          image: ghcr.io/pvollenweider/gallerypack-video-worker:latest
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: DB_HOST
+              value: mariadb
+            - name: DB_NAME
+              value: gallerypack
+            - name: DB_USER
+              value: gallerypack
+            - name: DB_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: gallerypack-secrets
+                  key: DB_PASS
+            - name: VIDEO_STORAGE_PATH
+              value: /srv/gallerypack/videos
+            - name: VIDEO_MAX_UPLOAD_MB
+              value: "10000"
+            - name: VIDEO_TRANSCODE_TIMEOUT_SEC
+              value: "10800"
+            - name: VIDEO_HLS_SEGMENT_SEC
+              value: "6"
+            - name: VIDEO_HLS_1080P_BITRATE
+              value: 4000k
+            - name: VIDEO_HLS_720P_BITRATE
+              value: 2000k
+            - name: VIDEO_HLS_480P_BITRATE
+              value: 800k
+            - name: VIDEO_HLS_AUDIO_BITRATE
+              value: 128k
+            - name: FFMPEG_PATH
+              value: ffmpeg
+          resources:
+            requests:
+              cpu: "1"
+              memory: 1Gi
+            limits:
+              cpu: "4"
+              memory: 4Gi
+          volumeMounts:
+            - name: storage
+              mountPath: /srv/gallerypack
+          livenessProbe:
+            exec:
+              command:
+                - node
+                - -e
+                - "require('fs').existsSync('/tmp/video-worker.alive') && (Date.now() - require('fs').statSync('/tmp/video-worker.alive').mtimeMs < 120000) ? process.exit(0) : process.exit(1)"
+            initialDelaySeconds: 30
+            periodSeconds: 60
+      volumes:
+        - name: storage
+          persistentVolumeClaim:
+            claimName: gallerypack-storage
