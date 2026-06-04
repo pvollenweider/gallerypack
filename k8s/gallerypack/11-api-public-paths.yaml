@@ -1,0 +1,67 @@
+# Route public-facing API paths on www/root to the API service
+# Higher priority than website ingresses so /watch, /enroll, /api hit the API
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: api-public-paths
+  namespace: gallerypack
+  annotations:
+    traefik.ingress.kubernetes.io/router.priority: "120"
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - gallerypack.app
+        - www.gallerypack.app
+      secretName: gallerypack-wildcard-tls
+  rules:
+    - host: gallerypack.app
+      http:
+        paths:
+          - path: /watch
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port:
+                  number: 4000
+          - path: /enroll
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port:
+                  number: 4000
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port:
+                  number: 4000
+    - host: www.gallerypack.app
+      http:
+        paths:
+          - path: /watch
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port:
+                  number: 4000
+          - path: /enroll
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port:
+                  number: 4000
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port:
+                  number: 4000
