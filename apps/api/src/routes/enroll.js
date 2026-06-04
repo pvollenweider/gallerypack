@@ -36,7 +36,7 @@ function isValidEmail(email) {
  */
 async function getVideoGallery(galleryId) {
   const [rows] = await query(
-    "SELECT id, title, organization_id FROM galleries WHERE id = ? AND type = 'video'",
+    "SELECT id, title, description, organization_id FROM galleries WHERE id = ? AND type = 'video'",
     [galleryId]
   );
   return rows[0] ?? null;
@@ -92,15 +92,17 @@ router.get('/enroll/confirm/:confirmToken', async (req, res) => {
 
     // 6. Send watch link email with cover thumbnail
     try {
-      const [galRows] = await query('SELECT id, title, organization_id FROM galleries WHERE id = ? LIMIT 1', [request.gallery_id]);
+      const [galRows] = await query('SELECT id, title, description, organization_id FROM galleries WHERE id = ? LIMIT 1', [request.gallery_id]);
       const gal = galRows[0];
       if (gal) {
         const watchUrl   = `${BASE_URL}/watch/${rawToken}`;
         const coverUrl   = `${BASE_URL}/api/video-covers/${gal.id}`;
         const subject    = `Votre accès — ${gal.title}`;
-        const text       = `Votre lien d'accès personnel :\n${watchUrl}\n\nCe lien vous est personnel. Merci de ne pas le partager.`;
+        const descLine   = gal.description ? `\n\n${gal.description}` : '';
+        const text       = `Votre lien d'accès personnel :\n${watchUrl}${descLine}\n\nCe lien vous est personnel. Merci de ne pas le partager.`;
         const html       = `<table width="100%" style="font-family:sans-serif;max-width:520px;margin:0 auto">
   <tr><td style="padding:24px 0 12px;font-size:1.2rem;font-weight:600">${gal.title}</td></tr>
+  ${gal.description ? `<tr><td style="padding:0 0 12px;font-size:0.9rem;color:#555;line-height:1.5">${gal.description.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</td></tr>` : ''}
   <tr><td>
     <a href="${watchUrl}" style="display:block;text-decoration:none">
       <img src="${coverUrl}" alt="${gal.title}" width="520" style="width:100%;max-width:520px;border-radius:6px;display:block" onerror="this.style.display='none'">
@@ -190,12 +192,14 @@ router.post('/enroll/:galleryRef', async (req, res) => {
             const { createHash } = await import('crypto');
             const tokenHash = createHash('sha256').update(rawToken).digest('hex');
             await query('UPDATE viewer_tokens SET token_hash = ? WHERE id = ?', [tokenHash, existing.token_id]);
-            const watchUrl = `${BASE_URL}/watch/${rawToken}`;
-            const coverUrl = `${BASE_URL}/api/video-covers/${gallery.id}`;
-            const subject  = `Votre lien d'accès — ${gallery.title}`;
-            const text     = `Voici votre lien d'accès personnel :\n${watchUrl}\n\nCe lien vous est personnel. Merci de ne pas le partager.`;
-            const html     = `<table width="100%" style="font-family:sans-serif;max-width:520px;margin:0 auto">
+            const watchUrl  = `${BASE_URL}/watch/${rawToken}`;
+            const coverUrl  = `${BASE_URL}/api/video-covers/${gallery.id}`;
+            const subject   = `Votre lien d'accès — ${gallery.title}`;
+            const descLine  = gallery.description ? `\n\n${gallery.description}` : '';
+            const text      = `Voici votre lien d'accès personnel :\n${watchUrl}${descLine}\n\nCe lien vous est personnel. Merci de ne pas le partager.`;
+            const html      = `<table width="100%" style="font-family:sans-serif;max-width:520px;margin:0 auto">
   <tr><td style="padding:24px 0 12px;font-size:1.2rem;font-weight:600">${gallery.title}</td></tr>
+  ${gallery.description ? `<tr><td style="padding:0 0 12px;font-size:0.9rem;color:#555;line-height:1.5">${gallery.description.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</td></tr>` : ''}
   <tr><td>
     <a href="${watchUrl}" style="display:block;text-decoration:none">
       <img src="${coverUrl}" alt="${gallery.title}" width="520" style="width:100%;max-width:520px;border-radius:6px;display:block" onerror="this.style.display='none'">
