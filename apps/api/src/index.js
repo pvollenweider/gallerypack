@@ -510,9 +510,9 @@ app.use(async (req, res, next) => {
 });
 
 // ── Built galleries — static files (fallback when no reverse proxy in front) ──
-// app.get('/') above intercepts the root before this middleware runs, so
-// index: 'index.html' here only fires for /{project}/{gallery}/ paths.
-app.use(express.static(DIST_DIR, { index: 'index.html' }));
+// index: false — directory index serving is handled explicitly below so that
+// /{projectSlug}/ can be scoped to the request org in multi-tenant mode.
+app.use(express.static(DIST_DIR, { index: false }));
 
 // ── Shared vendor/fonts fallback for project-scoped galleries ─────────────────
 // Galleries at /{project}/{gallery}/ use relative ../vendor/ and ../fonts/ paths
@@ -523,6 +523,37 @@ app.use(/^\/[^/]+\/(vendor|fonts)(\/.*)?$/, (req, res, next) => {
   if (fs.existsSync(file) && fs.statSync(file).isFile()) return res.sendFile(file);
   next();
 });
+
+// ── Explicit gallery directory serving — /{projectSlug}/{gallerySlug}/ ────────
+// Replaces express.static's index: 'index.html' for two-segment paths.
+// In multi-tenant mode, verifies the gallery belongs to the request org before
+// serving — prevents a visitor on org-A's subdomain from reading org-B's private
+// gallery HTML when both orgs share the same project+gallery slug on disk.
+app.get(/^\/([^/]+)\/([^/]+)\/?$/, async (req, res, next) => {
+  const [projSlug, galSlug] = [req.params[0], req.params[1]];
+  const indexHtml = path.join(DIST_DIR, projSlug, galSlug, 'index.html');
+  if (!fs.existsSync(indexHtml)) return next();
+
+  const orgId = req.organizationId ?? null;
+  if (PLATFORM_MODE === 'multi' && orgId) {
+    try {
+      const [rows] = await query(
+        `SELECT g.id FROM galleries g
+         JOIN projects p ON p.id = g.project_id
+         WHERE (g.slug = ? OR g.dist_name = ?) AND p.slug = ? AND g.organization_id = ?
+         LIMIT 1`,
+        [galSlug, `${projSlug}/${galSlug}`, projSlug, orgId]
+      );
+      if (!rows[0]) return next(); // file on disk belongs to a different org
+    } catch { return next(); }
+  }
+
+  return res.sendFile(indexHtml);
+});
+
+// ── Project listing — /{projectSlug}/ ────────────────────────────────────────
+// Org-aware: in multi-tenant mode serves from __prerender/{orgId}/{slug}/ so
+// two orgs with the same project slug never share a prerendered file.
 app.get(/^\/([^/]+)\/?$/, (req, res, next) => {
   const slug      = req.params[0];
   const indexHtml = projectPreviewPath(req.organizationId ?? null, slug);
