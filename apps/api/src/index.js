@@ -438,11 +438,18 @@ app.use(async (req, res, next) => {
 
   const distSlug = lastSeg;
   try {
-    const [rows] = await query(
-      `SELECT id, access, project_id FROM galleries
-       WHERE (slug = ? OR dist_name = ?) AND access = 'private' LIMIT 1`,
-      [distSlug, distSlug]
-    );
+    const gateOrgId = req.organizationId ?? null;
+    const [rows] = gateOrgId
+      ? await query(
+          `SELECT id, access, project_id FROM galleries
+           WHERE (slug = ? OR dist_name = ?) AND access = 'private' AND organization_id = ? LIMIT 1`,
+          [distSlug, distSlug, gateOrgId]
+        )
+      : await query(
+          `SELECT id, access, project_id FROM galleries
+           WHERE (slug = ? OR dist_name = ?) AND access = 'private' LIMIT 1`,
+          [distSlug, distSlug]
+        );
     const gallery = rows[0];
     if (!gallery) return next(); // not private — serve normally
 
@@ -527,14 +534,24 @@ app.get(/^\/([^/]+)\/([^/]+)\/?$/, async (req, res, next) => {
     // Only act when the project-scoped path really doesn't exist
     const expected = path.join(DIST_DIR, projSlug, galSlug, 'index.html');
     if (fs.existsSync(expected)) return next(); // already handled upstream
-    const [rows] = await query(
-      `SELECT g.dist_name, g.slug
-       FROM galleries g
-       JOIN projects p ON p.id = g.project_id
-       WHERE (g.slug = ? OR g.dist_name = ?) AND p.slug = ?
-       LIMIT 1`,
-      [galSlug, galSlug, projSlug]
-    );
+    const redirectOrgId = req.organizationId ?? null;
+    const [rows] = redirectOrgId
+      ? await query(
+          `SELECT g.dist_name, g.slug
+           FROM galleries g
+           JOIN projects p ON p.id = g.project_id
+           WHERE (g.slug = ? OR g.dist_name = ?) AND p.slug = ? AND p.organization_id = ?
+           LIMIT 1`,
+          [galSlug, galSlug, projSlug, redirectOrgId]
+        )
+      : await query(
+          `SELECT g.dist_name, g.slug
+           FROM galleries g
+           JOIN projects p ON p.id = g.project_id
+           WHERE (g.slug = ? OR g.dist_name = ?) AND p.slug = ?
+           LIMIT 1`,
+          [galSlug, galSlug, projSlug]
+        );
     const g = rows[0];
     if (!g) return next();
     const altDistName = g.dist_name || g.slug;

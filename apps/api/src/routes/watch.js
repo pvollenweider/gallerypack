@@ -29,10 +29,16 @@ router.get('/:ref', async (req, res) => {
       watchRef  = ref; // raw token for HLS URLs
     } else {
       // 2. Fallback: public video gallery by slug or id
-      const [galRows] = await query(
-        "SELECT id FROM galleries WHERE (slug = ? OR id = ?) AND type = 'video' AND access = 'public' LIMIT 1",
-        [ref, ref]
-      );
+      const orgId = req.organizationId ?? null;
+      const [galRows] = orgId
+        ? await query(
+            "SELECT id FROM galleries WHERE (slug = ? OR id = ?) AND type = 'video' AND access = 'public' AND organization_id = ? LIMIT 1",
+            [ref, ref, orgId]
+          )
+        : await query(
+            "SELECT id FROM galleries WHERE (slug = ? OR id = ?) AND type = 'video' AND access = 'public' LIMIT 1",
+            [ref, ref]
+          );
       if (!galRows[0]) return res.type('html').send(INVALID_HTML());
       galleryId = galRows[0].id;
       watchRef  = ref; // gallery slug used in HLS URLs for public galleries
