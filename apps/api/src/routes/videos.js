@@ -475,8 +475,8 @@ router.post('/:id/video-cover', coverUpload.single('cover'), async (req, res) =>
     await sharp(tmpPath).resize(640, null, { withoutEnlargement: true }).jpeg({ quality: 85 }).toFile(coverPath);
     fs.unlinkSync(tmpPath);
     // Prerender project listing to update the video gallery card thumbnail
-    const [projRows] = await query('SELECT p.slug FROM galleries g JOIN projects p ON p.id = g.project_id WHERE g.id = ? LIMIT 1', [gallery.id]);
-    if (projRows[0]?.slug) prerenderProject(projRows[0].slug).catch(() => {});
+    const [projRows] = await query('SELECT p.slug, p.organization_id FROM galleries g JOIN projects p ON p.id = g.project_id WHERE g.id = ? LIMIT 1', [gallery.id]);
+    if (projRows[0]?.slug) prerenderProject(projRows[0].slug, projRows[0].organization_id).catch(() => {});
     res.json({ ok: true });
   } catch (err) {
     try { fs.unlinkSync(tmpPath); } catch {}

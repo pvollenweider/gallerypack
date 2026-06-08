@@ -130,7 +130,7 @@ router.patch('/:id', async (req, res) => {
   const updated = await updateProject(project.id, updates);
   try { await audit(req.organizationId, req.userId, 'project.update', 'project', project.id, {}); } catch {}
   const newSlug = updates.slug || project.slug;
-  prerenderProject(newSlug).catch(() => {});
+  prerenderProject(newSlug, req.organizationId).catch(() => {});
   prerenderRoot().catch(() => {});
   res.json(projectToJson(updated));
 });

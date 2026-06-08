@@ -27,6 +27,8 @@ import { resolveOrganizationContext } from './middleware/organizationContext.js'
 import { query, getPool } from './db/database.js';
 import { createStorage } from '../../../packages/shared/src/storage/index.js';
 import { DIST_ROOT, INTERNAL_ROOT } from '../../../packages/engine/src/fs.js';
+
+const PLATFORM_MODE = process.env.PLATFORM_MODE || 'single';
 import { getSettings, getSession,
   createViewerToken, verifyViewerToken, getViewerToken, touchViewerToken,
 } from './db/helpers.js';
@@ -71,6 +73,13 @@ const PORT         = process.env.PORT || 4000;
 const ADMIN_DIST   = process.env.ADMIN_DIST   || path.join(__DIR, '../../../../apps/web/dist');
 const DIST_DIR     = process.env.DIST_DIR     || DIST_ROOT;
 const THUMB_ROOT   = process.env.THUMB_ROOT   || path.join(INTERNAL_ROOT, 'thumbnails');
+
+/** Resolve the org-isolated prerender path for /:projectSlug/index.html. */
+function projectPreviewPath(orgId, projectSlug) {
+  return (PLATFORM_MODE === 'multi' && orgId)
+    ? path.join(DIST_DIR, '__prerender', orgId, projectSlug, 'index.html')
+    : path.join(DIST_DIR, projectSlug, 'index.html');
+}
 
 // ── Sentry (must init before app) ────────────────────────────────────────────
 initSentry();
@@ -516,7 +525,7 @@ app.use(/^\/[^/]+\/(vendor|fonts)(\/.*)?$/, (req, res, next) => {
 });
 app.get(/^\/([^/]+)\/?$/, (req, res, next) => {
   const slug      = req.params[0];
-  const indexHtml = path.join(DIST_DIR, slug, 'index.html');
+  const indexHtml = projectPreviewPath(req.organizationId ?? null, slug);
   if (fs.existsSync(indexHtml)) return res.sendFile(indexHtml);
   next();
 });
@@ -569,8 +578,8 @@ app.get(/^\/([^/]+)\/([^/]+)\/?$/, async (req, res, next) => {
 // Handles the back-button target from project-scoped gallery URLs.
 app.get(/^\/([^/]+)\/?$/, async (req, res, next) => {
   const projectSlug = req.params[0];
-  // Only intercept if there's no built index.html at this path (handled earlier)
-  const indexHtml = path.join(DIST_DIR, projectSlug, 'index.html');
+  // Skip if a prerendered file already handled this (via the handler above)
+  const indexHtml = projectPreviewPath(req.organizationId ?? null, projectSlug);
   if (fs.existsSync(indexHtml)) return next();
 
   const orgId = req.organizationId ?? null;

@@ -403,10 +403,10 @@ router.post('/:id/move', resolveGallery, async (req, res) => {
   try { await audit(req.organizationId, req.userId, 'gallery.moved', 'gallery', req.gallery.id, { from: req.gallery.project_id, to: targetProjectId }); } catch {}
 
   // Prerender both source and target project listings
-  const [srcProjRows] = await query('SELECT slug FROM projects WHERE id = ? LIMIT 1', [req.gallery.project_id]);
-  const [dstProjRows] = await query('SELECT slug FROM projects WHERE id = ? LIMIT 1', [targetProjectId]);
-  if (srcProjRows[0]?.slug) prerenderProject(srcProjRows[0].slug).catch(() => {});
-  if (dstProjRows[0]?.slug) prerenderProject(dstProjRows[0].slug).catch(() => {});
+  const [srcProjRows] = await query('SELECT slug, organization_id FROM projects WHERE id = ? LIMIT 1', [req.gallery.project_id]);
+  const [dstProjRows] = await query('SELECT slug, organization_id FROM projects WHERE id = ? LIMIT 1', [targetProjectId]);
+  if (srcProjRows[0]?.slug) prerenderProject(srcProjRows[0].slug, srcProjRows[0].organization_id).catch(() => {});
+  if (dstProjRows[0]?.slug) prerenderProject(dstProjRows[0].slug, dstProjRows[0].organization_id).catch(() => {});
 
   const [updatedRows] = await query('SELECT * FROM galleries WHERE id = ?', [req.gallery.id]);
   res.json(await rowToGalleryAsync(updatedRows[0]));
@@ -546,7 +546,7 @@ router.post('/reorder', async (req, res) => {
     await query('UPDATE galleries SET sort_order = ? WHERE id = ?', [i, order[i]]);
   }
   // Prerender project listing so the new order is reflected
-  prerenderProject(req.project.slug).catch(() => {});
+  prerenderProject(req.project.slug, req.project.organization_id).catch(() => {});
   res.json({ ok: true });
 });
 

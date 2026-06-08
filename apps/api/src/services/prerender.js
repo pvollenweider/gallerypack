@@ -19,6 +19,15 @@ import { renderProjectIndex, renderProjectListing } from '../views/landing.js';
 import { DIST_ROOT } from '../../../../packages/engine/src/fs.js';
 import { logger }    from '../lib/logger.js';
 
+const PLATFORM_MODE = process.env.PLATFORM_MODE || 'single';
+
+/** Org-isolated prerender path for multi-tenant mode. */
+function prerenderPath(orgId, projectSlug) {
+  return PLATFORM_MODE === 'multi' && orgId
+    ? path.join(DIST_ROOT, '__prerender', orgId, projectSlug, 'index.html')
+    : path.join(DIST_ROOT, projectSlug, 'index.html');
+}
+
 async function getSiteTitle() {
   const [rows] = await query('SELECT id FROM organizations WHERE is_default = 1 LIMIT 1');
   const settings = rows[0] ? await getSettings(rows[0].id) : null;
@@ -98,11 +107,10 @@ export async function prerenderRoot() {
 }
 
 /** Write data/public/{projectSlug}/index.html — project gallery listing */
-export async function prerenderProject(projectSlug) {
-  const [projRows] = await query(
-    'SELECT id, name, description, organization_id FROM projects WHERE slug = ? LIMIT 1',
-    [projectSlug]
-  );
+export async function prerenderProject(projectSlug, orgId) {
+  const [projRows] = orgId
+    ? await query('SELECT id, name, description, organization_id FROM projects WHERE slug = ? AND organization_id = ? LIMIT 1', [projectSlug, orgId])
+    : await query('SELECT id, name, description, organization_id FROM projects WHERE slug = ? LIMIT 1', [projectSlug]);
   const project = projRows[0];
   if (!project) {
     logger.warn({ projectSlug }, 'prerender: project not found, skipping');
@@ -175,7 +183,7 @@ export async function prerenderProject(projectSlug) {
   const orgName = orgRows[0]?.name || '';
   const baseUrl = process.env.BASE_URL || '';
   const html = renderProjectListing(projectSlug, project.name, galleries, siteTitle, false, projectDescHtml, orgName, baseUrl);
-  const dest = path.join(DIST_ROOT, projectSlug, 'index.html');
+  const dest = prerenderPath(project.organization_id, projectSlug);
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   fs.writeFileSync(dest, html, 'utf8');
   logger.info({ dest }, 'prerender: wrote project index.html');
@@ -190,7 +198,7 @@ export async function prerenderOrg(orgId) {
     );
     await Promise.all([
       prerenderRoot(),
-      ...projRows.map(p => prerenderProject(p.slug)),
+      ...projRows.map(p => prerenderProject(p.slug, orgId)),
     ]);
     logger.info({ orgId, count: projRows.length + 1 }, 'prerender: org pages written');
   } catch (err) {
@@ -202,10 +210,10 @@ export async function prerenderOrg(orgId) {
 /** Pre-render all projects + root at startup */
 export async function prerenderAll() {
   try {
-    const [projRows] = await query('SELECT slug FROM projects');
+    const [projRows] = await query('SELECT slug, organization_id FROM projects');
     await Promise.all([
       prerenderRoot(),
-      ...projRows.map(p => prerenderProject(p.slug)),
+      ...projRows.map(p => prerenderProject(p.slug, p.organization_id)),
     ]);
     logger.info({ count: projRows.length + 1 }, 'prerender: all pages written');
   } catch (err) {
