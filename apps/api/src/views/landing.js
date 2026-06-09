@@ -234,14 +234,13 @@ ${_ogImage ? `<meta name="twitter:image" content="${_ogImage}">` : ''}
     .hero-divider{width:40px;height:1px;background:rgba(255,255,255,.1);margin:0 auto 48px}
 
     .grid{max-width:1320px;margin:0 auto;padding:0 24px 64px;
-      display:flex;flex-wrap:wrap;gap:1.5rem;justify-content:center}
+      display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1.5rem}
     .empty{color:var(--muted);text-align:center;padding:4rem 0;font-size:14px}
 
     .card{background:#232323;border:1px solid rgba(255,255,255,.06);border-radius:10px;
       overflow:hidden;text-decoration:none;display:flex;flex-direction:column;
-      transition:border-color .2s,box-shadow .2s;
-      flex:1 1 300px;max-width:calc(50% - 0.75rem)}
-    @media(max-width:680px){.card{max-width:100%}}
+      transition:border-color .2s,box-shadow .2s;max-width:400px}
+    @media(max-width:680px){.grid{grid-template-columns:1fr;}.card{max-width:100%}}
     .card:hover{border-color:rgba(200,169,110,.3);box-shadow:0 8px 32px rgba(0,0,0,.45)}
     .card-cover{position:relative;aspect-ratio:4/3;background:#2a2a2a;overflow:hidden}
     .card-img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .4s}
