@@ -97,9 +97,7 @@ export function listPhotos(srcDir) {
   let ordered;
   if (savedOrder && Array.isArray(savedOrder)) {
     const available = new Set(allFiles);
-    const knownSet  = new Set(savedOrder);
-    const extra     = allFiles.filter(f => !knownSet.has(f)).sort();
-    ordered = [...savedOrder.filter(f => available.has(f)), ...extra];
+    ordered = savedOrder.filter(f => available.has(f));
   } else {
     ordered = allFiles.sort();
   }

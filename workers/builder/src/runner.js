@@ -126,7 +126,7 @@ export async function runJob(jobId) {
     await appendEvent(jobId, 'log', 'Skipped: video galleries do not use photo build pipeline');
     // Still prerender project listing so video gallery card appears correctly
     const pSlug = gallery.project_slug;
-    if (pSlug) prerenderProject(pSlug).catch(() => {});
+    if (pSlug) prerenderProject(pSlug, job.organization_id).catch(() => {});
     else prerenderRoot().catch(() => {});
     return;
   }
@@ -367,7 +367,7 @@ export async function runJob(jobId) {
 
     // Re-generate static index.html for the project listing (and root if needed)
     const pSlug = gallery.project_slug;
-    if (pSlug) prerenderProject(pSlug).catch(() => {});
+    if (pSlug) prerenderProject(pSlug, job.organization_id).catch(() => {});
     prerenderRoot().catch(() => {});
 
     // Legacy: send gallery-ready email to the author if configured
