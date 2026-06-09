@@ -384,7 +384,7 @@ ${_projOgImage ? `<meta name="twitter:image" content="${_projOgImage}">` : ''}
 
     /* ── Grid ── */
     .grid{max-width:1320px;margin:0 auto;padding:0 24px 64px;
-      display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,400px));gap:1.5rem}
+      display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,400px));gap:1.5rem;justify-content:center}
     .empty{color:var(--muted);text-align:center;padding:4rem 0;grid-column:1/-1;font-size:14px}
 
     /* ── Card ── */
