@@ -6,6 +6,103 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [v1.9.1] - 2026-06-09
+
+### Security
+- Enforce org ownership check when serving gallery HTML in multi-tenant mode
+- Isolate prerendered project pages per org (prevent cross-org HTML leakage)
+- Scope public slug lookups to org
+
+### Fixed
+- Cross-org photo contamination: engine no longer appends files absent from `photo_order.json`
+- `prerenderProject` called with correct `orgId` on gallery reorder and move
+- Video cover upload URL in admin UI; cover thumbnail display in gallery list
+- Project card width capped at 400 px — single-card layouts no longer stretch full-width
+
+### Changed
+- Watch-link emails (confirm + resend) now include gallery description
+
+### CI
+- Upgrade `react-router-dom` to 7.17.0 (high-severity CVEs)
+- Add missing license header to `video-worker/test/transcoder.test.js`
+
+---
+
+## [v1.9.0] - 2026-06-03
+
+### Added
+- **Enrollment watch-link email** — cover thumbnail embedded in confirmation and resend emails
+- **Per-video poster images** — auto-generated after transcode via FFmpeg frame extract; manual override supported
+- **Poster thumbnails in admin** — per-video posters shown in video list and gallery detail
+- **FFmpeg progress reporting** — `transcode_progress` + ETA shown in admin during transcode
+- **`creator_1080p` / `creator_720p` transcode modes** — high-quality encode modes with in-memory cache for concurrent requests
+- **Public video gallery** — no-token watch mode; project listing includes public video galleries
+- **Access request delete** — delete endpoint + UI button (NLPD right-to-erasure)
+- **View tracking** — endpoint and admin video stats dashboard
+- **Enrollment flow** — double opt-in, `access_requests` table, viewer tokens
+- **Token-protected HLS streaming** endpoint
+- **Video upload and management** routes
+- **Video gallery schema** migration (009)
+- **Video worker** — FFmpeg transcoding worker (remux, single-encode, force-ABR modes)
+- **docker-compose** — video-worker service + video volume
+
+### Fixed
+- Re-send watch link when confirmed user re-submits enrollment form
+- Video gallery cover URL included correct gallery id for prerender
+- Worker triggers `prerenderProject` when skipping video gallery build
+- Video-cover endpoint served before auth middleware (public access)
+- Video gallery public link points to `/watch/:slug`
+- Video galleries skip photo build pipeline (`build_status=done` immediately)
+- HTTP Range support (`acceptRanges`) for proper video streaming
+- Express 5 wildcard param returns Array — unwrap to string in stream handler
+- `ORDER BY` aggregate alias not supported in MariaDB — inline expression used
+- Video.js 8 compatibility: replace `videojs.extend()` with ES6 class
+- Orphaned transcoding jobs reset on worker startup; retranscode UI shown
+- Path traversal guard, batched reorder, `gallery_id` scoping in photos API
+- JSON syntax errors in 16 locale files
+- `NOW()` instead of `Date.now()` for DATETIME columns
+- Email update for org members (backend validation + UI)
+- Named wildcard `*filepath` for path-to-regexp v8 compatibility
+
+### Changed
+- Sidebar routes video galleries to `/videos`, photo galleries to `/:slug`
+- i18n: 18 locales updated with video gallery and maintenance keys
+
+---
+
+## [v1.8.0] - 2026-06-02
+
+### Added
+- **AI photo descriptions** — Claude Vision generates alt text and lightbox captions; bulk endpoint with force-regenerate; gallery context in prompt; 160-char caption limit
+- **Geolocation from AI** — Claude extracts venue-level location; Nominatim geocodes to coordinates
+- **AI captions toggle** — `ai_captions_visible` controls lightbox caption visibility per gallery
+- **AI disclosure** — legal notice section shown in gallery when AI descriptions are present
+- **Bulk copy/move photos** — gallery picker modal for moving/copying selections across galleries
+- **Natural aspect-ratio grid toggle** — per-gallery toggle on photo management page
+- **Full-width toggle** — button on photo management page
+- **Double-click lightbox** — double-clicking a photo card opens admin lightbox
+- **`photo_descriptions.json`** — builder writes AI alt text; engine reads and injects into `img alt` and lightbox caption
+- **rclone Dropbox sync** — CronJob and manual Job for scheduled backup
+- **64 unit tests** for AI description service
+
+### Fixed
+- Partial PATCH on gallery settings — only update fields present in request body
+- Lightbox uses 800 px preview endpoint instead of 400 px thumbnail
+- Gallery picker z-index above lightbox; remove duplicate `onClose`
+- Preserve `ai_description` when copying photos
+- N² scan, redundant DB writes, and `sort_order=0` issues in photos
+- Security upgrades: uuid 11.1.0→11.1.1, postcss 8.5.8→8.5.14, nodemailer 8.0.4→8.0.7 (SMTP CRLF injection)
+- Stale dist dir after rebuild; broken viewer token link; superadmin access
+- Magic-login uses `<Link>` instead of `<a href>`; origin derived from request
+- `getSettings` decoupled from critical data load to prevent cascade failure
+- Dropbox OAuth callback moved before `requireAuth` middleware
+
+### Changed
+- Watermark: 3-way mode selector (none / photographer / forced) replaces toggle
+- Maintenance buttons grouped in dropdown
+
+---
+
 ## [v1.7.0] - 2026-04-05
 
 ### Added
