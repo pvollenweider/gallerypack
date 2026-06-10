@@ -77,3 +77,14 @@ async function poll() {
 // Graceful shutdown
 process.on('SIGTERM', () => { console.log('Video worker shutting down…'); process.exit(0); });
 process.on('SIGINT',  () => { console.log('Video worker shutting down…'); process.exit(0); });
+
+// Crash on unhandled errors so the orchestrator restarts a clean pod.
+// Orphaned 'transcoding' jobs are reset to 'pending' on next startup.
+process.on('unhandledRejection', (reason) => {
+  console.error('Fatal: unhandledRejection in video worker:', reason);
+  process.exit(1);
+});
+process.on('uncaughtException', (err) => {
+  console.error('Fatal: uncaughtException in video worker:', err);
+  process.exit(1);
+});

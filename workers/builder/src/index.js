@@ -71,3 +71,14 @@ async function watchdog() {
 // Graceful shutdown
 process.on('SIGTERM', () => { console.log('Worker shutting down…'); process.exit(0); });
 process.on('SIGINT',  () => { console.log('Worker shutting down…'); process.exit(0); });
+
+// Crash on unhandled errors so the orchestrator restarts a clean pod
+// rather than leaving the worker wedged with build jobs stuck mid-flight.
+process.on('unhandledRejection', (reason) => {
+  console.error('Fatal: unhandledRejection in builder worker:', reason);
+  process.exit(1);
+});
+process.on('uncaughtException', (err) => {
+  console.error('Fatal: uncaughtException in builder worker:', err);
+  process.exit(1);
+});

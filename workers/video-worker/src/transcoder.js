@@ -351,11 +351,11 @@ export async function transcode(video) {
   // ── Step 8: prerender project listing to update video gallery card ─────────
   try {
     const [projRows] = await query(
-      'SELECT p.slug FROM galleries g JOIN projects p ON p.id = g.project_id WHERE g.id = ? LIMIT 1',
+      'SELECT p.slug, p.organization_id FROM galleries g JOIN projects p ON p.id = g.project_id WHERE g.id = ? LIMIT 1',
       [video.gallery_id]
     );
     if (projRows[0]?.slug) {
-      prerenderProject(projRows[0].slug).catch(() => {});
+      prerenderProject(projRows[0].slug, projRows[0].organization_id).catch(() => {});
     }
   } catch (_) { /* prerender failure must not mark the transcode as failed */ }
 }

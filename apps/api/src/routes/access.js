@@ -18,10 +18,16 @@ const router = Router();
 // ── POST /api/galleries/:id/verify-password ───────────────────────────────────
 // Public route: verify viewer password and set a short-lived viewer cookie.
 router.post('/:id/verify-password', async (req, res) => {
-  const [rows] = await query(
-    'SELECT id, access, password_hash FROM galleries WHERE id = ?',
-    [req.params.id]
-  );
+  const orgId = req.organizationId;
+  const [rows] = orgId
+    ? await query(
+        'SELECT id, access, password_hash FROM galleries WHERE id = ? AND organization_id = ?',
+        [req.params.id, orgId]
+      )
+    : await query(
+        'SELECT id, access, password_hash FROM galleries WHERE id = ?',
+        [req.params.id]
+      );
   const gallery = rows[0];
 
   if (!gallery) return res.status(404).json({ error: 'Gallery not found' });
@@ -48,13 +54,19 @@ router.post('/:id/verify-password', async (req, res) => {
 // ── GET /api/galleries/:id/view ───────────────────────────────────────────────
 // Public route: return gallery data if authorized.
 router.get('/:id/view', async (req, res) => {
-  const [rows] = await query(
-    `SELECT id, slug, project_id, title, subtitle, author, author_email, date, location,
+  const orgId = req.organizationId;
+  const SELECT_COLS = `id, slug, project_id, title, subtitle, author, author_email, date, location,
             locale, access, cover_photo, allow_download_image, allow_download_gallery,
-            build_status, built_at
-     FROM galleries WHERE id = ?`,
-    [req.params.id]
-  );
+            build_status, built_at`;
+  const [rows] = orgId
+    ? await query(
+        `SELECT ${SELECT_COLS} FROM galleries WHERE id = ? AND organization_id = ?`,
+        [req.params.id, orgId]
+      )
+    : await query(
+        `SELECT ${SELECT_COLS} FROM galleries WHERE id = ?`,
+        [req.params.id]
+      );
   const gallery = rows[0];
 
   if (!gallery) return res.status(404).json({ error: 'Gallery not found' });

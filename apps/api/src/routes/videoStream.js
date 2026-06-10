@@ -75,11 +75,17 @@ router.get('/:token/galleries/:galleryId/videos/:videoSlug/stream/*filepath', as
         tokenId = token.id;
         setCachedToken(rawToken, galleryId, tokenId);
       } else {
-        // No token — check if gallery is public (cache result too)
-        const [pubRows] = await query(
-          "SELECT id FROM galleries WHERE id = ? AND type = 'video' AND access = 'public' LIMIT 1",
-          [galleryId]
-        );
+        // No token — check if gallery is public (cache result too), scoped to org
+        const orgId = req.organizationId;
+        const [pubRows] = orgId
+          ? await query(
+              "SELECT id FROM galleries WHERE id = ? AND type = 'video' AND access = 'public' AND organization_id = ? LIMIT 1",
+              [galleryId, orgId]
+            )
+          : await query(
+              "SELECT id FROM galleries WHERE id = ? AND type = 'video' AND access = 'public' LIMIT 1",
+              [galleryId]
+            );
         if (!pubRows[0]) return res.status(403).json({ error: 'Invalid or expired token' });
         setCachedToken(rawToken, galleryId, null); // public gallery — no tokenId
       }
@@ -202,11 +208,17 @@ router.post('/:token/track', async (req, res) => {
       tokenId   = vt.id;
       galleryId = vt.scope_id;
     } else {
-      // Fallback: public gallery by slug or id
-      const [pubRows] = await query(
-        "SELECT id FROM galleries WHERE (slug = ? OR id = ?) AND type = 'video' AND access = 'public' LIMIT 1",
-        [rawRef, rawRef]
-      );
+      // Fallback: public gallery by slug or id — scoped to the resolved org
+      const orgId = req.organizationId;
+      const [pubRows] = orgId
+        ? await query(
+            "SELECT id FROM galleries WHERE (slug = ? OR id = ?) AND type = 'video' AND access = 'public' AND organization_id = ? LIMIT 1",
+            [rawRef, rawRef, orgId]
+          )
+        : await query(
+            "SELECT id FROM galleries WHERE (slug = ? OR id = ?) AND type = 'video' AND access = 'public' LIMIT 1",
+            [rawRef, rawRef]
+          );
       if (!pubRows[0]) return res.status(401).json({ error: 'Invalid token' });
       galleryId = pubRows[0].id;
       // tokenId stays null — public view, no token attribution
