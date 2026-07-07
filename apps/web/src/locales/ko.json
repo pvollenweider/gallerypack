@@ -975,5 +975,11 @@
   "gal_stats_disclaimer": "Estimate based on access links, not nominative.",
   "gal_maintenance": "Maintenance",
   "gal_ai_desc_bulk": "Generate AI descriptions",
-  "gal_ai_desc_bulk_force": "Regenerate all AI descriptions"
+  "gal_ai_desc_bulk_force": "Regenerate all AI descriptions",
+  "gal_photos_desc_mode": "설명",
+  "gal_photos_grid_mode": "그리드",
+  "gal_photos_desc_clear": "지우기",
+  "gal_photos_desc_generate": "생성",
+  "gal_photos_desc_regenerate": "재생성",
+  "gal_photos_desc_placeholder": "아직 설명 없음"
 }

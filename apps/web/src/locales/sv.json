@@ -975,5 +975,11 @@
   "gal_stats_disclaimer": "Estimate based on access links, not nominative.",
   "gal_maintenance": "Maintenance",
   "gal_ai_desc_bulk": "Generate AI descriptions",
-  "gal_ai_desc_bulk_force": "Regenerate all AI descriptions"
+  "gal_ai_desc_bulk_force": "Regenerate all AI descriptions",
+  "gal_photos_desc_mode": "Beskrivningar",
+  "gal_photos_grid_mode": "Rutnät",
+  "gal_photos_desc_clear": "Rensa",
+  "gal_photos_desc_generate": "Generera",
+  "gal_photos_desc_regenerate": "Regenerera",
+  "gal_photos_desc_placeholder": "Ingen beskrivning ännu"
 }

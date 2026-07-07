@@ -975,5 +975,11 @@
   "gal_stats_disclaimer": "Estimate based on access links, not nominative.",
   "gal_maintenance": "Maintenance",
   "gal_ai_desc_bulk": "Generate AI descriptions",
-  "gal_ai_desc_bulk_force": "Regenerate all AI descriptions"
+  "gal_ai_desc_bulk_force": "Regenerate all AI descriptions",
+  "gal_photos_desc_mode": "Beschrijvingen",
+  "gal_photos_grid_mode": "Raster",
+  "gal_photos_desc_clear": "Wissen",
+  "gal_photos_desc_generate": "Genereren",
+  "gal_photos_desc_regenerate": "Opnieuw genereren",
+  "gal_photos_desc_placeholder": "Nog geen beschrijving"
 }

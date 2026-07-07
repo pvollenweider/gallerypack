@@ -975,5 +975,11 @@
   "gal_stats_disclaimer": "Estimate based on access links, not nominative.",
   "gal_maintenance": "Maintenance",
   "gal_ai_desc_bulk": "Generate AI descriptions",
-  "gal_ai_desc_bulk_force": "Regenerate all AI descriptions"
+  "gal_ai_desc_bulk_force": "Regenerate all AI descriptions",
+  "gal_photos_desc_mode": "Beskrivelser",
+  "gal_photos_grid_mode": "Gitter",
+  "gal_photos_desc_clear": "Ryd",
+  "gal_photos_desc_generate": "Generer",
+  "gal_photos_desc_regenerate": "Gengenerer",
+  "gal_photos_desc_placeholder": "Ingen beskrivelse endnu"
 }

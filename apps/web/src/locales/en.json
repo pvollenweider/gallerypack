@@ -1190,5 +1190,11 @@
   "gal_stats_disclaimer": "Estimate based on access links, not nominative.",
   "gal_maintenance": "Maintenance",
   "gal_ai_desc_bulk": "Generate AI descriptions",
-  "gal_ai_desc_bulk_force": "Regenerate all AI descriptions"
+  "gal_ai_desc_bulk_force": "Regenerate all AI descriptions",
+  "gal_photos_desc_mode": "Descriptions",
+  "gal_photos_grid_mode": "Grid",
+  "gal_photos_desc_clear": "Clear",
+  "gal_photos_desc_generate": "Generate",
+  "gal_photos_desc_regenerate": "Regenerate",
+  "gal_photos_desc_placeholder": "No description yet"
 }

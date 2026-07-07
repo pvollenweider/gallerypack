@@ -975,5 +975,11 @@
   "gal_stats_disclaimer": "Estimate based on access links, not nominative.",
   "gal_maintenance": "Maintenance",
   "gal_ai_desc_bulk": "Generate AI descriptions",
-  "gal_ai_desc_bulk_force": "Regenerate all AI descriptions"
+  "gal_ai_desc_bulk_force": "Regenerate all AI descriptions",
+  "gal_photos_desc_mode": "説明",
+  "gal_photos_grid_mode": "グリッド",
+  "gal_photos_desc_clear": "クリア",
+  "gal_photos_desc_generate": "生成",
+  "gal_photos_desc_regenerate": "再生成",
+  "gal_photos_desc_placeholder": "まだ説明がありません"
 }
