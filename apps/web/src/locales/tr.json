@@ -975,5 +975,11 @@
   "gal_stats_disclaimer": "Estimate based on access links, not nominative.",
   "gal_maintenance": "Maintenance",
   "gal_ai_desc_bulk": "Generate AI descriptions",
-  "gal_ai_desc_bulk_force": "Regenerate all AI descriptions"
+  "gal_ai_desc_bulk_force": "Regenerate all AI descriptions",
+  "gal_photos_desc_mode": "Açıklamalar",
+  "gal_photos_grid_mode": "Izgara",
+  "gal_photos_desc_clear": "Temizle",
+  "gal_photos_desc_generate": "Oluştur",
+  "gal_photos_desc_regenerate": "Yeniden oluştur",
+  "gal_photos_desc_placeholder": "Henüz açıklama yok"
 }

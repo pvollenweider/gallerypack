@@ -195,6 +195,95 @@ function SortablePhotoCard({
   );
 }
 
+// ── Description list row ─────────────────────────────────────────────────────
+
+function DescriptionRow({ photo, galleryId, t, onUpdate }) {
+  const [draft, setDraft] = useState(photo.ai_description || '');
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [aiMissing, setAiMissing] = useState(false);
+  const savedTimer = useRef(null);
+  const initialDesc = useRef(photo.ai_description || '');
+
+  async function save(text) {
+    setSaving(true);
+    try {
+      await api.updatePhotoDescription(galleryId, photo.id, text.trim() || null);
+      onUpdate(photo.id, text.trim() || null);
+      initialDesc.current = text.trim();
+      setSaved(true);
+      clearTimeout(savedTimer.current);
+      savedTimer.current = setTimeout(() => setSaved(false), 2000);
+    } catch { /* silent */ } finally { setSaving(false); }
+  }
+
+  async function generate() {
+    setGenerating(true);
+    try {
+      const result = await api.generatePhotoDescription(galleryId, photo.id);
+      setDraft(result.description);
+      initialDesc.current = result.description;
+      onUpdate(photo.id, result.description);
+      setSaved(true);
+      clearTimeout(savedTimer.current);
+      savedTimer.current = setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      if (err?.status === 402) setAiMissing(true);
+    } finally { setGenerating(false); }
+  }
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', padding: '0.6rem 1rem', borderBottom: '1px solid #f1f3f5' }}>
+      <div style={{ flexShrink: 0, width: 80 }}>
+        {photo.thumbnail?.sm
+          ? <img src={photo.thumbnail.sm} alt={photo.file} style={{ width: 80, height: 56, objectFit: 'cover', borderRadius: 4, display: 'block' }} />
+          : <div style={{ width: 80, height: 56, background: '#e5e7eb', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><i className="fas fa-image" style={{ color: '#9ca3af' }} /></div>
+        }
+        <div style={{ fontSize: '0.62rem', color: '#9ca3af', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 80 }} title={photo.original_name || photo.file}>
+          {photo.original_name || photo.file}
+        </div>
+      </div>
+      <div style={{ flexGrow: 1 }}>
+        <textarea
+          rows={2}
+          style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', fontSize: '0.85rem', padding: '0.3rem 0.45rem', border: '1px solid #dee2e6', borderRadius: 4, marginBottom: '0.3rem' }}
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onBlur={() => { if (draft !== initialDesc.current) save(draft); }}
+          placeholder={t('gal_photos_desc_placeholder') || 'No description yet'}
+        />
+        <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            className="btn btn-sm btn-outline-secondary"
+            style={{ fontSize: '0.72rem', padding: '1px 7px' }}
+            disabled={generating || aiMissing}
+            title={aiMissing ? 'ANTHROPIC_API_KEY not configured' : undefined}
+            onClick={generate}
+          >
+            <i className={generating ? 'fas fa-spinner fa-spin' : 'fas fa-magic'} style={{ marginRight: '0.25rem' }} />
+            {draft ? (t('gal_photos_desc_regenerate') || 'Regenerate') : (t('gal_photos_desc_generate') || 'Generate')}
+          </button>
+          {draft && (
+            <button
+              className="btn btn-sm btn-outline-danger"
+              style={{ fontSize: '0.72rem', padding: '1px 7px' }}
+              disabled={saving}
+              onClick={() => { setDraft(''); save(''); }}
+            >
+              <i className="fas fa-times" style={{ marginRight: '0.25rem' }} />
+              {t('gal_photos_desc_clear') || 'Clear'}
+            </button>
+          )}
+          {saving && <i className="fas fa-circle-notch fa-spin text-muted" style={{ fontSize: '0.7rem' }} />}
+          {saved && !saving && <span style={{ fontSize: '0.72rem', color: '#16a34a' }}><i className="fas fa-check" style={{ marginRight: '0.2rem' }} /></span>}
+          {aiMissing && <span style={{ fontSize: '0.7rem', color: '#dc2626' }}>ANTHROPIC_API_KEY missing</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function GalleryPhotosPage() {
@@ -260,6 +349,9 @@ export default function GalleryPhotosPage() {
   const [aspectMode, setAspectMode] = useState(
     () => localStorage.getItem('photoAspectMode') || 'square'
   );
+
+  // View mode
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'descriptions'
 
   // Multi-select + drag state
   const [selected,     setSelected]     = useState(new Set()); // Set<photo.id>
@@ -877,6 +969,14 @@ export default function GalleryPhotosPage() {
                   >
                     <i className={`fas fa-${thumbSize === 'sm' ? 'magnifying-glass-plus' : 'magnifying-glass-minus'}`} />
                   </button>
+                  <button
+                    className={`btn btn-sm ${viewMode === 'descriptions' ? 'btn-secondary' : 'btn-outline-secondary'}`}
+                    style={{ fontSize: '0.75rem', padding: '2px 8px' }}
+                    title={viewMode === 'descriptions' ? (t('gal_photos_grid_mode') || 'Grid view') : (t('gal_photos_desc_mode') || 'Descriptions')}
+                    onClick={() => setViewMode(m => m === 'grid' ? 'descriptions' : 'grid')}
+                  >
+                    <i className={`fas fa-${viewMode === 'descriptions' ? 'th' : 'align-left'}`} />
+                  </button>
                   {selected.size > 0 ? (
                     <>
                       <span className="text-muted" style={{ fontSize: '0.8rem' }}>
@@ -983,6 +1083,19 @@ export default function GalleryPhotosPage() {
                     )}
                   </div>
                 )}
+                {viewMode === 'descriptions' ? (
+                  <div>
+                    {filteredPhotos.map(p => (
+                      <DescriptionRow
+                        key={p.id}
+                        photo={p}
+                        galleryId={galleryId}
+                        t={t}
+                        onUpdate={(id, text) => setPhotos(ps => ps.map(ph => ph.id === id ? { ...ph, ai_description: text } : ph))}
+                      />
+                    ))}
+                  </div>
+                ) : (
                 <DndContext
                   sensors={sensors}
                   collisionDetection={closestCenter}
@@ -1033,6 +1146,7 @@ export default function GalleryPhotosPage() {
                     </div>
                   </SortableContext>
                 </DndContext>
+                )}
               </>
             )}
           </AdminCard>
